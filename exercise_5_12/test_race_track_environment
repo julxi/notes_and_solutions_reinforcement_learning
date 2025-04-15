@@ -1,0 +1,275 @@
+import unittest
+import numpy as np
+from race_track import RaceTrack, START, FINISH
+from race_track_environment import RaceTrackEnv, State, Action
+
+
+class TestRaceTrackEnv(unittest.TestCase):
+    def test_initial_states_are_at_start_and_terminal_states_are_at_end(self):
+        # given
+        ascii_track = """
+#F#S
+#S#F
+"""
+        race_track = RaceTrack(ascii_track)
+        race_track_env = RaceTrackEnv(race_track, max_velocity=1, max_acceleration=1)
+
+        # when
+        result = race_track_env.states_with_actions
+
+        # then
+        for state, _ in result[:2]:
+            self.assertEqual(
+                race_track.get_piece(state.position[0], state.position[1]), START
+            )
+            self.assertEqual(state.velocity, (0, 0))
+        for state, _ in result[-2:]:
+            self.assertEqual(
+                race_track.get_piece(state.position[0], state.position[1]), FINISH
+            )
+            self.assertEqual(state.velocity, (0, 0))
+
+    def test_state_count_for_start_tile(self):
+        # given
+        ascii_track = """
+###
+#S#
+###
+"""
+        race_track = RaceTrack(ascii_track)
+        race_track_env = RaceTrackEnv(race_track, max_velocity=1, max_acceleration=1)
+
+        # when
+        result = len(race_track_env.states_with_actions)
+
+        # then
+        self.assertEqual(result, 9)
+
+    def test_state_count_for_track_tile(self):
+        # given
+        ascii_track = """
+###
+#-#
+###
+"""
+        race_track = RaceTrack(ascii_track)
+        race_track_env = RaceTrackEnv(race_track, max_velocity=1, max_acceleration=1)
+
+        # when
+        result = len(race_track_env.states_with_actions)
+
+        # then
+        self.assertEqual(result, 8)
+
+    def test_terminal_state_has_no_actions(self):
+        # given
+        ascii_track = """
+###
+#F#
+###
+"""
+        race_track = RaceTrack(ascii_track)
+        race_track_env = RaceTrackEnv(race_track, max_velocity=1, max_acceleration=1)
+
+        # when
+        result = race_track_env.states_with_actions
+
+        # then
+        self.assertEqual(len(result), 1)
+        self.assertEqual(len(result[0][1]), 0)
+
+    def test_all_states_are_unique_and_obey_velocity_acceleration_rules(self):
+        # given
+        ascii_track = """
+#F#S#-
+#F--S-
+F--#--
+"""
+        race_track = RaceTrack(ascii_track)
+        race_track_env = RaceTrackEnv(race_track, max_velocity=2, max_acceleration=1)
+
+        # when
+        result = race_track_env.states_with_actions
+
+        # then
+        seen_states = set()
+
+        for idx, (state, actions) in enumerate(result):
+            # Check for duplicate states
+            self.assertNotIn(state, seen_states)
+            seen_states.add(state)
+
+            x, y = state.position
+            vx, vy = state.velocity
+
+            # Velocity should only be (0, 0) for first two (start) and last three (terminal) states
+            if not (idx < 2 or idx >= len(result) - 3):
+                self.assertNotEqual(
+                    (vx, vy), (0, 0), f"Velocity was (0,0) at index {idx}"
+                )
+
+            self.assertLessEqual(abs(vx), 2)
+            self.assertLessEqual(abs(vy), 2)
+
+            for action in actions:
+                ax, ay = action.acceleration
+                self.assertLessEqual(abs(ax), 1)
+                self.assertLessEqual(abs(ay), 1)
+
+                new_vx = vx + ax
+                new_vy = vy + ay
+                self.assertNotEqual(
+                    (new_vx, new_vy),
+                    (0, 0),
+                    f"New velocity (0,0) from {state} + {action}",
+                )
+
+
+class TestIndexObjectConversions(unittest.TestCase):
+    def setUp(self):
+        ascii_track = """
+-F#        
+S-#
+"""
+        self.track = RaceTrack(ascii_track)
+        self.env = RaceTrackEnv(
+            race_track=self.track,
+            max_velocity=4,
+            max_acceleration=1,
+            noise_prob=0.0,
+            seed=42,
+        )
+
+    def test_object_to_index_and_back(self):
+        for state, actions in self.env.states_with_actions:
+            for action in actions:
+                state_idx, action_idx = self.env.state_action_to_index(state, action)
+                state2, action2 = self.env.index_to_state_action(state_idx, action_idx)
+
+                self.assertEqual(state, state2)
+                self.assertEqual(action, action2)
+
+    def test_index_to_object_and_back(self):
+        indexed_transitions = self.env.indexed_transitions
+        for i, a in np.ndindex(indexed_transitions.shape):
+            new_i = indexed_transitions[i, a]
+            if new_i == RaceTrackEnv.DOES_NOT_EXIST:
+                self.assertEqual(self.env.index_to_state_action(i, a), None)
+            else:
+                state, action = self.env.index_to_state_action(i, a)
+                i2, a2 = self.env.state_action_to_index(state, action)
+
+                self.assertEqual(i, i2)
+                self.assertEqual(a, a2)
+
+
+class SanityCheckForIndexedTransition(unittest.TestCase):
+    def setUp(self):
+        ascii_track = """
+-#-F#        
+#-S-#
+#SSS#
+"""
+        self.track = RaceTrack(ascii_track)
+        self.env = RaceTrackEnv(
+            race_track=self.track,
+            max_velocity=1,
+            max_acceleration=1,
+            noise_prob=0.0,
+            seed=1,
+        )
+
+    def test_does_not_exist_only_at_end(self):
+        code = RaceTrackEnv.DOES_NOT_EXIST
+        for row_idx, row in enumerate(self.env.indexed_transitions):
+            seen_dne = False
+            for col_idx, val in enumerate(row):
+                if val == code:
+                    seen_dne = True
+                elif seen_dne:
+                    self.fail(
+                        f"DOES_NOT_EXIST followed by valid entry at row {row_idx}, col {col_idx}: {val}"
+                    )
+
+    ##todo: tests something like all state-actions in states_with_actions
+    # result in a valid state
+
+
+class TestEnvironmentInteractions(unittest.TestCase):
+    def setUp(self):
+        ascii_track = """
+-F#        
+S-#
+"""
+        self.track = RaceTrack(ascii_track)
+        self.env = RaceTrackEnv(
+            race_track=self.track,
+            max_velocity=1,
+            max_acceleration=1,
+            noise_prob=0.0,
+            seed=1,
+        )
+
+    def test_random_generation_of_state_action_pir(self):
+        for _ in range(200):
+            s, a = self.env.get_random_state_action_pair()
+            s_new = self.env.indexed_transitions[s, a]
+            self.assertNotEqual(s_new, RaceTrackEnv.DOES_NOT_EXIST)
+
+
+class TestComputeActionMethod(unittest.TestCase):
+    def setUp(self):
+        ascii_track = """
+---F#        
+S---#
+"""
+        self.track = RaceTrack(ascii_track)
+        self.env = RaceTrackEnv(
+            race_track=self.track,
+            max_velocity=4,
+            max_acceleration=1,
+            noise_prob=0.0,
+            seed=42,
+        )
+
+    def test_normal_movement_on_track(self):
+        init_state = State(position=(0, 0), velocity=(1, 1))
+        action = Action(acceleration=(1, 0))
+
+        next_state, crash = self.env._compute_action(init_state, action)
+
+        self.assertFalse(crash)
+        self.assertEqual(next_state.velocity, (2, 1))
+        self.assertEqual(next_state.position, (2, 1))
+
+    def test_crash_into_wall(self):
+        init_state = State(position=(0, 0), velocity=(4, 0))
+        action = Action(acceleration=(0, 0))
+
+        next_state, crash = self.env._compute_action(init_state, action)
+
+        self.assertTrue(crash)
+        self.assertEqual(next_state, init_state)
+
+    def test_out_of_bounds_crash(self):
+        init_state = State(position=(2, 0), velocity=(-2, -2))
+        action = Action(acceleration=(0, 0))
+
+        next_state, crash = self.env._compute_action(init_state, action)
+
+        self.assertTrue(crash)
+        self.assertEqual(next_state, init_state)
+
+    def test_reach_finish_line(self):
+        init_state = State(position=(0, 1), velocity=(4, 0))
+        action = Action(acceleration=(0, 0))
+
+        next_state, crash = self.env._compute_action(init_state, action)
+
+        self.assertFalse(crash)
+        self.assertEqual(next_state.velocity, (0, 0))
+        self.assertEqual(next_state.position, (3, 1))
+
+
+if __name__ == "__main__":
+    unittest.main()
