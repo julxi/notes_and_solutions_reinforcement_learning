@@ -1,7 +1,7 @@
-/_extensions/
-/.quarto/
-/.jupyter_cache/
-/docs/
-/main_files/
+#/_extensions/
+#/.quarto/
+#/.jupyter_cache/
+#/docs/
+#/main_files/
 
-.luarc.json
+#.luarc.json
