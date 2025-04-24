@@ -1,0 +1,24 @@
+project:
+  type: book        
+  output-dir: docs
+  execute-dir: project
+book:
+  title: "Notes on Sutton & Barto"
+  chapters:
+    - index.qmd
+    - chapters/01-intro.qmd
+    - chapters/02-multi-armed-bandits.qmd
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+    number-sections: true
+    sidebar:
+      style: floating
+    code-fold: true
+execute: 
+  cache: true
+
+
+

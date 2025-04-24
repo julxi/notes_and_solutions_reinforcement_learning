@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		// always launch kernels in the workspace root
+		"jupyter.notebookFileRoot": "${workspaceFolder}",
+		"jupyter.interactiveWindow.cwd": "${workspaceFolder}"
+	}
+}

@@ -1,0 +1,89 @@
+### The Bandit Gradient Algorithm as Stochastic Gradient Ascent {.unnumbered}
+
+Wow, what's coming up on Sutton-Bartons book page 39 is quite a jump in difficulty from page 36, which defined the natural logarithm. Well, we will take it slow (and precise).
+
+#### Gradien Ascent (deterministic) {.unnumbered}
+
+For a differentiable scalar function $F : \mathbb{R}^d \to \mathbb{R}$ and current point $\mathbf{a}_t$, the update
+$$
+\mathbf{a}_{t+1} = \mathbf{a}_t + \alpha \nabla F(\mathbf{a}_t), \quad \alpha > 0
+$$
+moves (for sufficently small $\alpha$) up the hill because $\nabla F$ points into the direction of steepest acsent.
+
+#### Stochastic Gradient Ascent {.unnumbered}
+
+If we don't have access to $\nabla F$ but can only observe random vectors $G_t$ with
+$$
+\mathbb{E} [ G_t \mid \mathbf{a}_t] = \nabla F (\mathbf{a}_t)
+$$
+
+Then the Robbins-Monro stochastic-approximation theorem (TODO: what?) says that 
+$$
+\mathbf{a}_{t+1} = \mathbf{a}_t + \alpha_t G_t
+$$
+still converges provided that $\sum_{t} \alpha_t = \infty$ and $\sum_{t} \alpha_t^2 < \infty$.
+
+#### Connecting to the armed bandit {.unnumbered}
+
+Here our data points are the $H_t$ (so basically our vector space is indexed by the actions) and the scalar function we want to climb up is $J(H) := \mathbb{E}[R \mid A \sim \pi_H] = \sum_{b} \pi_H(b) q_*(b)$.
+
+#### Exact Gradient of $J(H)$
+
+blabla
+
+#### The rest
+
+Here, we consider the case of a stochastic, parameterized policy, $\pi_{H}$. We aim to maximize the expected return $J(\pi_{H}) = \underset{\tau \sim \pi_{H}}{\mathbb{E}}[R(\tau)]$. We would like to optimize the policy by gradient ascent, e.g.,
+
+$$
+H_{t+1} = H_t + \alpha \left. \nabla_{H} J(\pi_{H}) \right|_{H_k}.
+$$
+
+Since the reward of the armed bandits doesn't have any memory, only the last action influences the outcome:
+
+$$
+\nabla_{H} J(\pi_{H}) = \nabla_H\underset{\tau \sim \pi_{H}}{\mathbb{E}}[R(\tau)] = \nabla_H \underset{b \sim \pi_H}{\mathbb{E}}[R].
+$$
+
+Let's write this down for a specific action $a$:
+
+$$
+H_{k+1}(a) = H_k(a) + \alpha \left. \frac{\partial J(\pi_{H})}{\partial H(a)} \right|_{H_k(a)} = H_k(a) + \alpha \left. \frac{\mathbb{E}_{b \sim \pi_H}[R(b)]}{\partial H(a)} \right|_{H_k(a)}.
+$$
+
+As in Sutton and Barto, we look at the performance gradient:
+
+$$
+\frac{\mathbb{E}_{b \sim \pi_H}[R(b)]}{\partial H(a)} = \frac{\sum_b q_*(b) \pi_H(b)}{\partial H(a)} = \sum_b q_*(b) \frac{\partial \pi_H(b)}{\partial H(a)} = \sum_b (q_*(b) - C)\frac{\partial \pi_H(b)}{\partial H(a)}.
+$$
+
+We can add any constant $C$ because the sum $\sum_b \pi_H(b) = 1$ for all preferences $H$, and thus $\frac{\partial \sum_b \pi_H(b)}{\partial H(a)} = 0$. As in Sutton and Barto, we can evaluate this at $H_k(a)$ and see it as an expectation depending on the random variable $A_k$ that gives the actual outcome of the taken action:
+
+$$
+\begin{split}
+\left. \frac{\mathbb{E}_{b \sim \pi_H}[R(b)]}{\partial H(a)}\right|_{H_k(a)} &=
+\sum_b \pi_{H_k}(b) (q_*(b) - C)\left.\frac{\partial \pi_H(b)}{\partial H(a)}\right|_{H_k(a)}/\pi_{H_k}(b) \\
+&= \mathbb{E} \left[ (q_*(A_k) - C)\left.\frac{\partial \pi_H(A_k)}{\partial H(a)}\right|_{H_k(a)}/\pi_{H_k}(A_k) \right].
+\end{split}
+$$
+
+Now, I'm starting to become properly confused. I think my question is: what are we taking the expected value of? Sutton and Barto say I can replace $q_*(A_k)$ with $R_k$, because $\mathbb{E}[R_k] = q_*(A_k)$? That goes back to the question of what $q_*$ should actually be. But even then, they say all other things are not random, but isn't $\pi_{H_k}(A_k)$ also random as it depends on the value of $A_k$? Somehow, they arrive at:
+
+$$
+\left. \frac{\mathbb{E}_{b \sim \pi_H}[R(b)]}{\partial H(a)} \right|_{H_k(a)} = \mathbb{E} \left[ (R_t - \bar{R}_t) \frac{\partial \pi_t(A_t)}{\partial H_t(a)}/\pi_t(A_t) \right].
+$$
+
+Which, after some calculus for the derivative of $\pi_t$ (which I understand), they have:
+
+$$
+\left. \frac{\mathbb{E}_{b \sim \pi_H}[R(b)]}{\partial H(a)} \right|_{H_k(a)} = \mathbb{E}\left[(R_t - \bar{R}_t)(\mathbb{I}_{a=A_t} - \pi_t(a))\right].
+$$
+
+And then they say something about sampling, and their update formula is:
+
+$$
+H_{k+1}(a) = H_k(a) + \alpha (R_t - \bar{R}_t)(\mathbb{I}_{a=A_t} - \pi_t(a)).
+$$
+
+So they just copied the inner part of the expected value and replaced the gradient with that? I don't get it. And where in this argument is it important that we use $\bar{R}_t$? It wouldn't work with another value, right?
+
