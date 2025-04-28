@@ -1,5 +1,3 @@
 # Preface {.unnumbered}
 
-This is a Quarto book.
-
-To learn more about Quarto books visit <https://quarto.org/docs/books>.
+Welcome to my study notes on Reinforcement Learning: An Introduction by Richard S. Sutton and Andrew G. Barto. This primarily focuses on my solutions and thoughts while working through the exercises in the book.

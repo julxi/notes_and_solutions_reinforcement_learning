@@ -8,11 +8,12 @@ book:
     - index.qmd
     - chapters/01-intro.qmd
     - chapters/02-multi-armed-bandits.qmd
+bibliography: references.bib
 format:
   html:
     theme:
-      light: flatly
       dark: darkly
+      light: flatly
     number-sections: true
     sidebar:
       style: floating
