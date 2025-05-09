@@ -1,0 +1,692 @@
+# Theoretical side
+
+<!--
+Todos:
+- change all bold random variables in this chapter to not bold (they are no vectors)
+- todo write about estimators
+- todo: do we require time-homogeneous markov chains?
+-->
+
+## geometric series
+
+In the context of reinforcement learning, the concept of discounting naturally requires the notion of _geometric series_. This series is defined as,
+$$
+S(n+1) := \sum_{i=0}^n \gamma^i,
+$$
+
+where $\gamma \in \mathbb{R}$.
+By convention, an empty sum is considered to be 0, thus $S(0)=0$.
+
+If $\gamma = 1$, then the geometric series simplifies to $S(n+1) = n+1$.
+So let's assume $\gamma \neq 1$ from now on.
+
+By pulling out the term for $i=0$ and factoring out a $\gamma$, we can derive a recurrence relation for the geometric series
+$$
+S(n+1) = 1 + \gamma S(n) \quad \text{and} \quad S(0) = 0
+$$ {#eq-geometric-series-recurrence-relation}
+
+When we even add a clever $0 = \gamma^{n+1} - \gamma^{n+1}$ we get this
+equation for $S(n)$
+$$
+S(n) = (1 - \gamma^{n+1}) + \gamma S(n).
+$$
+
+From this, we can deduce the closed-form expression for the geometric series:
+$$
+\sum_{i=0}^n \gamma^i  = \frac{1 - \gamma^{n+1}}{1 - \gamma}
+$$ {#eq-finite-geometric-series}
+ 
+By omitting the first term (starting from $i = 1$), we obtain:
+$$
+\sum_{i=1}^n \gamma^i =  \frac{\gamma - \gamma^{n+1}}{1 - \gamma}
+$$ {#eq-finite-geometric-series-truncated}
+
+The infinite geometric series converges, if and only if, $|\gamma| < 1$. Using the previous formulas, we can derive their limits:
+$$
+\sum_{i=0}^\infty \gamma^i = \frac{1}{1-\gamma}
+$$ {#eq-infinite-geometric-series}
+$$
+\sum_{i=1}^\infty \gamma^i = \frac{\gamma}{1-\gamma}
+$$ {#eq-infinite-geometric-series-truncated}
+
+### adding inhomogeneity
+
+As it turns out, the basic geometric series we've explored isn't quite enough to handle discounting and cumulative discounted returns in reinforcement learning.
+While the geometric series solves the homogeneous linear recurrence relation given by @eq-geometric-series-recurrence-relation, dealing with cumulative discounted returns introduces a non-homogeneous variation, where the constants 1s are replaced by a some $r_i$​, leading to the recurrence relation:
+$$
+Q(n+1) := r_n + \gamma Q(n) \quad \text{and} \quad Q(0) := 0
+$$ {#eq-non-homogenous-geometric-series-recurrence-relation}
+
+We can also give an explicit formula for $Q(n+1)$:
+$$
+Q(n+1) = \sum_{i=0}^n \gamma^{n-i} r_i.
+$$ {#eq-non-homogenous-geometric-series-convolution-form}
+
+It's easy to verify that this fulfils the recursive definition:
+$$
+\begin{split}
+Q(n+1) &= r_n + \sum_{i=0}^{n-1} \gamma^{n-i} r_i \\
+&= r_n + \gamma\sum_{i=0}^{n-1} \gamma^{n-1-i} r_{i} \\
+&= r_n + \gamma Q(n).
+\end{split}
+$$
+
+## random variables
+
+A random variable $X$ is a function $X\colon \Omega \to \mathcal{X}$ from a probability space
+$(\Omega,p)$ to a result space $\mathcal{X}$.
+We use the convention of @sutton2018 that we denote random variables with capital letters and use lower case letters for the elements of the result space.
+
+In our setting we only need finite, discrete probability spaces $(\Omega, p)$ which are a finite set of all possible outcomes $\Omega$ together with a probability measure $p$, i.e., a function $p\colon \Omega \to [0,1]$ s.t. $\sum_{\omega \in \Omega} p(\omega) = 1$.
+
+We will fix one $\Omega$ and probability measure $\mathrm{Pr}$
+that are used throughout these notes.
+We throw everything in $(\Omega, \mathrm{Pr})$
+at once all hidden variables of environment,
+all randomness in the agents.
+So we can throw at it all kinds of statements like:
+$\mathrm{Pr}(\text{Agent chooses the best action})$
+or $\mathrm{Pr}(X = x)$.
+
+This brings up two conventions.
+First when we write $\mathrm{Pr}(\text{statement})$
+we mean $\mathrm{Pr}(A)$ where $A$ is the set of all
+$\omega \in \Omega$ for which the statement is true.
+Second we usually omit the $\omega$ argument in
+random variables $X$. So to speak $X$ is a value
+which is just random and not know a priori.
+Mathematically this conflate the function $X \colon \Omega \to \mathcal{X}$ and the value $X(\omega)$ but context sorts that out.
+With both conventions in action we can unwind 
+$\mathrm{Pr}(X = x)$ as $\mathrm{Pr}(\omega \in \Omega : X(\omega) = x)$
+or shorter $\mathrm{Pr}(X^{-1}(\omega))$
+
+I said that our base probability space is incredibly
+complicated and didn't even define it properly
+(in my head it's like a multiverse quantum definition).
+That's not a real issue, because we usually work on the levels of $\Omega$ but work directly with the distribution of $X$:
+$$
+p_X(x) := \mathrm{Pr}(X = x)
+$$
+
+for which we only need to know how $X$ behaves
+not the whole surounding system.
+
+Actually this makes $(\mathcal{X}, p_\mathbf{X})$ into a probability space,
+where $p_X$ is called the _pushforward_ measure.
+
+A small example is the result of the throw of a fair coin.
+The random variable $C$ shall denote the outcome of this
+throw in the result space $\mathcal{C} = \{h, t\}$.
+The distribution of $C$ is
+$p_C(c) = 0.5$ for both $c = h,t$.
+That basically models the coint throw and we didn't need
+to talk about the supporting $\Omega$ at all.
+
+Now let's throw the dice two times (two experiments).
+One way to model would be to say we take two random $(\omega_1, \omega_2) \in \Omega \times \Omega$ and have $C^2 = (C,C)$. Or something along the line.
+But this goes against the approach
+for one probabiltiy space to rule them all.
+We go with the approach that every thing being done, is it's own
+random variable. So two coin throws are two random variables
+$C_1$ and $C_2$.
+
+There are some properties that hold for $C_1$ and $C_2$.
+First, $C_1, C_2 \sim p_C$ which means that they
+are distributed according to $p_C$.
+Second, they are independent,
+where two random variables $X$ and $Y$
+are independent if
+$$
+\mathrm{Pr}(X = x, Y = y ) = \mathrm{Pr}(X = x) \cdot \mathrm{Pr}(Y = y)
+$$
+
+Maybe there are too many equalities here.
+Let's formulate it differently
+$$
+\mathrm{Pr}(X^{-1}(x) \cap Y^{-1}(y) ) = \mathrm{Pr}(X^{-1}(x)) \cdot \mathrm{Pr}(Y^{-1}(y))
+$$
+
+Mh... that's not really better. Well, let's crack on anyway.
+
+### conditional probability
+
+Usually in reinforcment learning we don't play with dice
+but with markov chains (will discuss them later).
+A simple example would be two random variables
+$A$, the action, and $R$, the subsequent reward.
+Basically it doesn't make sense for us to ask about the
+distribution of $R$ (when we don't know how $A$ is distrubuted)
+but it makes perfectly sense to talk about the distribution
+of $R$ given that $A = a$.
+We write this as 
+$$
+\mathrm{Pr}(R = r \mid A = a) = \frac{\mathrm{Pr}(R = r, A = a)}{\mathrm{Pr}(A = a)}
+$$
+where the comma between two events means and (or the intersection of the $\Omega$ subspaces)
+
+This is only well defined if $\mathrm{Pr}(A = a) > 0$
+but this is a technicality that we won't
+pay too much attention too (it won't bite us).
+
+Conditional probability and independence are related concepts.
+It can be easily verified that when two random variables are independent
+like our dice throw for example, weh have
+$$
+\mathrm{Pr}(C_1 = c_1 \mid C_2 = c_2 ) = \mathrm{Pr}(C_1 = c_1)
+$$
+
+Let's go back to our mini Markov chain.
+We can know the distribution of $R$ if we have knowledge over $A$
+
+$$
+\begin{split}
+\mathrm{Pr}(R = r) &= \sum_{a} \mathrm{Pr}(R = r, A = a) \\
+&= \sum_{a} \mathrm{Pr}(A = a)\frac{\mathrm{Pr}(R = r, A = a)}{\mathrm{Pr}(A = a)}\\
+&= \sum_{a} \mathrm{Pr}(A = a) \mathrm{Pr}(R = r \mid A = a)
+\end{split}
+$$
+
+I think the last line makes a lot of sense.
+
+Sometimes we want to say that our experiment is set up
+so that $A \sim \pi$ then we can just write
+$$
+\mathrm{Pr}_\pi(R = r) = \sum_{a} \pi(a) \mathrm{Pr}(R = r \mid A = a)
+$$
+
+When we say that we swap the policy $\pi$ for another $\pi'$
+we mean that all other distributions stay unchanged.
+
+
+## Expected value
+
+Real-valued random variables $X\colon \Omega \to \mathbb{R}$ have a mean $\mathbb{E}[X]$, an expected outcome, defined as:
+$$
+\mathbb{E}[ X ] := \sum_{\omega \in \Omega} X(\omega) p(\omega)
+$$
+
+We can also calculate the mean using the distribution $p_X$
+$$
+\mathbb{E}[X] = \sum_{x \in \mathbb{R}} x \cdot p_X(x),
+$$
+
+which is one of my favorite facts.
+Let me present it again in a different way and also prove it.
+
+:::  {#thm-law-of-the-unconscious-statistician}
+
+## law of the unconscious statistician
+
+Given a random variable $X \colon \Omega \to E$ and a real-valued function from the result space $g \colon E \to \mathbb{R}$.
+Then the expected value of $g$ on the pushforward space $(E, p_X)$ is the same as the expected value of the-real valued random variable $g(X) := g \circ E\colon \Omega \to \mathbb{R}$:
+$$
+\mathbf{E}[g(X)] = \sum_{e \in E} g(e) p_X(e)
+$$
+:::
+
+::: {.proof}
+Visually the proof is t
+
+$$
+\begin{split}
+\sum_{e\in E} H(e)p_X(e) &= \sum_{e \in E} H(e) p(\{\omega : X(\omega) = e\}) \\
+&= \sum_{e \in E} H(e) \left( \sum_{\omega \in \Omega} p(w) \mathbb{I}_{\mathbf{X}(\omega) = e} \right) \\
+&= \sum_{e \in E, \omega \in \Omega} H(e) p(\omega) \mathbb{I}_{\mathbf{X}(\omega) = e} \\
+&= \sum_{\omega \in \Omega} p(\omega) \left( \sum_{e \in E} H(e) \mathbb{I}_{\mathbf{X}(\omega) = e} \right) \\
+&= \sum_{\omega \in \Omega}  p(\omega)  H(\mathbf{X}(\omega))
+\end{split
+$$
+:::
+
+### conditional expected value {#sec-conditional-expected-value}
+
+What is the expected value of the reward when I select an action?
+That is a conditional expected value:
+
+$$
+\mathbb{E}[X \mid B] := \sum_{\omega \in \Omega} X(\omega) \cdot \mathrm{Pr}(\omega \mid B)
+$$
+
+We also get the lotus for this:
+$$
+\mathbb{E}[X \mid B] = \sum_{x \in \mathcal{X}} x \cdot p_{X|B}(x)
+$$
+
+Just to get good at this let's write it down for this case
+In the most basic meaning
+$$
+\begin{split}
+\mathbb{E}[X \mid Y = y] &= \sum_{\omega \in \Omega} X(\omega) \mathrm{Pr}(\omega \mid Y = y) \\
+&= \sum_{\omega \in \Omega} X(\omega) \cdot \frac{\mathrm{Pr}(\omega) \mathbb{I}_{Y(\omega) = y}}{\mathrm{Pr}(Y^{-1}(y))}
+\end{split}
+$$
+
+Or in its lotus form:
+$$
+\begin{split}
+\mathbb{E}[X \mid Y = y] &= \sum_{x \in \mathcal{X}} x \cdot p_{X|Y=y}(x) \\
+&= \sum_{x \in \mathcal{X}} x \cdot \frac{\mathrm{Pr}(X^{-1}(x) \cap Y^{-1}(y))}{\mathrm{Pr}(Y^{-1}(y))}
+\end{split}
+$$
+
+Now imagine we have a simple morkov chain $A,R$. One action
+and one reward. The reward distribution depends on the action taken $p_{R|A=a}$.
+Let's say we have a policy $\pi$ for taken action $A$, i.e., $A \sim \pi$.
+
+Then we write $\mathbb{E}_\pi[R]$ for the expected reward where
+we stipulate that $A \sim \pi$. We can write it out as
+$$
+\begin{split}
+\mathbb{E}_\pi[R] &= \sum_{r} r \mathrm{Pr}(R = r) \\
+&= \sum_{r} r \sum_{a} \pi(a) \mathrm{Pr}(R = r \mid A = a) \\
+&= \sum_{a} \pi(a) \sum_{r} r \; \mathrm{Pr}(R = r \mid A = a) \\
+&= \sum_{a} \pi(a) \; \mathbb{E}[R \mid A = a]
+\end{split}
+$$
+
+Now I don't know how to define the conditional expectation generally
+$$
+\mathbb{E}[R | A \sim \pi]
+$$
+Intuitively it is clear but I can't take it apart into smaller pieces.
+I want to take it down to the level of $\Omega$ which then should be
+equivalent by some law of the unconcious statistician to this
+$$
+\mathbb{E}[R | A \sim \pi] = \sum_{a \in \mathcal{A}} \pi(a) \sum_{r \in \mathcal{R}} r p_{R|A=a}(r)
+$$
+
+
+Ok, so what I made out of this is the following.
+I imagine that we have a huge $\Omega$ that basically contains everything in our experiment environment and agents.
+When we fix a policy we have changed that probability measure $\mathrm{Pr}$ over $\Omega$.
+We have to boost some probabilities and decrease some other so that for the new measure
+we get $\mathrm{Pr}^{\pi}(A = a) = \pi(a)$. We can do this uniformly by setting
+$$
+\mathrm{Pr}^\pi(\omega) := \frac{\pi(A(\omega))}{\mathrm{Pr}(A = A(\omega))} \cdot \mathrm{Pr}(\omega)
+$$
+Is that reasonable? Is there anything more that can be said about this that helps understanding fixing policies?
+
+## Variance
+
+We can't talk about expected value without variance.
+Let's define it
+$$
+\mathrm{Var}(X) = \mathbb{E}\big[ (\mathbf{X} - \mathbb{E}[\mathbf{X}])^2 \big]
+$$
+
+A pretty well know formula for variance is
+$$
+\mathrm{Var}(\mathbf{X}) = \mathbb{E}[ \mathbf{X}^2 ] - \mathbb{E}[\mathbf{X}]^2
+$$
+
+which can be very easily proven. I promise. It looks more complicated here that it actually is.
+We just need linearity of $\mathbb{E}$
+$$
+\begin{split}
+\mathrm{Var}(\mathbf{X}) &= \mathbb{E}[ (\mathbf{X} - \mathbb{E}[\mathbf{X}])^2] \\
+&= \mathbb{E}[ \mathbf{X}^2 - 2\mathbf{X}\mathbb{E}[\mathbf{X}] +  \mathbb{E}[\mathbf{X}]^2] \\
+&= \mathbb{E}[ \mathbf{X}^2] - 2\mathbb{E}[\mathbf{X}]\mathbb{E}[\mathbf{X}] +  \mathbb{E}[\mathbf{X}]^2\\
+&= \mathbb{E}[ \mathbf{X}^2 ] - \mathbb{E}[\mathbf{X}]^2
+\end{split}
+$$
+
+## markov chains
+
+very generally markov chains are processes
+where the conditional probability 
+has a finite horizon.
+
+### markov process (MP) {#sec-markov-process}
+
+We want to model a system that randomly
+evolves over discrete time steps
+and takes states in the state space $\mathcal{S}$
+
+We can do this by a sequence of random variables
+$S_0, S_1, \dots$ where $S_t\colon \Omega \to \mathcal{S}$ is the state of
+the system at time $t$.
+In the past the system was in the states $S_0, \dots, S_{t-1}$
+and its immediate future is $S_{t+1}$.
+
+The defining property of a Markov chain is that the future is independent of the past given the present state of the process.
+Which is expressed like this
+
+$\mathrm{Pr}(S_{t+1} = s' \mid S_t = s, (S_{t'} = s_{t'})_{t' < t}) = \mathrm{Pr}(S_{t+1} = s' \mid S_t = s)$
+
+and these probabilities are independent of $t$:
+$\mathrm{Pr}(S_{t+1} = s' \mid S_t = s) = \mathrm{Pr}(S_{t'+1} = s' \mid S_t' = s)$
+
+So a markov process[^precise_terminology_mp] is completely described by
+
+- state space $\mathcal{S}$ and
+- transition probabilities: the probability of moving from one state to another, denoted as $p(s' | s) := P(S_{t+1}=s′∣ S_t=s)$.
+
+Note that for each fixed $s$, $p(\cdot | s)$ is a probability measure on $\mathcal{S}$.
+
+[^precise_terminology_mp]: Our working definition of markov process is technically called a stationary discrete-time Markov chain.
+
+### markov reward process (MRP)
+
+A Markov Reward Process adds a reward structure to a Markov Process.
+What are we rewarded for? For just observing diligently the process
+and keeping our feet still to go through this intermediate step
+towards a better understanding of the upcomming mdp.
+ 
+Here we have a sequence of random variables
+$R_0, S_0, R_1, S_1, R_2, \dots$
+where actually $R_0, S_0$ define a radnom v
+
+
+- finite state space $\mathcal{S}$
+- finite reward space $\mathcal{R} \subseteq \mathbb{R}$
+- $p(s', r | s) := \mathrm{Pr}(S_{t+1}=s', R_{t+1} = r∣ S_t = s)$.
+
+Here $p(\cdot, \cdot | s)$  is a probability measure on
+the product space $\mathcal{S} \times \mathcal{R}$, in particular
+$\sum_{s' \in \mathcal{S}, r \in \mathcal{R}} p(s',r|s) = 1$
+
+We can define another random variable from this the return
+$G_t = R_{t+1} + R_{t+2} + R_{t+3} \dots$.
+
+### markov decision process (MDP)
+
+The trajectory looks like this:
+$$
+R_0, S_0, A_0, A_1, S_1, A_1, \dots 
+$$
+Here the random variables $R_i$ take values in the reward space $\mathcal{R}$,
+$S_i$ values in the state space $\mathcal{S}$, and the $A_i$ in the action space $\mathcal{A}$.
+
+The dynamic is some interweaven process such that
+
+Going from $S_t, A_t$ to the next state-reward pair is given by
+$$
+p(s', r | s, a) := \mathrm{Pr}(S_{t+1}=s', R_{t+1} = r∣ S_t = s, A_t = a).
+$$
+
+A policey is a function that describes how the action are selected
+$\mathrm{Pr}(A_t = a | S_t = s) = \pi(a|s)$
+So our policy is also stationary
+
+We write $A_t \sim \pi$ to denote that the conditional distribution
+of $A_t$ is according to $\pi$
+
+
+
+## Estimators
+
+Often when we want to know the expected value of a random variable we don't know it's distribution, so we can't calculate it.
+But if we can sample it, we can estimate $\mathbb{E}[\mathbf{X}]$
+
+The details how we model this sample doesn't matter. We can think of having $N$ results $\mathbf{x}_1, \dots, \mathbf{x}_n$ that come from $\mathbf{X}$ given from $\omega_1, \dots, \omega_n \in \Omega$. Or, which is uasally done, we think of each sample as it's own random variable $\mathbf{X}_i$
+which have all the same distribution as $\mathbf{X}$ and are independent (they are fresh experiments).
+And then the observations could all come from one $\omega$ (that lives in a really big $\Omega$ that kind of contains samples of our whole world.
+I think of it like the many worlds hypothesis in Quantum mechanics.)
+
+So an estimator is any function $\theta$ that takes a bunch of samples and returns the thing we want to estimate. Any function is an estimator, but we don't want any stupid estimates. We want educated estimates.
+
+Let's say we want to estimate $\mathbb{E}[\mathbf{X}]$. How should we define $\theta$ in relation to the $\mathbf{X}_1, \dots, \mathbf{X}_N$.
+Well the obvious choice is the sample mean
+$$
+\hat\theta = \frac{1}{N}\sum_{i=1}^N \mathbf{X}_i
+$$
+
+By the theorem of large numbers it makes sense that this is a good estimator.
+Let's go through some performance measures for estimators.
+
+### Estimator Performances
+
+The bias tells us if the estimator is actually aimed at the thing we want to estimate.
+$$
+B(\hat\theta) = \mathbb{E}[\hat\theta] - \theta
+$$
+If it's null, i.e., $\mathbb{E}[\hat\theta] = \theta$ it's unbiased.
+It can also be unbiased in the limit, which is also alright for me.
+
+I think the variance of an estimator should also go down with sample size.
+Let's see what happens to our sample mean thingy:
+$$
+\begin{split}
+\mathrm{Var}(\bar{\mathbf{X}}_n) &= \mathbb{E}[\bar{\mathbf{X}}_n^2] - \mu^2  \\
+&= \mathbb{E}\left[ \frac{1}{n}\left( \sum_{i=1}^n \mathbf{X}_i \right)^2 \right] - \mu^2 \\
+&= \mathbb{E}\left[ \sum_{i,j=1}^n X_i X_j \right] - \mu^2 \\
+&= \sum_{i,j=1}^n \mathbb{E} [X_i X_j] - \mu^2 \\
+&= \sum_{k=1}^n \mathbb{E} [\mathbf{X}_k^2] + \sum_{i\neq j} \mathbb{E}[\mathbf{X}_i]\mathbb{E}[\mathbf{X}_j] - \mu^2 \\
+&= n (\mu^2 + \sigma^2) + (n^2-n) \mu^2 - \mu^2
+\end{split}
+$$
+
+
+
+Let's try to find an estimator of the variance $\sigma^2$.
+$$
+S^2_n = \frac{1}{n-1} \sum_{i=1}^n (\mathbf{X}_i - \bar{\mathbf{X}}_n)^2
+$$
+
+::: {.proof}
+We need some things in our toolbox for the proof:
+
+- $\mathbb{E}[ \mathbf{X}\mathbf{Y}] = \mathbb{E}[ \mathbf{X}] \mathbb{E}[ \mathbf{Y}]$ for independent $X$ and $Y$
+- $\mathrm{Var}(\bar{\mathbf{X}}_n) = \frac{\sigma^2}{n}$
+- $\mathbb{E}[\mathbf{X}^2] = \mathrm{Var}(\mathbf{X}^2) + \mathbb{E}[\mathbf{X}]^2$
+
+Now we can do a lengthy calculation. Again the $\mathbf{X}_i$ are i.i.d.\ with mean $\mu$ and variance $\sigma^2$.
+
+$$
+\begin{split}
+\mathbb{E}[ S_n^2 ] &= \mathbb{E}\Big[ \frac{1}{n-1} \sum_{i=1}^n (\mathbf{X}_i - \bar{\mathbf{X}}_n)^2 \Big] \\
+&= \frac{1}{n-1} \sum_{i=1}^n \underbrace{\mathbb{E}[\mathbf{X}_i^2]}_{\sigma^2 + \mu^2} - 2 \underbrace{\mathbb{E}[ \mathbf{X}_i \bar{\mathbf{X}}_n]}_{\mu^2 + \frac{\sigma^2}{n} \text{(below)}} + \underbrace{\mathbb{E}[ \bar{\mathbf{X}}_n^2]}_{\mu^2 + \frac{\sigma^2}{n}} \\
+&= \frac{1}{n-1} \sum_{i=1}^n \sigma^2 + \mu^2 - ( \mu^2 + \frac{\sigma^2}{n}) \\
+&= \frac{1}{n-1} n \frac{n-1}{n} \sigma^2 \\
+&= \sigma^2
+\end{split}
+$$
+
+we still need to prove the following
+$$
+\begin{split}
+\mathbb{E}[\mathbf{X}_i \bar{\mathbf{X}}_n] &= \frac{1}{n}\sum_{j=1}^n\mathbb{E}[\mathbf{X}_i\mathbf{X}_j] \\
+&= \frac{1}{n} \mathbb{E}[\mathbf{X}_i^2] + \frac{1}{n} \sum_{j\neq i} \mathbb{E}[\mathbf{X}_i] \mathbb{E} [\mathbf{X}_j] \\
+&= \frac{1}{n} (\sigma^2 + \mu^2) + \frac{1}{n} (n-1) \mu^2 \\
+&= \mu^2 + \frac{\sigma^2}{n}
+\end{split}
+$$
+
+
+
+
+:::
+
+
+
+Let's check it's expectation
+$$
+\begin{split}
+\mathbb{E}[S^2_n] &= \frac{1}{n-1} \sum_{i=1}^n \mathbb{E} \Big[ (\mathbf{X}_i - \bar{\mathbf{X}}_n)^2 \Big] \\
+&=  \frac{1}{n-1} \sum_{i=1}^n  \mathbb{E}[\mathbf{X}_i^2] -2 \mathbb{E}[\mathbf{X}_i\bar{\mathbf{X}}_n] + \mathbb{E}[\bar{\mathbf{X}}_n^2]
+\end{split}
+$$
+
+One sensible metric is the mean squared error (MSE)
+$$
+MSE(\hat\theta) = \mathbb{E}\Big[ (\hat\theta(X) - \theta)^2 \Big]
+$$
+
+For the sample average this becomes just the variance. And for this we get
+$$
+\begin{split}
+\mathrm{Var}(\hat\theta) &= \mathrm{Var}\Big( \frac{1}{N}\sum_{i=1}^N \mathbf{X}_i \Big) \\
+&= \frac{1}{N^2} \sum_{i=1}^N \mathrm{Var}( \mathbf{X}_i) \\
+&= \frac{1}{N^2} N \sigma^2 = \frac{\sigma^2}{N}
+\end{split}
+$$
+
+## A refresher on measure theory
+
+The expectation of $X$ is
+$$
+\mathbb{E}[X]  =  \int_\Omega (X(ω)) \;\mathrm{d}P(ω).
+$$
+Define a new measure $\mu_X$​ on the real line $\mathbb{R}$ by
+$$ \mu_X(A)  :=  P(\{X(ω) \in A\}) $$
+for any Borel set $A \subseteq \mathbb{R}$.
+
+This measure $\mu_X$​ is called
+the distribution measure or pushforward measure of $X$.
+
+A fundamental result in measure theory states that
+    
+$$
+\int_\Omega X(w) \mathrm{d}P(w) = \int_{\mathbb{R}} X \mathrm{d}\mu_X(x).
+$$
+
+
+### A refresher on estimators.
+
+
+
+### Introducing Importance Sampling
+
+Suppose we want to evaluate a policy $\pi$ for a bandit.
+The exact value of $\pi$ is 
+$$v_\pi = \mathbb{E}_\pi[R] = \sum_{a \in \mathcal{A}} \pi(a)r(a)$$
+where $r(a)$ is the expected value of picking $a$.
+We can get an estimate for $v_\pi$ by sampling some rewards
+$R_1, \dots, R_n$ and we get $v_\pi \approx \frac{\sum_i R_i}{N}$.
+
+Now we want to extract the give an estimate for $v_\pi$ 
+using a different behaviour policy $b$ for the samples.
+
+Using $b$ we can get samples $A_1,R_1, \dots , A_n, R_n$
+of actions and rewards.
+Now to get an estimator for $v_\pi$ we can use the following
+$$
+\begin{split}
+\mathbb{E}_\pi[R] &= \sum_{a \in \mathcal{A}} \pi(a) r(a) \\
+&= \sum_{a \in \mathcal{A}} \frac{\pi(a)}{b(a)} r(a) b(a) \\
+&= \mathbb{E}[\frac{\pi(A)}{b(A)} R \mid A \sim b]
+\end{split}
+$$
+This relative probability $\rho_t := \pi(A_t): b(A_t)$ of the target and behaviour policies is called the importance-sampling ratio.
+Now we can simply estimate $v_\pi$ by ordinary importance sampling
+
+$$
+v_\pi \approx \frac{\sum_{t}\rho_t R_t}{N}
+$$
+or by the weighted importance sampling
+$$
+v_\pi \approx \frac{\sum_{t}\rho_t R_t}{\sum \rho_t}.
+$$
+
+Ordinary importance sampling is unbiased, since
+$$
+\mathbb{E}_b[\rho_t R_t] = \mathbb{E}_b [\frac{\pi(A_t)}{b(A_t)}R_t] = \sum_{a \in \mathcal{A}}\frac{\pi(a)}{b(a)}r(a) b(a) = \sum_{\mathcal{A}} \pi(a)r(a) = v_\pi
+$$
+
+Weighted importance sampling is biased but mean converges to $v_\pi$.
+We note that 
+$\mathbb{E}_b\left[ \frac{1}{N}\sum_t \rho_t R_t \mid A_t \sim b \right] = v_\pi$
+and
+$\mathbb{E}_b\left[ \frac{1}{N}\sum_t \rho_t \mid A_t \sim b \right] = 1$
+Thus
+$$
+\frac{ \frac{1}{N}\sum_t \rho_t R_t}{\frac{1}{N}\sum_t \rho_t} \mid A_t \sim b  \overset{a.s.}{\to} v_\pi
+$$
+And from that we get
+$$
+\lim_{N \to \infty}  \mathbb{E}_b\left[ \frac{ \frac{1}{N}\sum_t \rho_t R_t}{\frac{1}{N}\sum_t \rho_t} \mid A_t \sim b \right] 
+=   \mathbb{E}_b\left[  \lim_{N \to \infty}\frac{ \frac{1}{N}\sum_t \rho_t R_t}{\frac{1}{N}\sum_t \rho_t} \mid A_t \sim b \right] 
+= v_\pi
+$$
+
+##  Optimal Policies and Value Functions
+A policy $\pi$ is defined to be better than or equal to a policy $\pi'$
+if its expected return is greater than or equal to that of $\pi$ for all states.
+In other words, $\pi \geq \pi$ if and only if $v_\pi(s) \geq v_{\pi'}(s)$ for all $s \in \mathcal{S}$
+
+We can always combine two policies $\pi$ and $\pi'$
+to one that is better than or equal to both by choosing the action with the higher value.
+This policy $\pi \vee \pi'$ is called the meet and is defined as
+$$
+(\pi \vee \pi')(s) = 
+\begin{cases} 
+    \pi(s) &v_{\pi}(s) \geq v_{\pi'}(s), \\
+    \pi'(s) &\text{else}.
+\end{cases}
+$$
+
+It is fairly clear that $v_{\pi \vee \pi'}(s) \geq \max\{ \pi(s), \pi'(s)\}$ and thus $v_{\pi \vee \pi'}$ is better than or equal to $\pi$ and $\pi'$.
+
+By taking the meet of all policies we obtain an optimal policy $\pi_*$.
+There may be more than one but they share the same state-value function,
+called the optimal state-value function, denoted $v_*$, which has the following property
+$$
+v_*(s) = \max_\pi v_{\pi}(s).
+$$
+Equally they all share the same optimal action-value function, $q_*$ with
+$$
+q_*(s,a) = \max_{\pi} q_\pi(s,a)
+$$
+
+### Bellman Optimality Equations
+The Bellman equations for $v_*$ and $q_*$ can be written
+independently of any policy.
+These equations are called the Bellman optimality equations.
+For any optimal policy $\pi_*$ the Bellman equation for $v_{\pi_*}$ gives
+$$
+v_*(s) = \sum_a \pi_*(a | s) \sum_{s', r} p(s', r | s, a) [ r + \gamma v_*(s') ].
+$$
+
+Since $\pi_*$ is optimal $\pi_*(a \mid s)$ is only non-zero for $a$ for which $\sum_{s', r} p(s', r | s, a) [ r + \gamma v_*(s') ]$ is maximal.
+Thus we get
+$$
+v_*(s) =  \max_a \sum_{s', r} p(s', r | s, a) [ r + \gamma v_*(s') ]
+$$
+
+Similarly for $q_*(s,a)$ we have.
+$$
+\begin{split}
+q_*(s,a)  &=
+\sum_{s', r} p(s',r \mid s,a)
+\left[r + \gamma \sum_{a'} \pi_*( a' | s') q_*(s',a')  \right] \\
+&= \sum_{s', r} p(s',r \mid s,a)
+\left[r + \gamma \max_{a'}  q_*(s',a')  \right]
+\end{split}
+$$
+
+For finite MDPs the bellman optimality equations have a unique solution.
+Thus we have a one-to-one relationship between the solution of
+(\ref{bellman optimality equation}) and the optimal value function.
+
+
+## Expected values
+
+### The Bandit Gradient Algorithm as Stochastic Gradient Ascent {.unnumbered}
+
+Wow, what's coming up on Sutton-Bartons book page 39 is quite a jump in difficulty from page 36, which defined the natural logarithm. Well, we will take it slow (and precise).
+
+#### Gradien Ascent (deterministic) {.unnumbered}
+
+For a differentiable scalar function $F : \mathbb{R}^d \to \mathbb{R}$ and current point $\mathbf{a}_t$, the update
+$$
+\mathbf{a}_{t+1} = \mathbf{a}_t + \alpha \nabla F(\mathbf{a}_t), \quad \alpha > 0
+$$
+moves (for sufficently small $\alpha$) up the hill because $\nabla F$ points into the direction of steepest acsent.
+
+#### Stochastic Gradient Ascent {.unnumbered}
+
+If we don't have access to $\nabla F$ but can only observe random vectors $G_t$ with
+$$
+\mathbb{E} [ G_t \mid \mathbf{a}_t] = \nabla F (\mathbf{a}_t)
+$$
+
+Then the Robbins-Monro stochastic-approximation theorem (TODO: what?) says that 
+$$
+\mathbf{a}_{t+1} = \mathbf{a}_t + \alpha_t G_t
+$$
+still converges provided that $\sum_{t} \alpha_t = \infty$ and $\sum_{t} \alpha_t^2 < \infty$.
+
+#### Connecting to the armed bandit {.unnumbered}
+
+Here our data points are the $H_t$ (so basically our vector space is indexed by the actions) and the scalar function we want to climb up is $J(H) := \mathbb{E}[R \mid A \sim \pi_H] = \sum_{b} \pi_H(b) q_*(b)$.
+

@@ -1,0 +1,277 @@
+# Finite Markov Decision Processes
+
+## The Agent--Environment Interface {#sec-the-agent-environment-interface}
+
+We are already anticipating @exr-3.5 and will give the formulations for a Markov Decision Process (MDP) for continuing and episodic tasks.
+
+A continuing trajectory looks like this:
+$$
+S_0, A_0, R_1, S_1, A_1, R_2, S_2 A_2, R_3, \dots,
+$$
+and an episodic trajectory looks like this:
+$$
+S_0, A_0, R_1, S_1, A_1, \dots R_{T-1}, S_{T-1}, A_{T-1}, R_T, S_T.
+$$
+Note that the sequencing of actions and rewards has changed from the previous chapter. Now, the reward for an action $A_t$ is $R_{t+1}$, not $R_t$ as before.
+
+An MDP is completely described by its dynamics:
+$$
+p(s', r |s,a) := \mathrm{Pr}(S_t = s', R_t = r \mid S_{t-1} = s, A_{t-1} = a)
+$$ {#eq-mdp-dynamics}
+giving the probability that, from state $s \in \mathcal{S}$ under action $a \in \mathcal{A}(s)$, the environment transitions to state $s' \in \mathcal{S}^+$, where $\mathcal{S}^+$ denotes the state space with any possible terminal states, and gives reward $r \in \mathcal{R}$.
+
+In particular when $s$ and $a$ are fixed $p(s', r | s,a)$ is a discrete probability density, i.e.,
+$$
+p(\cdot, \cdot | s,a)\colon \mathcal{S}^+ \times \mathcal{R} \to [0,1]
+$$
+and 
+$$ 
+\sum_{s' \in \mathcal{S}^+, r \in \mathcal{R}} p(s',r | s,a) = 1.
+$$ {#eq-mdp-probability-density}
+
+I want to add some more words about MDP and other Markov Chains that will be important for us.
+
+### markov chains
+
+Very generally, Markov chains are processes modelled with sequences of random variables $X_1, X_2, \dots$, where the conditional probabilities have a finite horizon. We will describe Markov Chains with increasing complexity until we end up at MDPs.
+
+#### markov process (MP) {.unnumbered}
+
+MPs model systems that evolve randomly over discrete time steps.
+They are a sequence of random variables $S_0, S_1, \dots$, where $S_t$ is the state of the system at time $t$.
+In the past the system was in the states $S_0, \dots, S_{t-1}$
+and its future is $S_{t+1}$.
+
+The defining property of a Markov chain is that the future is independent of the past given the present state of the process.
+This is expressed as:
+$$
+\mathrm{Pr}(S_{t+1} = s' \mid S_t = s, (S_{t'} = s_{t'})_{t' < t}) = \mathrm{Pr}(S_{t+1} = s' \mid S_t = s)
+$$
+
+Usually we require the environment to be stationary, i.e.,
+the transition probabilities are independent of $t$:
+$$
+\mathrm{Pr}(S_{t+1} = s' \mid S_t = s) = \mathrm{Pr}(S_{t'+1} = s' \mid S_t' = s)
+$$
+
+So, in our case a Markov Process[^precise_terminology_mp] is completely described by
+
+- state space $\mathcal{S}$ and
+- transition probabilities: $p(s' | s) := P(S_{t+1}=s′∣ S_t=s)$.
+
+[^precise_terminology_mp]: "Our" Markov processes could be called more precisely stationary discrete-time Markov process.
+
+#### markov reward process (MRP) {.unnumbered}
+
+A Markov Reward Process adds a reward structure to a Markov Process.
+What are we rewarded for? Simply for observing the process diligently and keeping our feet still as there is no interaction with the environment yet.
+ 
+Here, we have a sequence of random variables
+$R_0, S_0, R_1, S_1, R_2, \dots$.
+Basically it's a sequence of random vectors $(R_i, S_i)$, where $S_i$ tracks the state and the $R_i$ give us some numerical information about the system.
+(Sutton and Barto usually omit the 0-th reward, which occurs before anything really happens—essentially a reward for starting the environment. It doesn’t change much, of course, but I like the symmetry it brings.)
+
+A Markov reward process (MRP) is therefore specified by:
+
+- finite state space $\mathcal{S}$
+- finite reward space $\mathcal{R} \subseteq \mathbb{R}$
+- $p(s', r | s) := \mathrm{Pr}(S_{t+1}=s', R_{t+1} = r∣ S_t = s)$.
+
+Here $p(\cdot, \cdot | s)$  is a probability measure on
+the product space $\mathcal{S} \times \mathcal{R}$, in particular
+$\sum_{s' \in \mathcal{S}, r \in \mathcal{R}} p(s',r|s) = 1$
+
+#### markov decision process (MDP) {.unnumbered}
+
+Now we add interaction to the environment.
+
+The trajectory looks like this:
+$$
+R_0, S_0, A_0, R_1, S_1, A_1, \dots ,
+$$
+where $R_i$ take values in the reward space $\mathcal{R}$,
+$S_i$ values in the state space $\mathcal{S}$, and $A_i$ in the action space $\mathcal{A}$.
+
+The full dynamic of this process is an interwoven interaction between environment and agent.
+It looks a bit like this:
+$$
+(R_0, S_0) \overset{\text{agent}}{\to} A_0  \overset{\text{env}}{\to}(R_1, S_1) \overset{\text{agent}}{\to}  A_1 \overset{\text{env}}{\to} \dots
+$$
+So, going from $S_t, A_t$ to the next state-reward pair is given by the environment
+$$
+p(s', r | s, a) := \mathrm{Pr}(S_{t+1}=s', R_{t+1} = r∣ S_t = s, A_t = a).
+$$
+and going from a state reward pair to an action is is given by the agent
+$$
+\pi_t(a|s) = \mathrm{Pr}(A_t = a | S_t = s).
+$$
+If the agent is stationary, we can drop the $t$.
+$$
+\pi(a|s) = \mathrm{Pr}(A_t = a | S_t = s)
+$$
+
+::: {#exr-3.1}
+Devise three example tasks of your own that fit into the MDP framework, identifying for each its states, actions, and rewards. Make the three examples as different from each other as possible. The framework is abstract and flexible and can be applied in many different ways. Stretch its limits in some way in at least one of your examples.
+:::
+::: {#sol-3.1}
+TBD
+:::
+
+::: {#exr-3.2}
+Is the MDP framework adequate to usefully represent all goal-directed learning tasks? Can you think of any clear exceptions?
+:::
+::: {#sol-3.2}
+No, I can’t think of any clear exceptions. There’s only the challenge of how to model MDP for goals that we don't know how to specify properly in the reward signal, e.g., human happiness. I can’t come up with a reward signal that wouldn’t be vulnerable to reward hacking, like "number pressed by user on screen", "time smiling", "endorphins level in brain".
+:::
+
+::: {#exr-3.3}
+Consider the problem of driving. You could define the actions in terms of the accelerator, steering wheel, and brake, that is, where your body meets the machine. Or you could define them farther out—say, where the rubber meets the road, considering your actions to be tire torques. Or you could define them farther in—say, where your brain meets your body, the actions being muscle twitches to control your limbs. Or you could go to a really high level and say that your actions are your choices of where to drive. What is the right level, the right place to draw the line between agent and environment? On what basis is one location of the line to be preferred over another? Is there any fundamental reason for preferring one location over another, or is it a free choice?
+:::
+::: {#sol-3.3}
+TBD
+:::
+
+::: {#exr-3.4}
+Give a table analogous to that in Example 3.3, but for $p(s' , r |s, a)$. It should have columns for $s, a, s' , r$ and $p(s' , r |s, a)$, and a row for every 4-tuple for which $p(s', r |s, a) > 0$.
+:::
+::: {#sol-3.4}
+| s | a | s' | r | p(s',r \| s,a) |
+| :-: | :-: | :-: | :-: | :-: |
+| high | wait | high | r_wait | 1 |
+| high | search | high |  r_search | α
+| high | search | low | r_search | 1 - α
+| low | wait | low | r_wait | 1
+| low | search | low | r_search | β
+| low | search | high | -3 | 1 - β
+| low | recharge | high | 0 | 1
+:::
+
+## Goals and Rewards
+
+## Returns and Episodes
+
+The expected (discounted) return is defined as:
+$$
+G_t := \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}.
+$$
+For episodic tasks we have the convention that $R_{t} = 0$ when $t > T$, and thus, in particular, $G_T = 0$.
+
+In an undiscounted, episodic task, this becomes
+$$
+G_t := \sum_{k=0}^{T-t-1}  R_{t+k+1}
+$$ {#eq-expected-total-reward-episodic}
+
+Another important recursive identity is
+$$
+G_t = R_{t+1} + \gamma G_{t+1}
+$$ {#eq-reward-recursive-formulation}
+
+::: {#exr-3.5}
+The equations in Section 3.1 are for the continuing case and need to be modified (very slightly) to apply to episodic tasks. Show that you know the modifications needed by giving the modified version of @eq-mdp-probability-density
+:::
+::: {#sol-3.5}
+We already described @sec-the-agent-environment-interface for continuing and episodic tasks. So, @eq-mdp-probability-density is already in the right form.
+:::
+
+::: {#exr-3.6}
+Suppose you treated pole-balancing as an episodic task but also used
+discounting, with all rewards zero except for -1 upon failure. What then would the return be at each time? How does this return differ from that in the discounted, continuing formulation of this task?
+:::
+::: {#sol-3.6}
+The reward at time $t$ would be
+$$
+G_t = \sum_{k=0}^{T-t-1} \gamma^k R_{t + k+1} =  -\gamma^{T - t - 1},
+$$
+where $T$ is the length of that episode.
+
+In the continuing formulation there can be multiple failures in the future so the return is of the form $-\gamma^{K_1} - \gamma^{K_2} - \dots$. Here there can always just be one failure.
+:::
+
+
+::: {#exr-3.7}
+Imagine that you are designing a robot to run a maze. You decide to give it a reward of +1 for escaping from the maze and a reward of zero at all other times. The task seems to break down naturally into episodes—the successive runs through the maze—so you decide to treat it as an episodic task, where the goal is to maximize expected total reward @eq-expected-total-reward-episodic. After running the learning agent for a while, you find that it is showing no improvement in escaping from the maze. What is going wrong? Have you effectively communicated to the agent what you want it to achieve?
+:::
+::: {#sol-3.7}
+In this setup the reward basically says: "Finish the maze eventually.". So when the robot has learned to finish a maze somehow, it can't perform better regarding this reward.
+:::
+
+
+::: {#exr-3.8}
+Suppose $\gamma = 0.5$ and the following sequence of rewards is received $R_1 = 1, R_2 = 2, R_3 = 6, R_4 = 3, R_5 = 2$, with $T = 5$. What are $G_0, G_1 \dots, G_5$? Hint: Work backwards.
+:::
+::: {#sol-3.8}
+We can use the recursive formula (@eq-reward-recursive-formulation) for the reward: $G_t = R_{t+1} + \gamma G_{t+1}$
+
+| t | $R_{t+1}$ | $\gamma G_{t+1}$  | $G_t$
+| :-: | :-: | :-: | :-: |
+| 5 | 0 | 0 | 0 |
+| 4 | 2 | 0 | 2 |
+| 3 | 3 | 1 | 4 |
+| 2 | 6 | 2 | 8 |
+| 1 | 2 | 8 | 10 |
+| 0 | 1 | 5 | 6 |
+
+We recall that, by convention, $R_t := 0$ for $t > T$
+:::
+
+::: {#exr-3.9}
+Suppose $\gamma = 0.9$ and the reward sequence is $R_1 = 2$ followed by an infinite sequence of 7s. What are $G_1$ and $G_0$?
+:::
+::: {#sol-3.9}
+$$
+G_1 = \sum_{k=0}^\infty 0.9^k R_{2+k} = 7 \sum_{k=0}^\infty 0.9^k = 7 / 0.1 = 70
+$$
+and 
+$$
+G_0 = R_1 + \gamma G_1 =  2 + 0.9 \cdot G_1 = 2 + 0.9 \cdot 70 = 65
+$$
+:::
+
+::: {#exr-3.10}
+Prove the second equality in (3.10).
+:::
+::: {#sol-3.10}
+See @sec-geometric-series for a proof.
+:::
+
+## Unified Notation for Episodic and Continuing Tasks
+
+
+## Policies and Value Functions
+
+To generate trajectories from an MDP, we must specify the agent’s policy.
+We indicate this notationally by adding a subscript $\pi$ to probabilities, so that $\mathrm{Pr}_\pi(A_t = a \mid S_t = s) = \pi(a \mid s)$.
+
+:::{#exr-3.11}
+If the current state is $S_t$, and actions are selected  according to stochastic policy $\pi$, then what is the expectation of $R_{t+1}$ in terms of $\pi$ and the four-argument function $p$ (@eq-mdp-dynamics)?
+:::
+:::{#sol-3.11}
+It’s clearer to rephrase the exercise as “given that the current state $S_t$ is $s$”, so we proceed with that.
+
+We solve this in two ways.
+First the intuitive way and second with our theory machine.
+
+Intuitively when $S_t = s$ then we know that $A_t$ is distributed according to $\pi(\cdot | s)$ and then from $S_t$ and $A_t$ we can get the next $S_{t+1}, R_{t+1}$ via the MDP dynamics measure.
+So let's put this together. The agent selects $a$ with probability $\pi(a \mid s)$, and then the environment transitions to $(s', r)$ with probability $p(s', r | s,a)$. We don't care about the $s'$ right now. So we get reward $r$ with probability $\sum_{s'} p(s',r | s,a)$.
+Thus we have
+$$
+\mathbb{E}_{\pi}[R_{t+1} \mid S_t = s]
+= \sum_{a} \pi(a|s) \sum_{r} r \left(\sum_{s'} p(s',r | s,a)\right)
+$$
+Or in a nicer format
+$$
+\mathbb{E}_{\pi}[R_{t+1} \mid S_t = s]
+= \sum_{a} \pi(a|s) \sum_{r,s'} r \; p(s',r | s,a)
+$$
+
+Now let us derive this using LOTUS (@thm-law-of-the-unconscious-statistician) the law of total expectation (@thm-law-of-total-probability)
+$$
+\begin{split}
+\mathbb{E}_{\pi}&[R_{t+1} \mid S_t = s] = 
+\sum_{r} r \; \mathrm{Pr}_{\pi}[R_{t+1} = r \mid S_t = s] \\
+&= \sum_r r \sum_{a, s'} \mathrm{Pr}_{\pi}[R_{t+1} = r, S_{t+1} = s' \mid A_t = a, S_t = s] \mathrm{Pr}_{\pi}[A_t = a \mid S_t = s] \\
+&=  \sum_{r,a,s'} p(s',r | a,s) \pi(a|s)
+\end{split}
+$$
+:::
+ 
