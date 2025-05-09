@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.29">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>3&nbsp; Finite Markov Decision Processes – Notes on Sutton &amp; Barto</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../chapters/02-multi-armed-bandits.html" rel="prev">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-0815c480559380816a4d1ea211a47e91.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-748b535e376f14d4692bf2b2e5fd6380.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-dfb05bd87ea801e4a210933986ba4cd7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-52a7591eaea193f2c233ac4011432d2f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar floating quarto-dark"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = true;
+    const darkModeDefault = authorPrefersDark;
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/03-finite-markov-decision-processes.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Finite Markov Decision Processes</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../">Notes on Sutton &amp; Barto</a> 
+        <div class="sidebar-tools-main">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/01-intro.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/02-multi-armed-bandits.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Multi-armed Bandits</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/03-finite-markov-decision-processes.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Finite Markov Decision Processes</span></span></a>
+  </div>
+</li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#sec-the-agent-environment-interface" id="toc-sec-the-agent-environment-interface" class="nav-link active" data-scroll-target="#sec-the-agent-environment-interface"><span class="header-section-number">3.1</span> The Agent–Environment Interface</a>
+  <ul class="collapse">
+  <li><a href="#markov-chains" id="toc-markov-chains" class="nav-link" data-scroll-target="#markov-chains"><span class="header-section-number">3.1.1</span> markov chains</a></li>
+  </ul></li>
+  <li><a href="#goals-and-rewards" id="toc-goals-and-rewards" class="nav-link" data-scroll-target="#goals-and-rewards"><span class="header-section-number">3.2</span> Goals and Rewards</a></li>
+  <li><a href="#returns-and-episodes" id="toc-returns-and-episodes" class="nav-link" data-scroll-target="#returns-and-episodes"><span class="header-section-number">3.3</span> Returns and Episodes</a></li>
+  <li><a href="#unified-notation-for-episodic-and-continuing-tasks" id="toc-unified-notation-for-episodic-and-continuing-tasks" class="nav-link" data-scroll-target="#unified-notation-for-episodic-and-continuing-tasks"><span class="header-section-number">3.4</span> Unified Notation for Episodic and Continuing Tasks</a></li>
+  <li><a href="#policies-and-value-functions" id="toc-policies-and-value-functions" class="nav-link" data-scroll-target="#policies-and-value-functions"><span class="header-section-number">3.5</span> Policies and Value Functions</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Finite Markov Decision Processes</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="sec-the-agent-environment-interface" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="sec-the-agent-environment-interface"><span class="header-section-number">3.1</span> The Agent–Environment Interface</h2>
+<p>We are already anticipating <a href="#exr-3.5" class="quarto-xref">Exercise&nbsp;<span>3.5</span></a> and will give the formulations for a Markov Decision Process (MDP) for continuing and episodic tasks.</p>
+<p>A continuing trajectory looks like this: <span class="math display">\[
+S_0, A_0, R_1, S_1, A_1, R_2, S_2 A_2, R_3, \dots,
+\]</span> and an episodic trajectory looks like this: <span class="math display">\[
+S_0, A_0, R_1, S_1, A_1, \dots R_{T-1}, S_{T-1}, A_{T-1}, R_T, S_T.
+\]</span> Note that the sequencing of actions and rewards has changed from the previous chapter. Now, the reward for an action <span class="math inline">\(A_t\)</span> is <span class="math inline">\(R_{t+1}\)</span>, not <span class="math inline">\(R_t\)</span> as before.</p>
+<p>An MDP is completely described by its dynamics: <span id="eq-mdp-dynamics"><span class="math display">\[
+p(s', r |s,a) := \mathrm{Pr}(S_t = s', R_t = r \mid S_{t-1} = s, A_{t-1} = a)
+\tag{3.1}\]</span></span> giving the probability that, from state <span class="math inline">\(s \in \mathcal{S}\)</span> under action <span class="math inline">\(a \in \mathcal{A}(s)\)</span>, the environment transitions to state <span class="math inline">\(s' \in \mathcal{S}^+\)</span>, where <span class="math inline">\(\mathcal{S}^+\)</span> denotes the state space with any possible terminal states, and gives reward <span class="math inline">\(r \in \mathcal{R}\)</span>.</p>
+<p>In particular when <span class="math inline">\(s\)</span> and <span class="math inline">\(a\)</span> are fixed <span class="math inline">\(p(s', r | s,a)\)</span> is a discrete probability density, i.e., <span class="math display">\[
+p(\cdot, \cdot | s,a)\colon \mathcal{S}^+ \times \mathcal{R} \to [0,1]
+\]</span> and <span id="eq-mdp-probability-density"><span class="math display">\[
+\sum_{s' \in \mathcal{S}^+, r \in \mathcal{R}} p(s',r | s,a) = 1.
+\tag{3.2}\]</span></span></p>
+<p>I want to add some more words about MDP and other Markov Chains that will be important for us.</p>
+<section id="markov-chains" class="level3" data-number="3.1.1">
+<h3 data-number="3.1.1" class="anchored" data-anchor-id="markov-chains"><span class="header-section-number">3.1.1</span> markov chains</h3>
+<p>Very generally, Markov chains are processes modelled with sequences of random variables <span class="math inline">\(X_1, X_2, \dots\)</span>, where the conditional probabilities have a finite horizon. We will describe Markov Chains with increasing complexity until we end up at MDPs.</p>
+<section id="markov-process-mp" class="level4 unnumbered">
+<h4 class="unnumbered anchored" data-anchor-id="markov-process-mp">markov process (MP)</h4>
+<p>MPs model systems that evolve randomly over discrete time steps. They are a sequence of random variables <span class="math inline">\(S_0, S_1, \dots\)</span>, where <span class="math inline">\(S_t\)</span> is the state of the system at time <span class="math inline">\(t\)</span>. In the past the system was in the states <span class="math inline">\(S_0, \dots, S_{t-1}\)</span> and its future is <span class="math inline">\(S_{t+1}\)</span>.</p>
+<p>The defining property of a Markov chain is that the future is independent of the past given the present state of the process. This is expressed as: <span class="math display">\[
+\mathrm{Pr}(S_{t+1} = s' \mid S_t = s, (S_{t'} = s_{t'})_{t' &lt; t}) = \mathrm{Pr}(S_{t+1} = s' \mid S_t = s)
+\]</span></p>
+<p>Usually we require the environment to be stationary, i.e., the transition probabilities are independent of <span class="math inline">\(t\)</span>: <span class="math display">\[
+\mathrm{Pr}(S_{t+1} = s' \mid S_t = s) = \mathrm{Pr}(S_{t'+1} = s' \mid S_t' = s)
+\]</span></p>
+<p>So, in our case a Markov Process<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> is completely described by</p>
+<ul>
+<li>state space <span class="math inline">\(\mathcal{S}\)</span> and</li>
+<li>transition probabilities: <span class="math inline">\(p(s' | s) := P(S_{t+1}=s′∣ S_t=s)\)</span>.</li>
+</ul>
+</section>
+<section id="markov-reward-process-mrp" class="level4 unnumbered">
+<h4 class="unnumbered anchored" data-anchor-id="markov-reward-process-mrp">markov reward process (MRP)</h4>
+<p>A Markov Reward Process adds a reward structure to a Markov Process. What are we rewarded for? Simply for observing the process diligently and keeping our feet still as there is no interaction with the environment yet.</p>
+<p>Here, we have a sequence of random variables <span class="math inline">\(R_0, S_0, R_1, S_1, R_2, \dots\)</span>. Basically it’s a sequence of random vectors <span class="math inline">\((R_i, S_i)\)</span>, where <span class="math inline">\(S_i\)</span> tracks the state and the <span class="math inline">\(R_i\)</span> give us some numerical information about the system. (Sutton and Barto usually omit the 0-th reward, which occurs before anything really happens—essentially a reward for starting the environment. It doesn’t change much, of course, but I like the symmetry it brings.)</p>
+<p>A Markov reward process (MRP) is therefore specified by:</p>
+<ul>
+<li>finite state space <span class="math inline">\(\mathcal{S}\)</span></li>
+<li>finite reward space <span class="math inline">\(\mathcal{R} \subseteq \mathbb{R}\)</span></li>
+<li><span class="math inline">\(p(s', r | s) := \mathrm{Pr}(S_{t+1}=s', R_{t+1} = r∣ S_t = s)\)</span>.</li>
+</ul>
+<p>Here <span class="math inline">\(p(\cdot, \cdot | s)\)</span> is a probability measure on the product space <span class="math inline">\(\mathcal{S} \times \mathcal{R}\)</span>, in particular <span class="math inline">\(\sum_{s' \in \mathcal{S}, r \in \mathcal{R}} p(s',r|s) = 1\)</span></p>
+</section>
+<section id="markov-decision-process-mdp" class="level4 unnumbered">
+<h4 class="unnumbered anchored" data-anchor-id="markov-decision-process-mdp">markov decision process (MDP)</h4>
+<p>Now we add interaction to the environment.</p>
+<p>The trajectory looks like this: <span class="math display">\[
+R_0, S_0, A_0, R_1, S_1, A_1, \dots ,
+\]</span> where <span class="math inline">\(R_i\)</span> take values in the reward space <span class="math inline">\(\mathcal{R}\)</span>, <span class="math inline">\(S_i\)</span> values in the state space <span class="math inline">\(\mathcal{S}\)</span>, and <span class="math inline">\(A_i\)</span> in the action space <span class="math inline">\(\mathcal{A}\)</span>.</p>
+<p>The full dynamic of this process is an interwoven interaction between environment and agent. It looks a bit like this: <span class="math display">\[
+(R_0, S_0) \overset{\text{agent}}{\to} A_0  \overset{\text{env}}{\to}(R_1, S_1) \overset{\text{agent}}{\to}  A_1 \overset{\text{env}}{\to} \dots
+\]</span> So, going from <span class="math inline">\(S_t, A_t\)</span> to the next state-reward pair is given by the environment <span class="math display">\[
+p(s', r | s, a) := \mathrm{Pr}(S_{t+1}=s', R_{t+1} = r∣ S_t = s, A_t = a).
+\]</span> and going from a state reward pair to an action is is given by the agent <span class="math display">\[
+\pi_t(a|s) = \mathrm{Pr}(A_t = a | S_t = s).
+\]</span> If the agent is stationary, we can drop the <span class="math inline">\(t\)</span>. <span class="math display">\[
+\pi(a|s) = \mathrm{Pr}(A_t = a | S_t = s)
+\]</span></p>
+<div id="exr-3.1" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.1</strong></span> Devise three example tasks of your own that fit into the MDP framework, identifying for each its states, actions, and rewards. Make the three examples as different from each other as possible. The framework is abstract and flexible and can be applied in many different ways. Stretch its limits in some way in at least one of your examples.</p>
+</div>
+<div id="sol-3.1" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.1</em>. </span>TBD</p>
+</div>
+<div id="exr-3.2" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.2</strong></span> Is the MDP framework adequate to usefully represent all goal-directed learning tasks? Can you think of any clear exceptions?</p>
+</div>
+<div id="sol-3.2" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.2</em>. </span>No, I can’t think of any clear exceptions. There’s only the challenge of how to model MDP for goals that we don’t know how to specify properly in the reward signal, e.g., human happiness. I can’t come up with a reward signal that wouldn’t be vulnerable to reward hacking, like “number pressed by user on screen”, “time smiling”, “endorphins level in brain”.</p>
+</div>
+<div id="exr-3.3" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.3</strong></span> Consider the problem of driving. You could define the actions in terms of the accelerator, steering wheel, and brake, that is, where your body meets the machine. Or you could define them farther out—say, where the rubber meets the road, considering your actions to be tire torques. Or you could define them farther in—say, where your brain meets your body, the actions being muscle twitches to control your limbs. Or you could go to a really high level and say that your actions are your choices of where to drive. What is the right level, the right place to draw the line between agent and environment? On what basis is one location of the line to be preferred over another? Is there any fundamental reason for preferring one location over another, or is it a free choice?</p>
+</div>
+<div id="sol-3.3" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.3</em>. </span>TBD</p>
+</div>
+<div id="exr-3.4" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.4</strong></span> Give a table analogous to that in Example 3.3, but for <span class="math inline">\(p(s' , r |s, a)\)</span>. It should have columns for <span class="math inline">\(s, a, s' , r\)</span> and <span class="math inline">\(p(s' , r |s, a)\)</span>, and a row for every 4-tuple for which <span class="math inline">\(p(s', r |s, a) &gt; 0\)</span>.</p>
+</div>
+<div id="sol-3.4" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.4</em>. </span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">s</th>
+<th style="text-align: center;">a</th>
+<th style="text-align: center;">s’</th>
+<th style="text-align: center;">r</th>
+<th style="text-align: center;">p(s’,r | s,a)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">high</td>
+<td style="text-align: center;">wait</td>
+<td style="text-align: center;">high</td>
+<td style="text-align: center;">r_wait</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">high</td>
+<td style="text-align: center;">search</td>
+<td style="text-align: center;">high</td>
+<td style="text-align: center;">r_search</td>
+<td style="text-align: center;">α</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">high</td>
+<td style="text-align: center;">search</td>
+<td style="text-align: center;">low</td>
+<td style="text-align: center;">r_search</td>
+<td style="text-align: center;">1 - α</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">low</td>
+<td style="text-align: center;">wait</td>
+<td style="text-align: center;">low</td>
+<td style="text-align: center;">r_wait</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">low</td>
+<td style="text-align: center;">search</td>
+<td style="text-align: center;">low</td>
+<td style="text-align: center;">r_search</td>
+<td style="text-align: center;">β</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">low</td>
+<td style="text-align: center;">search</td>
+<td style="text-align: center;">high</td>
+<td style="text-align: center;">-3</td>
+<td style="text-align: center;">1 - β</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">low</td>
+<td style="text-align: center;">recharge</td>
+<td style="text-align: center;">high</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+</section>
+<section id="goals-and-rewards" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="goals-and-rewards"><span class="header-section-number">3.2</span> Goals and Rewards</h2>
+</section>
+<section id="returns-and-episodes" class="level2" data-number="3.3">
+<h2 data-number="3.3" class="anchored" data-anchor-id="returns-and-episodes"><span class="header-section-number">3.3</span> Returns and Episodes</h2>
+<p>The expected (discounted) return is defined as: <span class="math display">\[
+G_t := \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}.
+\]</span> For episodic tasks we have the convention that <span class="math inline">\(R_{t} = 0\)</span> when <span class="math inline">\(t &gt; T\)</span>, and thus, in particular, <span class="math inline">\(G_T = 0\)</span>.</p>
+<p>In an undiscounted, episodic task, this becomes <span id="eq-expected-total-reward-episodic"><span class="math display">\[
+G_t := \sum_{k=0}^{T-t-1}  R_{t+k+1}
+\tag{3.3}\]</span></span></p>
+<p>Another important recursive identity is <span id="eq-reward-recursive-formulation"><span class="math display">\[
+G_t = R_{t+1} + \gamma G_{t+1}
+\tag{3.4}\]</span></span></p>
+<div id="exr-3.5" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.5</strong></span> The equations in Section 3.1 are for the continuing case and need to be modified (very slightly) to apply to episodic tasks. Show that you know the modifications needed by giving the modified version of <a href="#eq-mdp-probability-density" class="quarto-xref">Equation&nbsp;<span>3.2</span></a></p>
+</div>
+<div id="sol-3.5" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.5</em>. </span>We already described <a href="#sec-the-agent-environment-interface" class="quarto-xref"><span>Section 3.1</span></a> for continuing and episodic tasks. So, <a href="#eq-mdp-probability-density" class="quarto-xref">Equation&nbsp;<span>3.2</span></a> is already in the right form.</p>
+</div>
+<div id="exr-3.6" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.6</strong></span> Suppose you treated pole-balancing as an episodic task but also used discounting, with all rewards zero except for -1 upon failure. What then would the return be at each time? How does this return differ from that in the discounted, continuing formulation of this task?</p>
+</div>
+<div id="sol-3.6" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.6</em>. </span>The reward at time <span class="math inline">\(t\)</span> would be <span class="math display">\[
+G_t = \sum_{k=0}^{T-t-1} \gamma^k R_{t + k+1} =  -\gamma^{T - t - 1},
+\]</span> where <span class="math inline">\(T\)</span> is the length of that episode.</p>
+<p>In the continuing formulation there can be multiple failures in the future so the return is of the form <span class="math inline">\(-\gamma^{K_1} - \gamma^{K_2} - \dots\)</span>. Here there can always just be one failure.</p>
+</div>
+<div id="exr-3.7" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.7</strong></span> Imagine that you are designing a robot to run a maze. You decide to give it a reward of +1 for escaping from the maze and a reward of zero at all other times. The task seems to break down naturally into episodes—the successive runs through the maze—so you decide to treat it as an episodic task, where the goal is to maximize expected total reward <a href="#eq-expected-total-reward-episodic" class="quarto-xref">Equation&nbsp;<span>3.3</span></a>. After running the learning agent for a while, you find that it is showing no improvement in escaping from the maze. What is going wrong? Have you effectively communicated to the agent what you want it to achieve?</p>
+</div>
+<div id="sol-3.7" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.7</em>. </span>In this setup the reward basically says: “Finish the maze eventually.”. So when the robot has learned to finish a maze somehow, it can’t perform better regarding this reward.</p>
+</div>
+<div id="exr-3.8" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.8</strong></span> Suppose <span class="math inline">\(\gamma = 0.5\)</span> and the following sequence of rewards is received <span class="math inline">\(R_1 = 1, R_2 = 2, R_3 = 6, R_4 = 3, R_5 = 2\)</span>, with <span class="math inline">\(T = 5\)</span>. What are <span class="math inline">\(G_0, G_1 \dots, G_5\)</span>? Hint: Work backwards.</p>
+</div>
+<div id="sol-3.8" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.8</em>. </span>We can use the recursive formula (<a href="#eq-reward-recursive-formulation" class="quarto-xref">Equation&nbsp;<span>3.4</span></a>) for the reward: <span class="math inline">\(G_t = R_{t+1} + \gamma G_{t+1}\)</span></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;">t</th>
+<th style="text-align: center;"><span class="math inline">\(R_{t+1}\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(\gamma G_{t+1}\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(G_t\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">4</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">8</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">10</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">6</td>
+</tr>
+</tbody>
+</table>
+<p>We recall that, by convention, <span class="math inline">\(R_t := 0\)</span> for <span class="math inline">\(t &gt; T\)</span></p>
+</div>
+<div id="exr-3.9" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.9</strong></span> Suppose <span class="math inline">\(\gamma = 0.9\)</span> and the reward sequence is <span class="math inline">\(R_1 = 2\)</span> followed by an infinite sequence of 7s. What are <span class="math inline">\(G_1\)</span> and <span class="math inline">\(G_0\)</span>?</p>
+</div>
+<div id="sol-3.9" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.9</em>. </span><span class="math display">\[
+G_1 = \sum_{k=0}^\infty 0.9^k R_{2+k} = 7 \sum_{k=0}^\infty 0.9^k = 7 / 0.1 = 70
+\]</span> and <span class="math display">\[
+G_0 = R_1 + \gamma G_1 =  2 + 0.9 \cdot G_1 = 2 + 0.9 \cdot 70 = 65
+\]</span></p>
+</div>
+<div id="exr-3.10" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.10</strong></span> Prove the second equality in (3.10).</p>
+</div>
+<div id="sol-3.10" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.10</em>. </span>See <a href="02-multi-armed-bandits.html#sec-geometric-series" class="quarto-xref"><span>Section 2.11.8</span></a> for a proof.</p>
+</div>
+</section>
+<section id="unified-notation-for-episodic-and-continuing-tasks" class="level2" data-number="3.4">
+<h2 data-number="3.4" class="anchored" data-anchor-id="unified-notation-for-episodic-and-continuing-tasks"><span class="header-section-number">3.4</span> Unified Notation for Episodic and Continuing Tasks</h2>
+</section>
+<section id="policies-and-value-functions" class="level2" data-number="3.5">
+<h2 data-number="3.5" class="anchored" data-anchor-id="policies-and-value-functions"><span class="header-section-number">3.5</span> Policies and Value Functions</h2>
+<p>To generate trajectories from an MDP, we must specify the agent’s policy. We indicate this notationally by adding a subscript <span class="math inline">\(\pi\)</span> to probabilities, so that <span class="math inline">\(\mathrm{Pr}_\pi(A_t = a \mid S_t = s) = \pi(a \mid s)\)</span>.</p>
+<div id="exr-3.11" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.11</strong></span> If the current state is <span class="math inline">\(S_t\)</span>, and actions are selected according to stochastic policy <span class="math inline">\(\pi\)</span>, then what is the expectation of <span class="math inline">\(R_{t+1}\)</span> in terms of <span class="math inline">\(\pi\)</span> and the four-argument function <span class="math inline">\(p\)</span> (<a href="#eq-mdp-dynamics" class="quarto-xref">Equation&nbsp;<span>3.1</span></a>)?</p>
+</div>
+<div id="sol-3.11" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.11</em>. </span>It’s clearer to rephrase the exercise as “given that the current state <span class="math inline">\(S_t\)</span> is <span class="math inline">\(s\)</span>”, so we proceed with that.</p>
+<p>We solve this in two ways. First the intuitive way and second with our theory machine.</p>
+<p>Intuitively when <span class="math inline">\(S_t = s\)</span> then we know that <span class="math inline">\(A_t\)</span> is distributed according to <span class="math inline">\(\pi(\cdot | s)\)</span> and then from <span class="math inline">\(S_t\)</span> and <span class="math inline">\(A_t\)</span> we can get the next <span class="math inline">\(S_{t+1}, R_{t+1}\)</span> via the MDP dynamics measure. So let’s put this together. The agent selects <span class="math inline">\(a\)</span> with probability <span class="math inline">\(\pi(a \mid s)\)</span>, and then the environment transitions to <span class="math inline">\((s', r)\)</span> with probability <span class="math inline">\(p(s', r | s,a)\)</span>. We don’t care about the <span class="math inline">\(s'\)</span> right now. So we get reward <span class="math inline">\(r\)</span> with probability <span class="math inline">\(\sum_{s'} p(s',r | s,a)\)</span>. Thus we have <span class="math display">\[
+\mathbb{E}_{\pi}[R_{t+1} \mid S_t = s]
+= \sum_{a} \pi(a|s) \sum_{r} r \left(\sum_{s'} p(s',r | s,a)\right)
+\]</span> Or in a nicer format <span class="math display">\[
+\mathbb{E}_{\pi}[R_{t+1} \mid S_t = s]
+= \sum_{a} \pi(a|s) \sum_{r,s'} r \; p(s',r | s,a)
+\]</span></p>
+<p>Now let us derive this using LOTUS (<a href="02-multi-armed-bandits.html#thm-law-of-the-unconscious-statistician" class="quarto-xref">Theorem&nbsp;<span>2.1</span></a>) the law of total expectation (<a href="02-multi-armed-bandits.html#thm-law-of-total-probability" class="quarto-xref">Theorem&nbsp;<span>2.3</span></a>) <span class="math display">\[
+\begin{split}
+\mathbb{E}_{\pi}&amp;[R_{t+1} \mid S_t = s] =
+\sum_{r} r \; \mathrm{Pr}_{\pi}[R_{t+1} = r \mid S_t = s] \\
+&amp;= \sum_r r \sum_{a, s'} \mathrm{Pr}_{\pi}[R_{t+1} = r, S_{t+1} = s' \mid A_t = a, S_t = s] \mathrm{Pr}_{\pi}[A_t = a \mid S_t = s] \\
+&amp;=  \sum_{r,a,s'} p(s',r | a,s) \pi(a|s)
+\end{split}
+\]</span></p>
+</div>
+
+
+</section>
+<section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn1"><p>“Our” Markov processes could be called more precisely stationary discrete-time Markov process.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../chapters/02-multi-armed-bandits.html" class="pagination-link" aria-label="Multi-armed Bandits">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Multi-armed Bandits</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
