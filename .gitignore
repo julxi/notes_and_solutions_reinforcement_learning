@@ -1,8 +1,14 @@
+# python
 /venv/
 **/__pycache__/
 
+# jupiter
 **/.jupyter_cache/
 
+# quarto
 /.quarto/
 
+# artifacts
+/site_libs/
+*.html
 /docs/
