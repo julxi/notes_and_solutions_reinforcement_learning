@@ -15,6 +15,7 @@ format:
     theme:
       dark: darkly
       light: flatly
+    css: styles.css
     number-sections: true
     sidebar:
       style: floating

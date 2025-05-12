@@ -1,0 +1,17 @@
+.proof.solution {
+    position: relative;
+    /* Needed to position the pseudo-element */
+}
+
+/* Bottom-right corner line */
+.proof.solution::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 10px;
+    height: 10px;
+    box-sizing: content-box;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+}

@@ -1,3 +1,5 @@
 # Preface {.unnumbered}
 
-Welcome to my study notes on Reinforcement Learning: An Introduction by Richard S. Sutton and Andrew G. Barto. This primarily focuses on my solutions and thoughts while working through the exercises in the book.
+Welcome to my study notes on "Reinforcement Learning: An Introduction" by Richard S. Sutton and Andrew G. Barto [@sutton2018]. These notes primarily focus on my solutions and insights while working through the exercises in the book.
+
+I copy to the chapter and section structure of the book, presenting and solving the exercises within this framework. Additionally, sections with titles in lowercase are my own additions.

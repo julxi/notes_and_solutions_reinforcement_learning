@@ -153,7 +153,7 @@ Give a table analogous to that in Example 3.3, but for $p(s' , r |s, a)$. It sho
 The expected (discounted) return is defined as:
 $$
 G_t := \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}.
-$$
+$$ {#eq-expected-total-reward}
 For episodic tasks we have the convention that $R_{t} = 0$ when $t > T$, and thus, in particular, $G_T = 0$.
 
 In an undiscounted, episodic task, this becomes
@@ -239,17 +239,17 @@ See @sec-geometric-series for a proof.
 
 ## Policies and Value Functions
 
-To generate trajectories from an MDP, we must specify the agent’s policy.
-We indicate this notationally by adding a subscript $\pi$ to probabilities, so that $\mathrm{Pr}_\pi(A_t = a \mid S_t = s) = \pi(a \mid s)$.
+The policy distribution together with the MDP dynamics completely specify the distribution over trajectories. We write $\mathrm{Pr}_\pi$ and $\mathbb{E}_\pi$ to indicate which policy is used.
+
+We want to evaluate stationary policies $\pi$. For example something like $\mathbb{E}_\pi[R_{t+1} \mid S_t = s]$. 
 
 :::{#exr-3.11}
-If the current state is $S_t$, and actions are selected  according to stochastic policy $\pi$, then what is the expectation of $R_{t+1}$ in terms of $\pi$ and the four-argument function $p$ (@eq-mdp-dynamics)?
+If the current state is $S_t$, and actions are selected according to stochastic policy $\pi$, then what is the expectation of $R_{t+1}$ in terms of $\pi$ and the four-argument function $p$ (@eq-mdp-dynamics)?
 :::
 :::{#sol-3.11}
 It’s clearer to rephrase the exercise as “given that the current state $S_t$ is $s$”, so we proceed with that.
 
-We solve this in two ways.
-First the intuitive way and second with our theory machine.
+We’ll solve this two ways: first, intuitively; then, using our theory machine.
 
 Intuitively when $S_t = s$ then we know that $A_t$ is distributed according to $\pi(\cdot | s)$ and then from $S_t$ and $A_t$ we can get the next $S_{t+1}, R_{t+1}$ via the MDP dynamics measure.
 So let's put this together. The agent selects $a$ with probability $\pi(a \mid s)$, and then the environment transitions to $(s', r)$ with probability $p(s', r | s,a)$. We don't care about the $s'$ right now. So we get reward $r$ with probability $\sum_{s'} p(s',r | s,a)$.
@@ -274,4 +274,462 @@ $$
 \end{split}
 $$
 :::
- 
+
+The value functions quantify how desirable it is to be in a given state (or to take a given action in a state), under that policy:
+
+ - _state value function_:
+$$
+v_\pi(s) := \mathbb{E}_{\pi}[G_t \mid S_t = s]
+$$
+ - _action-value function_:
+$$
+q_{\pi}(s,a) := \mathbb{E}_{\pi}[G_t \mid S_t = s, A_t = a]
+$$
+
+::: {#exr-3.12}
+Give an equation for $v_\pi$ in terms of $q_\pi$ and $\pi$.
+:::
+::: {#sol-3.12}
+Quick and easy answer is:
+$$
+v_{\pi}(s) = \sum_{a} \pi(a|s) q_{\pi}(s,a)
+$$ {#eq-conversion-value-from-action-value}
+:::
+
+::: {#exr-3.13}
+Give an equation for $q_\pi$ in terms of $v_\pi$ and the four-argument $p$
+:::
+::: {#sol-3.13}
+And again:
+$$
+q_{\pi}(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma v_{\pi}(s')]
+$$ {#eq-conversion-action-value-from-value}
+:::
+
+We can get the Bellman equations for $v_\pi$ and $q_\pi$ by combining @eq-conversion-value-from-action-value with @eq-conversion-action-value-from-value.
+$$
+v_\pi(s) = \sum_{a} \pi(a|s) \sum_{s',r}p(s',r|s,a)[r + \gamma v_\pi(s')]
+$$ {#eq-bellman-state-value}
+$$
+q_{\pi}(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma \sum_{a'}\pi(a'|s')q_{\pi}(s'|a')]
+$$ {#eq-bellman-action-value}
+
+Some people say they express, in a kind of recursive form, the relationship between the state's value and the next state's value.
+(I wouldn't call this "recursive" myself, especially in continuing tasks where there's no base case)
+
+What I found helpful for understanding was writing the Bellman equations as a system of linear equations. We won't be needing any of this later. Let's write the value function as a vector $v_\pi$ (indexed by $\mathcal{S}$).
+Then we can write the Bellman equations like
+$$
+\mathbf{v}_\pi = \mathbf{r}_{\pi} + \gamma \mathbf{P}_\pi \mathbf{v}_\pi,
+$$
+where  $\mathbf{r}_\pi$ is the expected reward, and $\mathbf{P}_\pi$ is the transition matrix under policy $\pi$:
+Specifically
+$$
+(\mathbf{R}_\pi)_s = \sum_{a} \pi(a|s) \sum_{s',r}p(s',r|s,a)r
+$$
+and
+$$
+(\mathbf{P}_\pi)_{s,s'} = \sum_{a} \pi(a|s) \sum_{r} p(s',r|s,a).
+$$
+
+One can check that the Bellman equation for $v_\pi$ (@eq-bellman-state-value) is indeed one row of this vector equation.
+For episodic tasks, we use the convention that that $(\mathbf{R}_\pi)_s = 0$, $(\mathbf{P}_\pi)_{s,s} =1$, and $(\mathbf{v}_\pi)_{s} = 0$ for terminal states $s$.
+
+:::{#exm-3.5}
+
+This is [@sutton2018, example 3.5: Gridworld].
+
+First, Apologies for this ugly gridworld diagram below - this was the best I could manage with Graphviz.
+
+Here's a quick recap of the gridworld setup. The states are the cells in an $5 \times 5$-grid.
+The actions are up, down, left, right each normally with a reward of +0. When bumping into a wall the position does not change and the reward is -1. When moving any direction from A or B the reward is +10 respectively +5 and the agent gets beamed to A' respectively B'.
+```{dot}
+digraph G {
+    graph [splines=false, nodesep=0]
+    node [fontname="Courier", shape=none]
+    edge [fontname="Courier", tailclip=false, headclip=false]
+
+    grid [label=<
+        <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+            <TR>
+                <TD PORT="00"></TD>
+                <TD PORT="01">A</TD>
+                <TD PORT="02">  </TD>
+                <TD PORT="03">B</TD>
+                <TD PORT="04">  </TD>
+            </TR>
+            <TR>
+                <TD PORT="10">  </TD>
+                <TD PORT="11"></TD>
+                <TD PORT="12"></TD>
+                <TD PORT="13"></TD>
+                <TD PORT="14"></TD>
+            </TR>
+            <TR>
+                <TD PORT="20">  </TD>
+                <TD PORT="21"></TD>
+                <TD PORT="22"></TD>
+                <TD PORT="23">B'</TD>
+                <TD PORT="24"></TD>
+            </TR>
+            <TR>
+                <TD PORT="30">  </TD>
+                <TD PORT="31"></TD>
+                <TD PORT="32"></TD>
+                <TD PORT="33"></TD>
+                <TD PORT="34"></TD>
+            </TR>
+            <TR>
+                <TD PORT="40"></TD>
+                <TD PORT="41">A'</TD>
+                <TD PORT="42"></TD>
+                <TD PORT="43"></TD>
+                <TD PORT="44"></TD>
+            </TR>
+        </TABLE>>];
+
+    grid:01 -> grid:41 [headlabel="+10"]
+    grid:03 -> grid:23 [headlabel="+5"]
+}
+```
+
+Let's solve the Bellman equation for the Gridworld in python.
+Here is some code that sets up the Gridworld class and a nice plotter for the value function. It's good code but no need to read the fine print.
+
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.pyplot as plt
+from enum import Enum
+from typing import Callable, Dict, Tuple
+
+
+class Action(Enum):
+    UP = (-1, 0)
+    DOWN = (1, 0)
+    LEFT = (0, -1)
+    RIGHT = (0, 1)
+
+
+class SpecialCell:
+    def __init__(self, reward: float, teleport: Tuple[int, int]):
+        self.reward = reward
+        self.teleport = teleport
+
+
+class Gridworld:
+    """
+    A simple Gridworld MDP with teleporting special cells.
+    """
+
+    def __init__(
+        self,
+        size: int,
+        special_cells: Dict[Tuple[int, int], SpecialCell],
+        default_reward: float = 0.0,
+        boundary_penalty: float = -1.0,
+    ):
+        self.size = size
+        self.n_states = size * size
+        self.special_cells = special_cells
+        self.default_reward = default_reward
+        self.boundary_penalty = boundary_penalty
+        self.actions = list(Action)
+        self.n_actions = len(self.actions)
+
+    def state_index(self, position: Tuple[int, int]) -> int:
+        i, j = position
+        return i * self.size + j
+
+    def index_state(self, idx: int) -> Tuple[int, int]:
+        return divmod(idx, self.size)
+
+    def is_boundary(self, position: Tuple[int, int]) -> bool:
+        i, j = position
+        return not (0 <= i < self.size and 0 <= j < self.size)
+
+    def expected_rewards(self, policy: Callable[[int, Action], float]) -> np.ndarray:
+        """
+        Compute expected immediate rewards R[s] under a given policy.
+        """
+        R = np.zeros(self.n_states)
+        for s in range(self.n_states):
+            pos = self.index_state(s)
+            for action in self.actions:
+                prob = policy(s, action)
+                if pos in self.special_cells:
+                    reward = self.special_cells[pos].reward
+                else:
+                    new_pos = (pos[0] + action.value[0], pos[1] + action.value[1])
+                    reward = (
+                        self.boundary_penalty
+                        if self.is_boundary(new_pos)
+                        else self.default_reward
+                    )
+                R[s] += prob * reward
+        return R
+
+    def transition_matrix(self, policy: Callable[[int, Action], float]) -> np.ndarray:
+        """
+        Compute state-to-state transition probabilities P[s, s'] under a policy.
+        """
+        P = np.zeros((self.n_states, self.n_states))
+        for s in range(self.n_states):
+            pos = self.index_state(s)
+            for action in self.actions:
+                prob = policy(s, action)
+                if pos in self.special_cells:
+                    new_pos = self.special_cells[pos].teleport
+                else:
+                    raw = (pos[0] + action.value[0], pos[1] + action.value[1])
+                    # clip to remain in grid
+                    new_pos = (
+                        min(max(raw[0], 0), self.size - 1),
+                        min(max(raw[1], 0), self.size - 1),
+                    )
+                s_prime = self.state_index(new_pos)
+                P[s, s_prime] += prob
+        return P
+
+
+def plot_value_grid(
+    V: np.ndarray,
+    size: int,
+    cmap: str = 'viridis',
+    fmt: str = '.2f',
+    figsize: Tuple[int, int] = (6, 6),
+):
+    '''
+    Plot the state-value grid with annotations and a colorbar.
+    '''
+    V = V.reshape(size,size)
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Display heatmap
+    cax = ax.matshow(V, cmap=cmap, origin='upper')
+
+    # Annotate each cell
+    for (i, j), val in np.ndenumerate(V):
+        ax.text(j, i, format(val, fmt), ha='center', va='center', fontsize=12)
+
+    # Configure ticks
+    ax.set_xticks(range(size))
+    ax.set_yticks(range(size))
+    ax.set_xlabel('Column')
+    ax.set_ylabel('Row')
+    ax.set_title('State-Value Function under Random Policy')
+
+    # Add colorbar
+    fig.colorbar(cax, ax=ax, fraction=0.046, pad=0.04)
+    plt.tight_layout()
+    plt.show()
+```
+
+The solving of the Bellman equation comes here. To solve for $\mathbf{v}$ (I leave the indices for now) we solve compute
+$$
+\mathbf{v} = (\mathbf{I} - \gamma \mathbf{P})^{-1} \mathbf{r}.
+$$
+
+So here is the meat of this computation. We print the heat map of the value function at the end (which is the same as in @sutton2018 but with more precision so @exr-3.14 is more fun)
+```{python}
+#|code-fold: false
+#| label: fig-gridworld-random-agent-value-function
+#| fig-cap: "This is like the right part of Figure 3.2 [@sutton2018]: the state-value function for the equiprobable random policy"
+# === solving gridworld ===
+# setup parameters
+grid_size = 5
+γ = 0.9
+
+# setup gridworld
+specials = {
+    (0, 1): SpecialCell(reward=10, teleport=(4, 1)),
+    (0, 3): SpecialCell(reward=5, teleport=(2, 3)),
+}
+env = Gridworld(size=grid_size, special_cells=specials)
+
+# setup random policy
+def random_policy(_: int, __: Action) -> float:
+    """Uniform random policy over all actions."""
+    return 1 / len(Action)
+
+# obtain variables of Bellman equation
+R = env.expected_rewards(random_policy)
+P = env.transition_matrix(random_policy)
+
+#--- solve the Bellman equation ---
+I = np.eye(grid_size*grid_size)
+v = np.linalg.solve(I - γ * P, R)
+
+plot_value_grid(v, grid_size)
+```
+
+:::
+
+:::{#exr-3.14}
+The Bellman equation (@eq-bellman-state-value) must hold for each state for the value function $v_\pi$ shown in @fig-gridworld-random-agent-value-function of @exm-3.5. Show numerically that this equation holds for the center state, valued at +0.7, with respect to its four neighboring states, valued at +2.3, +0.4, 0.4, and +0.7. (These numbers are accurate only to one decimal place.)
+:::
+:::{#sol-3.14}
+We'll use the numbers accurate to two decimal places.
+Basically we have to show that for the middle state $s$ we have
+$$
+\begin{split}
+v_\pi(s) &\approx 0.9 \cdot 0.25 \cdot \big( v_\pi(s + (1,0)) + v_\pi(s + (-1,0)) \\
+&+ v_\pi(s + (0,1)) + v_\pi(s + (0,-1)) \big),
+\end{split}
+$$
+(Here, we're using vector notation to denote the directions to neighbouring states.)
+
+Indeed this is true
+$$
+0.9 \cdot 0.25 \cdot (2.25 + 0.36 + (-0.35) + 0.74) = 0.669
+$$
+which is approximately $0.67$
+:::
+
+:::{#exr-3.15}
+In the gridworld example, rewards are positive for goals, negative for running into the edge of the world, and zero the rest of the time. Are the signs of these rewards important, or only the intervals between them? Prove, using @eq-expected-total-reward, that adding a constant $c$ to all the rewards adds a constant, $v_c$, to the values of all states, and thus does not affect the relative values of any states under any policies. What is $v_c$ in terms of $c$ and $\gamma$?
+:::
+:::{#sol-3.15}
+Adding a constant $c$ to all rewards in a continuing task adds a constant
+$$
+v_c = \frac{c}{ 1 − \gamma}
+$$
+to the value of every state. This can be shown as follows.
+$$
+\begin{split}
+G_t &= \sum_{k=0}^{\infty} \gamma^k (R_{t+k+1} + c) \\
+&= \sum_{k=0}^{\infty} \gamma^k R_{t+k+1} + \sum_{k=0}^\infty \gamma^kc\\
+&= \sum_{k=0}^{\infty} \gamma^k R_{t+k+1} + \frac{c}{1-\gamma}
+\end{split}
+$$
+
+Thus, the relative ordering of state values is preserved (it doesn't change which states are better than others). However, value ratios do change.
+
+For completeness, we can also verify this result using the vector form of the Bellman equation. Suppose $\mathbf{v}$ is the original value function, and $\mathbf{r}$ the original reward vector. After adding a constant $c$ to every reward, the new reward vector is $r+c\mathbf{1}$, where $\mathbf{1}$ is the vector of all ones. The new value function is
+$$
+\begin{split}
+\mathbf{v}' &= (\mathbf{I} - \gamma \mathbf{P})^{-1} (\mathbf{r} + c\mathbf{1}) \\
+&= (\mathbf{I} - \gamma \mathbf{P})^{-1} \mathbf{r} + c(\mathbf{I} - \gamma \mathbf{P})^{-1} \mathbf{1} \\
+&= \mathbf{v} + \frac{c}{1 - \gamma} \mathbf{1},
+\end{split}
+$$
+since $(\mathbf{I} - \gamma \mathbf{P}) \frac{1}{1-\gamma}\mathbf{1}
+= \frac{1}{1-\gamma}(\mathbf{1} - \gamma \mathbf{1}) = \mathbf{1}$.
+:::
+
+:::{#exr-3.16}
+Now consider adding a constant $c$ to all the rewards in an episodic task, such as maze running. Would this have any effect, or would it leave the task unchanged as in the continuing task above? Why or why not? Give an example.
+:::
+::: {#sol-3.16}
+In an episodic task, adding a constant $c$ to all rewards the task in a meaningful way. The additive term depends on both the state and the policy through the expected remaining time in the episode, so it can change the relative values of states and also reverse the ranking of policies.
+
+Formally, for the undiscounted case, the value function under a modified reward $R'_t = R_t + c$ becomes:
+
+$$
+\begin{split}
+v'_{\pi}(s) &= \mathbb{E}_{\pi}\left[\sum_{k=0}^{T-t-1} (R_{t+k+1} + c) \mid S_t = s \right] \\
+&= v_{\pi}(s) + c \cdot \mathbb{E}_{\pi}[T - t \mid S_t = s],
+\end{split}
+$$
+where $T$ is the random variable for the time step at which the episode ends. 
+
+We consider the easiest maze in the world with two states: $S$ and $T$ (terminal). In state $S$, there are two actions:
+
+- **"continue"**: returns to $S$ with reward $r$  
+- **"stop"**: transitions to $T$ with reward $0$
+
+If $r=−1$, then policies that choose "stop" with highen probability perform better. However, if we add $c=2$ to all rewards, then this reverses to selecting "stop" with lower probability.
+:::
+
+:::{#exr-3.17}
+What is the Bellman equation for action values, that is, for $q_\pi$?
+It must give the action values $q_\pi(s,a)$ in terms of the action values $q_\pi(s'a')$, of possible successors to the state-action pair $(s,a)$.
+:::
+:::{#sol-3.17}
+This is just @eq-bellman-action-value.
+:::
+
+:::{#exr-3.18}
+The value of a state depends on the values of the actions possible in that state and on how likely each action is to be taken under the current policy. We can think of this in terms of a small backup diagram rooted at the state and considering each possible action:
+```{dot}
+//| fig-width: 4
+digraph PolicyDiagram {
+    rankdir=TB;
+    node [shape=circle, fontname="Helvetica"];
+    
+    s [label="s"];
+
+    node [shape=point, width=0.1];
+    a1; a2; a3;
+
+    // Actions from state s
+    s -> a1 [label="a₁"];
+    s -> a2 [label="a₂"];
+    s -> a3 [label="a₃"];
+
+    // Invisible nodes for labels
+    node [shape=plaintext, fontname="Helvetica", fontsize=12];
+    vpi [label="v_π(s)", shape=plaintext];
+    qpi [label="q_π(s, a), has prob. π(a|s)", shape=plaintext];
+
+    { rank=same; s, vpi}
+
+    // Positioning labels
+    s -> vpi [style=dashed, arrowhead=none];
+    a3 -> qpi [style=dashed, arrowhead=none];
+}
+```
+
+Give the equation corresponding to this intuition and diagram  for the value at the root node, $v_\pi(s)$, in terms of the value at the expected leaf node, $q_{\pi}(s, a)$, given $S_t = s$. This equation should include an expectation conditioned on following the policy, $\pi$. Then give a second equation in which the expected value is written out  xplicitly in terms of $\pi(a|s)$ such that no expected value notation appears in the equation.
+:::
+:::{#sol-3.18}
+The hardest part of this exercise is to understand the problem description. And in the end isn't this just @exr-3.12 again?
+$$
+\begin{split}
+v_{\pi}(s) &= \mathbb{E}_{\pi}[q_\pi(s, A_t) \mid S_t = s] \\
+&= \sum_{a} \pi(a|s)q_{\pi}(s,a)
+\end{split}
+$$
+:::
+
+:::{#exr-3.19}
+The value of an action, $q_{\pi}(s, a)$, depends on the expected next reward and the expected sum of the remaining rewards. Again we can think of this in terms of a small backup diagram, this one rooted at an action (state–action pair) and branching to the possible next states:
+```{dot}
+//| fig-width: 4
+digraph mdp {
+    rankdir=TB;
+    node [shape=circle, fontname="Helvetica"];
+    
+    sa [label="s, a", shape=circle, style=filled, fillcolor=black, fontcolor=white];
+    s1 [label="s₁'"];
+    s2 [label="s₂'"];
+    s3 [label="s₃'"];
+    
+    sa -> s1 [label="r₁"];
+    sa -> s2 [label="r₂"];
+    sa -> s3 [label="r₃"];
+
+    // Add invisible nodes and edges for annotations
+    q [shape=plaintext, label="q_π(s, a)"];
+    v3 [shape=plaintext, label="v_π(s')"];
+
+    q -> sa [arrowhead=none, style=dashed];
+    v3 -> s3 [arrowhead=none, style=dashed];
+}
+```
+
+Give the equation corresponding to this intuition and diagram for the action value, $q_{\pi}(s, a)$, in terms of the expected next reward, $R_{t+1}$, and the expected next state value, $v_{\pi}(S_{t+1})$, given that $S_{t} = s$
+:::
+
+:::{#sol-3.19}
+Ok, let's do it again.
+$$
+\begin{split}
+q_{\pi}(s,a) &= \mathbb{E}[R_{t+1} + \gamma v_{\pi}(S_{t+1}) \mid S_t = s, A_t = a] \\
+&= \sum_{s',r} p(s',r|s,a) [r + \gamma v_{\pi}(s')]
+\end{split}
+$$
+
+Note, I have left out the subscript $\pi$ for the expectation as the transition $(S_t,A_t)\to (S_{t+1}, R_{t+1})$ is independent of the agent.
+:::
