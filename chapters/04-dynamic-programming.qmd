@@ -1,0 +1,263 @@
+# Dynamic Programming
+
+## Policy Evaluation
+
+The Bellman equations for state-value @eq-bellman-state-value and for action-value @eq-bellman-action-value can be used as update rules to approximate $v_\pi$ and $q_\pi$:
+$$
+v_{k+1}(s) = \sum_a \pi(a|s) \sum_{s',r} p(s',r|s,a)[r+\gamma v_{k}(s')]
+$${#eq-bellman-update-state-value}
+$$
+q_{k+1}(s,a) = \sum_{s',r}p(s',r|s,a) [r + \gamma \sum_{a'}\pi(a'|s')q_k(s',a')]
+$${#eq-bellman-update-action-value}
+
+:::{#exm-4.1}
+This is [@sutton2018, Example 4.1]
+
+Here is the quick summary:
+
+- states: non-terminal states are numbered 1 through 14. The two gray cells are treated as a single terminal state.
+- actions: Four deterministic actions available in each state: up, down, left, right. Moving "off the grid" results in no state change.
+- rewards: A reward of -1 is given for every transition until the terminal state is reached
+- return: undiscounted
+
+```{dot}
+//| fig-width: 4
+digraph G {
+  graph [rankdir=LR, margin=0, nodesep=0, ranksep=0];
+  node  [shape=plaintext, margin=0];
+
+  grid [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+      <!-- define a convenient macro for uniform cells -->
+      <!-- blank grey cell -->
+      <TR>
+        <TD BGCOLOR="lightgray" WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE"></TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">1</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">2</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">3</TD>
+      </TR>
+      <TR>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">4</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">5</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">6</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">7</TD>
+      </TR>
+      <TR>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">8</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">9</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">10</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">11</TD>
+      </TR>
+      <TR>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">12</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">13</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">14</TD>
+        <TD BGCOLOR="lightgray" WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE"></TD>
+      </TR>
+    </TABLE>
+  >];
+}
+```
+
+And here are the state-values for the random policy:
+
+```{dot}
+//| fig-width: 4
+digraph G {
+  graph [rankdir=LR, margin=0, nodesep=0, ranksep=0];
+  node  [shape=plaintext, margin=0];
+
+  grid [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+      <!-- define a convenient macro for uniform cells -->
+      <!-- blank grey cell -->
+      <TR>
+        <TD BGCOLOR="lightgray" WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">0</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-14</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-20</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-22</TD>
+      </TR>
+      <TR>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-14</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-18</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-20</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-20</TD>
+      </TR>
+      <TR>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-20</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-20</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-18</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-14</TD>
+      </TR>
+      <TR>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-22</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-20</TD>
+        <TD WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">-14</TD>
+        <TD BGCOLOR="lightgray" WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE">0</TD>
+      </TR>
+    </TABLE>
+  >];
+}
+```
+
+Note that these values are (luckily) exact, which will be useful for the next exercises
+:::
+
+:::{#exr-4.1}
+In @exm-4.1, if $\pi$ is the equiprobable random policy, what is $q_\pi(11, \mathrm{down})$? What is $q_\pi(7, \mathrm{down})$?
+:::
+:::{#sol-4.1}
+We can use the state-value function given in the example:
+$$
+\begin{split}
+q_\pi(11, \mathrm{down}) &= -1 + 0 = -1\\
+q_\pi(7, \mathrm{down}) &= -1 + v_\pi(11) = -1 + (-14) = -15
+\end{split}
+$$
+:::
+
+:::{#exr-4.2}
+In @exm-4.1, suppose a new state 15 is added to the gridworld just below state 13, and its actions, left, up, right, and down, take the agent to states 12, 13, 14, and 15, respectively. Assume that the transitions from the original states are unchanged. What, then, is $v_\pi(15)$ for the equiprobable random policy?
+
+Now suppose the dynamics of state 13 are also changed, such that action down from state 13 takes the agent to the new state 15. What is $v_\pi(15)$ for the equiprobable random policy in this case?
+:::
+:::{#sol-4.2}
+Since the MDP is deterministic and all transitions give the same reward, the undiscounted Bellman equation @eq-bellman-state-value simplifies to:
+$$
+v_{\pi}(s) = r + \sum_{a}\pi(a|s') [v_{\pi}(s')],
+$$
+
+where $r = -1$.
+
+The first case is quite easy to compute. 
+The transitions for all original states remain unchanged, so their values also remain unchanged. For the new state 15, we can write:
+$$
+v_\pi(15) = -1 + \frac{1}{4}(v_\pi(12) + v_\pi(13) + v_\pi(14) + v_\pi(15))
+$$
+which gives $v_\pi(15) = -20$.
+
+Now in the second case we might be up for a lot of work, as
+state 13 has a new transition: taking action "down" leads to state 15. This changes the dynamics of the MDP, so in principle the values might change. However, luckily the existing state-value function still satisfies the Bellman equation for state 13:
+$$
+v_\pi(13) = -1 + \frac{1}{4}(v_\pi(12) + v_\pi(9) + v_\pi(13) + v_\pi(15))
+$$
+
+Substitute the known values we see that the equation holds
+$$
+v_\pi(13) = -20 = -1 + \frac{1}{4}(-22 - 20 - 14 - 20)
+$$
+
+So $v_\pi(13)$ remains consistent with the new dynamics. Since all Bellman equations continue to hold with the same values, the state-value function does not change. So, $v_\pi(15)=-20$ also in this case.
+:::
+
+:::{#exr-4.3}
+What are the equations analogous to @eq-state-value-one-step-look-ahead, @eq-bellman-state-value, and @eq-bellman-update-state-value for the action-value function $q_\pi$ and its successive approximation by a sequence of functions $q_0, q_1, \dots$?
+:::
+:::{#sol-4-3}
+We have already stated these equations in tandem as @eq-action-value-one-step-look-ahead, @eq-bellman-action-value, and @eq-bellman-update-action-value.
+:::
+
+## Policy Improvement {#sec-policy-improvement}
+
+An optimal policy can always be chosen to be deterministic. This is quite intuitive: why would introducing randomness in action selection be beneficial if all you care about is maximising expected return? More rigorously, if you are choosing between two actions, $a_1$ and $a_2$, and you know their values $q_\pi(s,a_1)$ and $q_\pi(s,a_2)$, then it is clearly best to take the one with the higher value. A key tool for this kind of reasoning is the policy improvement theorem.
+
+:::{#thm-policy-improvement-theorem}
+Let $\pi$ be any policy and $\pi'$ a deterministic policy.
+Then $\pi \leq \pi'$ if
+$$
+v_\pi(s) \leq q_\pi(s,\pi'(s)),
+$$
+for all $s \in \mathcal{S}$.
+:::
+:::{.proof}
+From the assumption, we have:
+$$
+\begin{split}
+v_\pi(s) &\leq q_\pi(s, \pi'(s)) \\
+&= \mathbb{E}[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t = s, A_t = \pi'(s)] \\
+&= \mathbb{E}_{\pi'}[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t = s] \\
+\end{split}
+$$
+(if you wonder about the indices in the expectation: the first expectation is completely determined by the MDP, in the second one we stipulate action selection according to $\pi'$.)
+
+Now, we can unroll this expression recursively:
+$$
+\begin{align}
+v_\pi(s) &\leq \mathbb{E}_{\pi'}[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t = s] \\
+&\leq \mathbb{E}_{\pi'}[R_{t+1} + \gamma \mathbb{E}_{\pi'}[R'_{t+2} + \gamma v_\pi(S'_{t+2}) \mid S'_{t+1} = S_{t+1}] \mid S_t = s] \\
+&= \mathbb{E}_{\pi'}[R_{t+1} + \gamma R_{t+2} + \gamma^2 v_\pi(S_{t+2}) \mid S_t = s]
+\end{align}
+$$
+
+and so on. The last equality should be justified formally by the law of total expectation and the law of the unconscious statistician (@thm-law-of-total-expectation and @thm-law-of-the-unconscious-statistician).
+
+Iterating this process a couple of times we get
+$$
+v_\pi(s) \leq \mathbb{E}_{\pi'}\bigg[\sum_{i=0}^{N} \gamma^i R_{t+1+i} + \gamma^{N+1} v_\pi(S_{t+1+N}) \;\bigg|\; S_t = s \bigg]
+$$
+
+and in the limit (everything is bounded so this should be kosher)
+$$
+v_\pi(s) \leq \mathbb{E}_{\pi'}\bigg[\sum_{i=0}^{\infty} \gamma^i R_{t+1+i} \;\bigg| \; S_t = s \bigg] = v_{\pi'}(s).
+$$
+::::
+
+This result allows us to show that every finite MDP has an optimal deterministic policy.
+
+Let $\pi$ be any policy. Define a new deterministic policy $\pi'$ by
+$$
+\pi'(s)= \underset{a \in \mathcal{A}}{\mathrm{argmax}} q_{\pi}(s,a)
+$$
+
+By the policy improvement theorem, we have $\pi \leq \pi'$. Now consider two deterministic policies, $\pi_1$ and $\pi_2$, and define their meet (pointwise maximum policy) as
+$$
+(\pi_1 \vee \pi_2)(s) =
+\begin{cases}\pi_1(s) &\text{if } v_{\pi_1}(s) \geq v_{\pi_2}(s) \\
+\pi_2(s) &\text{else}
+\end{cases}
+$$
+
+Then, again by the policy improvement theorem, we have $\pi_1, \pi_2 \leq \pi_1 \vee \pi_2$.
+
+Now, since the number of deterministic policies is finite (as both $\mathcal{S}$ and $\mathcal{A}$ are finite), we can take the meet over all deterministic policies and obtain an optimal deterministic policy.
+
+This leads directly to a characterisation of optimality in terms of greedy action selection.
+
+:::{#thm-optimal-policy-equation}
+A policy $\pi$ is optimal, if and only if,
+$$
+v_\pi(s) = \max_{a \in \mathcal{A}(s)} q_{\pi}(s,a),
+$${#eq-conversion-action-to-state-value-for-optimal-policy}
+
+for all $s \in \mathcal{S}$.
+:::
+:::{.proof}
+If $\pi$ is optimal then $v_\pi(s) < \max_{a} q_\pi(s,a)$ would lead to a contradiction using the policy improvement theorem.
+
+For the converse we do an argument very similar to the proof of @thm-policy-improvement-theorem. So similar in fact that I'm afraid that were doing the same work twice.
+Let $\pi$ satisfy @eq-conversion-action-to-state-value-for-optimal-policy. We show that $\pi$ is optimal by showing that
+$$
+\Delta(s) = v_{\pi_*}(s) - v_{\pi}(s)
+$$
+is $0$ for all $s \in \mathcal{S}$, where $\pi_*$ is any deterministic, optimal policy.
+
+We can bound $\Delta(s)$ like so
+$$
+\begin{split}
+\Delta(s) &= q_{\pi_*}(s,\pi_*(s)) - \max_a q_{\pi}(s,a) \\
+&\leq q_{\pi_*}(s,\pi_*(s)) - q_\pi(s,\pi_*(s)) \\
+&= \mathbb{E}_{\pi_*}[ R_{t+1} + \gamma v_{\pi_*}(S_{t+1}) - (R_{t+1} + \gamma v_{\pi}(S_{t+1})) | S_{t} = s] \\
+&= \mathbb{E}_{\pi_*}[\gamma \Delta(S_{t+1}) | S_t = s]
+\end{split}
+$$
+
+Iterating this and taking the limit gives
+$$
+\Delta(s) \leq \lim_{k \to \infty} \mathbb{E}_{\pi_*}[\gamma^k \Delta(S_{t+k}) \mid S_t = s] = 0.
+$$
+:::
+
+
+
+## Policy Iteration
+

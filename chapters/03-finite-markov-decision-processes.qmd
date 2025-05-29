@@ -12,13 +12,14 @@ and an episodic trajectory looks like this:
 $$
 S_0, A_0, R_1, S_1, A_1, \dots R_{T-1}, S_{T-1}, A_{T-1}, R_T, S_T.
 $$
-Note that the sequencing of actions and rewards has changed from the previous chapter. Now, the reward for an action $A_t$ is $R_{t+1}$, not $R_t$ as before.
+Note that the indexes of actions and rewards has changed from the previous chapter. Now, the reward for an action $A_t$ is $R_{t+1}$, not $R_t$ as it was defined for the armed bandits.
 
 An MDP is completely described by its dynamics:
 $$
 p(s', r |s,a) := \mathrm{Pr}(S_t = s', R_t = r \mid S_{t-1} = s, A_{t-1} = a)
 $$ {#eq-mdp-dynamics}
-giving the probability that, from state $s \in \mathcal{S}$ under action $a \in \mathcal{A}(s)$, the environment transitions to state $s' \in \mathcal{S}^+$, where $\mathcal{S}^+$ denotes the state space with any possible terminal states, and gives reward $r \in \mathcal{R}$.
+
+giving the probability that, from state $s \in \mathcal{S}$ under action $a \in \mathcal{A}(s)$, the environment transitions to state $s' \in \mathcal{S}^+$ ($\mathcal{S}^+$ denotes the state space with any possible terminal states) and gives reward $r \in \mathcal{R}$.
 
 In particular when $s$ and $a$ are fixed $p(s', r | s,a)$ is a discrete probability density, i.e.,
 $$
@@ -161,7 +162,7 @@ $$
 G_t := \sum_{k=0}^{T-t-1}  R_{t+k+1}
 $$ {#eq-expected-total-reward-episodic}
 
-Another important recursive identity is
+And as for the armed bandit this recurrence relation tying immediate reward with future return will be used often:
 $$
 G_t = R_{t+1} + \gamma G_{t+1}
 $$ {#eq-reward-recursive-formulation}
@@ -200,7 +201,7 @@ In this setup the reward basically says: "Finish the maze eventually.". So when 
 Suppose $\gamma = 0.5$ and the following sequence of rewards is received $R_1 = 1, R_2 = 2, R_3 = 6, R_4 = 3, R_5 = 2$, with $T = 5$. What are $G_0, G_1 \dots, G_5$? Hint: Work backwards.
 :::
 ::: {#sol-3.8}
-We can use the recursive formula (@eq-reward-recursive-formulation) for the reward: $G_t = R_{t+1} + \gamma G_{t+1}$
+We can use the recurrence relation @eq-reward-recursive-formulation for the reward: $
 
 | t | $R_{t+1}$ | $\gamma G_{t+1}$  | $G_t$
 | :-: | :-: | :-: | :-: |
@@ -239,20 +240,20 @@ See @sec-geometric-series for a proof.
 
 ## Policies and Value Functions
 
-The policy distribution together with the MDP dynamics completely specify the distribution over trajectories. We write $\mathrm{Pr}_\pi$ and $\mathbb{E}_\pi$ to indicate which policy is used.
+The policy distribution, together with the MDP dynamics, completely specify the distribution over trajectories. We write $\mathrm{Pr}_\pi$ and $\mathbb{E}_\pi$ to indicate which policy is used.
 
-We want to evaluate stationary policies $\pi$. For example something like $\mathbb{E}_\pi[R_{t+1} \mid S_t = s]$. 
+We want to evaluate stationary policies $\pi$. For example, something like $\mathbb{E}_\pi[R_{t+1} \mid S_t = s]$. 
 
 :::{#exr-3.11}
-If the current state is $S_t$, and actions are selected according to stochastic policy $\pi$, then what is the expectation of $R_{t+1}$ in terms of $\pi$ and the four-argument function $p$ (@eq-mdp-dynamics)?
+If the current state is $S_t$, and actions are selected according to the stochastic policy $\pi$, then what is the expectation of $R_{t+1}$ in terms of $\pi$ and the four-argument function $p$ (@eq-mdp-dynamics)?
 :::
 :::{#sol-3.11}
-It’s clearer to rephrase the exercise as “given that the current state $S_t$ is $s$”, so we proceed with that.
+It’s clearer to rephrase the exercise as “given that the current state $S_t$ is $s$”. So, let's proceed with that.
 
 We’ll solve this two ways: first, intuitively; then, using our theory machine.
 
-Intuitively when $S_t = s$ then we know that $A_t$ is distributed according to $\pi(\cdot | s)$ and then from $S_t$ and $A_t$ we can get the next $S_{t+1}, R_{t+1}$ via the MDP dynamics measure.
-So let's put this together. The agent selects $a$ with probability $\pi(a \mid s)$, and then the environment transitions to $(s', r)$ with probability $p(s', r | s,a)$. We don't care about the $s'$ right now. So we get reward $r$ with probability $\sum_{s'} p(s',r | s,a)$.
+Intuitively, when $S_t = s$ then we know that $A_t$ is distributed according to $\pi(\cdot | s)$ and then from $S_t$ and $A_t$ we can get the next $S_{t+1}, R_{t+1}$ via the MDP dynamics measure.
+So let's put this together. The agent selects $a$ with probability $\pi(a \mid s)$, and then the environment transitions to $(s', r)$ with probability $p(s', r | s,a)$. We don't care about the $s'$ right now. So, we get reward $r$ with probability $\sum_{s'} p(s',r | s,a)$.
 Thus we have
 $$
 \mathbb{E}_{\pi}[R_{t+1} \mid S_t = s]
@@ -275,22 +276,22 @@ $$
 $$
 :::
 
-The value functions quantify how desirable it is to be in a given state (or to take a given action in a state), under that policy:
+The value functions quantify how desirable it is to be in a given state (or to take a given action in a state) under a policy:
 
  - _state value function_:
 $$
 v_\pi(s) := \mathbb{E}_{\pi}[G_t \mid S_t = s]
-$$
+$${#eq-state-value-function}
  - _action-value function_:
 $$
 q_{\pi}(s,a) := \mathbb{E}_{\pi}[G_t \mid S_t = s, A_t = a]
-$$
+$${#eq-action-value-function}
 
 ::: {#exr-3.12}
 Give an equation for $v_\pi$ in terms of $q_\pi$ and $\pi$.
 :::
 ::: {#sol-3.12}
-Quick and easy answer is:
+The quick and easy answer is:
 $$
 v_{\pi}(s) = \sum_{a} \pi(a|s) q_{\pi}(s,a)
 $$ {#eq-conversion-value-from-action-value}
@@ -300,13 +301,21 @@ $$ {#eq-conversion-value-from-action-value}
 Give an equation for $q_\pi$ in terms of $v_\pi$ and the four-argument $p$
 :::
 ::: {#sol-3.13}
-And again:
+Again quick and easy:
 $$
 q_{\pi}(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma v_{\pi}(s')]
 $$ {#eq-conversion-action-value-from-value}
 :::
 
-We can get the Bellman equations for $v_\pi$ and $q_\pi$ by combining @eq-conversion-value-from-action-value with @eq-conversion-action-value-from-value.
+We can get the Bellman equations for $v_\pi$ and $q_\pi$ by writing @eq-state-value-function and @eq-action-value-function in their "one-step look-ahead" form
+$$
+v_\pi(s) = \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t = s]
+$$ {#eq-state-value-one-step-look-ahead}
+$$
+q_\pi(s,a) = \mathbb{E}_\pi[R_{t+1} + \gamma q_\pi(S_{t+1}, A_{t+1}) \mid S_t = s, A_t = a]
+$$ {#eq-action-value-one-step-look-ahead}
+
+We then write down the expectations with the MDP’s transition dynamics and the policy’s action probabilities:
 $$
 v_\pi(s) = \sum_{a} \pi(a|s) \sum_{s',r}p(s',r|s,a)[r + \gamma v_\pi(s')]
 $$ {#eq-bellman-state-value}
@@ -314,19 +323,22 @@ $$
 q_{\pi}(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma \sum_{a'}\pi(a'|s')q_{\pi}(s'|a')]
 $$ {#eq-bellman-action-value}
 
-Some people say they express, in a kind of recursive form, the relationship between the state's value and the next state's value.
-(I wouldn't call this "recursive" myself, especially in continuing tasks where there's no base case)
+Equivalently, one can derive these by combining @eq-conversion-value-from-action-value with @eq-conversion-action-value-from-value.
 
-What I found helpful for understanding was writing the Bellman equations as a system of linear equations. We won't be needing any of this later. Let's write the value function as a vector $v_\pi$ (indexed by $\mathcal{S}$).
-Then we can write the Bellman equations like
+This is typically stated as a recursive relationship between the state's value and the next state's value.
+(I wouldn't call this 'recursive' myself, especially in continuing tasks where there's no base case)
+
+What I found helpful for understanding was writing the Bellman equations as a system of linear equations. We see the value function as a vector $v_\pi$ (indexed by $\mathcal{S}$) and then we can write the Bellman equations like:
 $$
 \mathbf{v}_\pi = \mathbf{r}_{\pi} + \gamma \mathbf{P}_\pi \mathbf{v}_\pi,
 $$
-where  $\mathbf{r}_\pi$ is the expected reward, and $\mathbf{P}_\pi$ is the transition matrix under policy $\pi$:
-Specifically
+
+where  $\mathbf{r}_\pi$ is the expected reward, and $\mathbf{P}_\pi$ is the transition matrix under policy $\pi$.
+Specifically,
 $$
 (\mathbf{R}_\pi)_s = \sum_{a} \pi(a|s) \sum_{s',r}p(s',r|s,a)r
 $$
+
 and
 $$
 (\mathbf{P}_\pi)_{s,s'} = \sum_{a} \pi(a|s) \sum_{r} p(s',r|s,a).
@@ -495,30 +507,30 @@ class Gridworld:
 def plot_value_grid(
     V: np.ndarray,
     size: int,
-    cmap: str = 'viridis',
-    fmt: str = '.2f',
+    cmap: str = "viridis",
+    fmt: str = ".2f",
     figsize: Tuple[int, int] = (6, 6),
 ):
-    '''
+    """
     Plot the state-value grid with annotations and a colorbar.
-    '''
-    V = V.reshape(size,size)
+    """
+    V = V.reshape(size, size)
 
     fig, ax = plt.subplots(figsize=figsize)
 
     # Display heatmap
-    cax = ax.matshow(V, cmap=cmap, origin='upper')
+    cax = ax.matshow(V, cmap=cmap, origin="upper")
 
     # Annotate each cell
     for (i, j), val in np.ndenumerate(V):
-        ax.text(j, i, format(val, fmt), ha='center', va='center', fontsize=12)
+        ax.text(j, i, format(val, fmt), ha="center", va="center", fontsize=12)
 
     # Configure ticks
     ax.set_xticks(range(size))
     ax.set_yticks(range(size))
-    ax.set_xlabel('Column')
-    ax.set_ylabel('Row')
-    ax.set_title('State-Value Function under Random Policy')
+    ax.set_xlabel("Column")
+    ax.set_ylabel("Row")
+    ax.set_title("State-Value Function under Random Policy")
 
     # Add colorbar
     fig.colorbar(cax, ax=ax, fraction=0.046, pad=0.04)
@@ -526,12 +538,14 @@ def plot_value_grid(
     plt.show()
 ```
 
-The solving of the Bellman equation comes here. To solve for $\mathbf{v}$ (I leave the indices for now) we solve compute
+To solve for $\mathbf{v}$ we let python compute
 $$
 \mathbf{v} = (\mathbf{I} - \gamma \mathbf{P})^{-1} \mathbf{r}.
 $$
 
-So here is the meat of this computation. We print the heat map of the value function at the end (which is the same as in @sutton2018 but with more precision so @exr-3.14 is more fun)
+(I left the $\pi$ indices implicit here)
+
+So here is the meat of this computation. We let numpy solve the bellmann equations for grid world.
 ```{python}
 #|code-fold: false
 #| label: fig-gridworld-random-agent-value-function
@@ -656,7 +670,7 @@ The value of a state depends on the values of the actions possible in that state
 //| fig-width: 4
 digraph PolicyDiagram {
     rankdir=TB;
-    node [shape=circle, fontname="Helvetica"];
+    node [shape=circle, fontname="Helvetica", margin=0];
     
     s [label="s"];
 
@@ -699,7 +713,7 @@ The value of an action, $q_{\pi}(s, a)$, depends on the expected next reward and
 //| fig-width: 4
 digraph mdp {
     rankdir=TB;
-    node [shape=circle, fontname="Helvetica"];
+    node [shape=circle, fontname="Helvetica", margin=0];
     
     sa [label="s, a", shape=circle, style=filled, fillcolor=black, fontcolor=white];
     s1 [label="s₁'"];
@@ -733,3 +747,155 @@ $$
 
 Note, I have left out the subscript $\pi$ for the expectation as the transition $(S_t,A_t)\to (S_{t+1}, R_{t+1})$ is independent of the agent.
 :::
+
+## Optimal Policies and Optimal Value Functions
+
+In the next chapter (@sec-policy-improvement), we will see that any MDP has an optimal deterministic policy.
+We'll take this fact for granted for now and focus on their value functions.
+
+A policy is deterministic if $\pi(a|s) = 1$ for exactly one action for each $s \in \mathcal{S}$. We then also just write $\pi(s)$ for this action.
+
+A policy $\pi_*$ is optimal if $\pi_* \geq \pi$ for any other $\pi$. Here we use $\geq$, a partial order on all policies for the MDP, defiend by
+$$
+\pi \leq \pi' \quad:\Longleftrightarrow\quad v_\pi(s) \leq \pi'(s) \; \text{, for all }s \in \mathcal{S}.
+$$
+
+There might be more than one optimal policy, but they must have the same value function (otherwise, they wouldn't be optimal). We can define the optimal state-value function as
+$$
+v_*(s) := \max_{\pi} v_{\pi}(s)
+$$
+
+and the optimal action-value function as
+$$
+q_*(s,a) := \max_{\pi} q_\pi(s,a).
+$$
+
+These definitions are well-defined by the existence of optimal policies.
+
+The conversion formula from $q_*$ to $v_*$ takes a special simple form
+(we also prove this in the next chapter in @thm-optimal-policy-equation):
+$$
+v_*(s) = \max_{a} q_\pi(a,s)
+$$
+
+Combining this with @eq-conversion-action-value-from-value, we get the Bellman optimality equations for the state value:
+$$
+v_*(s) = \max_{a} \sum_{s',r}p(s',r|s,a)[r + \gamma v_*(s')]
+$$
+
+and the state-action value:
+$$
+q_*(s,a) = \sum_{s',r}p(s',r|s,a) [r + \gamma \max_{a'}q_*(s',a')]
+$$
+
+In principal, these Bellman optimality equations can be solved and having access to either $v_*$ or $q_*$ gives us direct access to an optimal $\pi_*$
+(for $v_* \to \pi_*$ we need to know the dynamics of the MDP though; see @exr-3.28)
+
+:::{#exr-3.20}
+Draw or describe the optimal state-value function for the golf example.
+:::
+:::{#sol-3.20}
+I'm not 100% sure about this solution as I don't like the golf example too much and as a result haven't thought it completely through:
+
+Use driver when not on the green. Use putter on the green.
+:::
+
+:::{#exr-3.21}
+Draw or describe the contours of the optimal action-value function for putting, $q_*(s, \mathrm{putter})$, for the golf example.
+:::
+:::{#sol-3.21}
+I'm even less sure here.
+
+Inside the -2 contour of $v_\mathrm{putt}$ it's like $v_{\mathrm{putt}}$. In the sand it's -3. Everywhere else it's like the $q_*(s,\mathrm{driver})$ but shifted by a putter distance outwards and the value is one less.
+:::
+
+:::{#exr-3.22}
+Consider the continuing MDP shown on to the right. The only decision to be made is that in the top state, where two actions are available, $\mathrm{left}$ and $\mathrm{right}$. The numbers show the rewards that are received deterministically after each action. There are exactly two deterministic policies, $\pi_{\mathrm{left}}$ and $\pi_{\mathrm{right}}$. What policy is optimal if $\gamma = 0$? If $\gamma = 0.9$? If $\gamma = 0.5$?
+:::
+:::{#sol-3.22}
+Here is a table indicating which policy is best in which case.
+
+|$\gamma$| $v_{\pi_{\mathrm{left}}}$ | $v_{\pi_{\mathrm{right}}}$ | 
+| :-: | :-: | :-: |
+|0| **1** | 0 | 
+|0.9| 1 | **1.8**
+|0.5| **0.5** | **0.5** |
+:::
+
+:::{#exr-3.23}
+Give the Bellman equation for $q_*$ for the recycling robot.
+:::
+:::{#sol-3.23}
+
+:::
+
+:::{#exr-3.24}
+Figure 3.5 gives the optimal value of the best state of the gridworld as 24.4, to one decimal place. Use your knowledge of the optimal policy and (3.8) to express this value symbolically, and then to compute it to three decimal places.
+:::
+:::{#sol-3.24}
+The solution is
+$$
+\begin{split}
+v_*(s) &= 10 + 0\gamma + 0\gamma^2 + 0\gamma^3 + 0\gamma^4 + 10\gamma^5 + \dots \\
+&= 10 \sum_{i=0}^\infty \gamma^{5i} = \frac{10}{1-\gamma^5}
+\end{split}
+$$
+Which is for $\gamma = 0.9$ approximately $24.41943$.
+:::
+
+:::{#exr-3.25}
+Give an equation for $v_*$ in terms of $q_*$.
+:::
+:::{#sol-3.25}
+$$
+v_*(s) = \max_a q_*(s,a)
+$$
+:::
+
+:::{#exr-3.26}
+Give an equation for $q_*$ in terms of $v_*$ and the four-argument $p$.
+:::
+:::{#sol-3.26}
+$$
+q_*(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma v_*(s)]
+$$
+:::
+
+:::{#exr-3.27}
+Give an equation for $\pi_*$ in terms of $q_\pi$.
+:::
+:::{#sol-3.27}
+$$
+\pi_*(s) = \underset{a}{\mathrm{argmax}} \; q_*(s,a)
+$$
+:::
+
+:::{#exr-3.28}
+Give an equation for $\pi_*$ in terms of $v_*$ and the four-argument $p$.
+:::
+:::{#sol-3.28}
+$$
+\pi_*(s) = \underset{a}{\mathrm{argmax}} \sum_{s',r} p(s',r|s,a) [r + \gamma v_*(s)]
+$$
+:::
+
+:::{#exr-3.29}
+Rewrite the four Bellman equations for the four value functions ($v_\pi$, $v_*$, $q_\pi$, and $q_*$) in terms of the three argument function $p$ (3.4) and the two-argument function $r$ (3.5).
+:::
+:::{#sol-3.29}
+$$
+\begin{split}
+v_\pi(s) &= \sum_{a} \pi(a|s) \Big[r(a,s) + \gamma \sum_{s'} p(s'|a,s) v_\pi(s')\Big] \\
+v_*(s) &= \max_a r(a,s) + \gamma \sum_{s'} p(s'|a,s) v_*(s') \\
+q_\pi(a,s) &= r(a,s) + \gamma \sum_{s'} p(s'|s,a) \sum_{a'} \pi(a'|s') q_\pi(a',s') \\
+q_*(a,s) &= r(a,s) + \gamma \sum_{s'} p(s'|s,a) \max_{a'} q_*(a',s')
+\end{split}
+$$
+:::
+
+## Optimality and Approximation
+
+## Summary
+
+
+
