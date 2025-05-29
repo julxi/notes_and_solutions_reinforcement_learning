@@ -85,6 +85,7 @@ div.csl-indent {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
+<link href="../chapters/04-dynamic-programming.html" rel="next">
 <link href="../chapters/02-multi-armed-bandits.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -379,6 +380,12 @@ window.Quarto = {
  <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Finite Markov Decision Processes</span></span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/04-dynamic-programming.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Dynamic Programming</span></span></a>
+  </div>
+</li>
     </ul>
     </div>
 </nav>
@@ -397,6 +404,9 @@ window.Quarto = {
   <li><a href="#returns-and-episodes" id="toc-returns-and-episodes" class="nav-link" data-scroll-target="#returns-and-episodes"><span class="header-section-number">3.3</span> Returns and Episodes</a></li>
   <li><a href="#unified-notation-for-episodic-and-continuing-tasks" id="toc-unified-notation-for-episodic-and-continuing-tasks" class="nav-link" data-scroll-target="#unified-notation-for-episodic-and-continuing-tasks"><span class="header-section-number">3.4</span> Unified Notation for Episodic and Continuing Tasks</a></li>
   <li><a href="#policies-and-value-functions" id="toc-policies-and-value-functions" class="nav-link" data-scroll-target="#policies-and-value-functions"><span class="header-section-number">3.5</span> Policies and Value Functions</a></li>
+  <li><a href="#optimal-policies-and-optimal-value-functions" id="toc-optimal-policies-and-optimal-value-functions" class="nav-link" data-scroll-target="#optimal-policies-and-optimal-value-functions"><span class="header-section-number">3.6</span> Optimal Policies and Optimal Value Functions</a></li>
+  <li><a href="#optimality-and-approximation" id="toc-optimality-and-approximation" class="nav-link" data-scroll-target="#optimality-and-approximation"><span class="header-section-number">3.7</span> Optimality and Approximation</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary"><span class="header-section-number">3.8</span> Summary</a></li>
   </ul>
 </nav>
     </div>
@@ -430,10 +440,11 @@ window.Quarto = {
 S_0, A_0, R_1, S_1, A_1, R_2, S_2 A_2, R_3, \dots,
 \]</span> and an episodic trajectory looks like this: <span class="math display">\[
 S_0, A_0, R_1, S_1, A_1, \dots R_{T-1}, S_{T-1}, A_{T-1}, R_T, S_T.
-\]</span> Note that the sequencing of actions and rewards has changed from the previous chapter. Now, the reward for an action <span class="math inline">\(A_t\)</span> is <span class="math inline">\(R_{t+1}\)</span>, not <span class="math inline">\(R_t\)</span> as before.</p>
+\]</span> Note that the indexes of actions and rewards has changed from the previous chapter. Now, the reward for an action <span class="math inline">\(A_t\)</span> is <span class="math inline">\(R_{t+1}\)</span>, not <span class="math inline">\(R_t\)</span> as it was defined for the armed bandits.</p>
 <p>An MDP is completely described by its dynamics: <span id="eq-mdp-dynamics"><span class="math display">\[
 p(s', r |s,a) := \mathrm{Pr}(S_t = s', R_t = r \mid S_{t-1} = s, A_{t-1} = a)
-\tag{3.1}\]</span></span> giving the probability that, from state <span class="math inline">\(s \in \mathcal{S}\)</span> under action <span class="math inline">\(a \in \mathcal{A}(s)\)</span>, the environment transitions to state <span class="math inline">\(s' \in \mathcal{S}^+\)</span>, where <span class="math inline">\(\mathcal{S}^+\)</span> denotes the state space with any possible terminal states, and gives reward <span class="math inline">\(r \in \mathcal{R}\)</span>.</p>
+\tag{3.1}\]</span></span></p>
+<p>giving the probability that, from state <span class="math inline">\(s \in \mathcal{S}\)</span> under action <span class="math inline">\(a \in \mathcal{A}(s)\)</span>, the environment transitions to state <span class="math inline">\(s' \in \mathcal{S}^+\)</span> (<span class="math inline">\(\mathcal{S}^+\)</span> denotes the state space with any possible terminal states) and gives reward <span class="math inline">\(r \in \mathcal{R}\)</span>.</p>
 <p>In particular when <span class="math inline">\(s\)</span> and <span class="math inline">\(a\)</span> are fixed <span class="math inline">\(p(s', r | s,a)\)</span> is a discrete probability density, i.e., <span class="math display">\[
 p(\cdot, \cdot | s,a)\colon \mathcal{S}^+ \times \mathcal{R} \to [0,1]
 \]</span> and <span id="eq-mdp-probability-density"><span class="math display">\[
@@ -585,7 +596,7 @@ G_t := \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}.
 <p>In an undiscounted, episodic task, this becomes <span id="eq-expected-total-reward-episodic"><span class="math display">\[
 G_t := \sum_{k=0}^{T-t-1}  R_{t+k+1}
 \tag{3.4}\]</span></span></p>
-<p>Another important recursive identity is <span id="eq-reward-recursive-formulation"><span class="math display">\[
+<p>And as for the armed bandit this recurrence relation tying immediate reward with future return will be used often: <span id="eq-reward-recursive-formulation"><span class="math display">\[
 G_t = R_{t+1} + \gamma G_{t+1}
 \tag{3.5}\]</span></span></p>
 <div id="exr-3.5" class="theorem exercise">
@@ -613,7 +624,7 @@ G_t = \sum_{k=0}^{T-t-1} \gamma^k R_{t + k+1} =  -\gamma^{T - t - 1},
 <p><span class="theorem-title"><strong>Exercise 3.8</strong></span> Suppose <span class="math inline">\(\gamma = 0.5\)</span> and the following sequence of rewards is received <span class="math inline">\(R_1 = 1, R_2 = 2, R_3 = 6, R_4 = 3, R_5 = 2\)</span>, with <span class="math inline">\(T = 5\)</span>. What are <span class="math inline">\(G_0, G_1 \dots, G_5\)</span>? Hint: Work backwards.</p>
 </div>
 <div id="sol-3.8" class="proof solution">
-<p><span class="proof-title"><em>Solution 3.8</em>. </span>We can use the recursive formula (<a href="#eq-reward-recursive-formulation" class="quarto-xref">Equation&nbsp;<span>3.5</span></a>) for the reward: <span class="math inline">\(G_t = R_{t+1} + \gamma G_{t+1}\)</span></p>
+<p><span class="proof-title"><em>Solution 3.8</em>. </span>We can use the recurrence relation <a href="#eq-reward-recursive-formulation" class="quarto-xref">Equation&nbsp;<span>3.5</span></a> for the reward: $</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -686,15 +697,15 @@ G_0 = R_1 + \gamma G_1 =  2 + 0.9 \cdot G_1 = 2 + 0.9 \cdot 70 = 65
 </section>
 <section id="policies-and-value-functions" class="level2" data-number="3.5">
 <h2 data-number="3.5" class="anchored" data-anchor-id="policies-and-value-functions"><span class="header-section-number">3.5</span> Policies and Value Functions</h2>
-<p>The policy distribution together with the MDP dynamics completely specify the distribution over trajectories. We write <span class="math inline">\(\mathrm{Pr}_\pi\)</span> and <span class="math inline">\(\mathbb{E}_\pi\)</span> to indicate which policy is used.</p>
-<p>We want to evaluate stationary policies <span class="math inline">\(\pi\)</span>. For example something like <span class="math inline">\(\mathbb{E}_\pi[R_{t+1} \mid S_t = s]\)</span>.</p>
+<p>The policy distribution, together with the MDP dynamics, completely specify the distribution over trajectories. We write <span class="math inline">\(\mathrm{Pr}_\pi\)</span> and <span class="math inline">\(\mathbb{E}_\pi\)</span> to indicate which policy is used.</p>
+<p>We want to evaluate stationary policies <span class="math inline">\(\pi\)</span>. For example, something like <span class="math inline">\(\mathbb{E}_\pi[R_{t+1} \mid S_t = s]\)</span>.</p>
 <div id="exr-3.11" class="theorem exercise">
-<p><span class="theorem-title"><strong>Exercise 3.11</strong></span> If the current state is <span class="math inline">\(S_t\)</span>, and actions are selected according to stochastic policy <span class="math inline">\(\pi\)</span>, then what is the expectation of <span class="math inline">\(R_{t+1}\)</span> in terms of <span class="math inline">\(\pi\)</span> and the four-argument function <span class="math inline">\(p\)</span> (<a href="#eq-mdp-dynamics" class="quarto-xref">Equation&nbsp;<span>3.1</span></a>)?</p>
+<p><span class="theorem-title"><strong>Exercise 3.11</strong></span> If the current state is <span class="math inline">\(S_t\)</span>, and actions are selected according to the stochastic policy <span class="math inline">\(\pi\)</span>, then what is the expectation of <span class="math inline">\(R_{t+1}\)</span> in terms of <span class="math inline">\(\pi\)</span> and the four-argument function <span class="math inline">\(p\)</span> (<a href="#eq-mdp-dynamics" class="quarto-xref">Equation&nbsp;<span>3.1</span></a>)?</p>
 </div>
 <div id="sol-3.11" class="proof solution">
-<p><span class="proof-title"><em>Solution 3.11</em>. </span>It’s clearer to rephrase the exercise as “given that the current state <span class="math inline">\(S_t\)</span> is <span class="math inline">\(s\)</span>”, so we proceed with that.</p>
+<p><span class="proof-title"><em>Solution 3.11</em>. </span>It’s clearer to rephrase the exercise as “given that the current state <span class="math inline">\(S_t\)</span> is <span class="math inline">\(s\)</span>”. So, let’s proceed with that.</p>
 <p>We’ll solve this two ways: first, intuitively; then, using our theory machine.</p>
-<p>Intuitively when <span class="math inline">\(S_t = s\)</span> then we know that <span class="math inline">\(A_t\)</span> is distributed according to <span class="math inline">\(\pi(\cdot | s)\)</span> and then from <span class="math inline">\(S_t\)</span> and <span class="math inline">\(A_t\)</span> we can get the next <span class="math inline">\(S_{t+1}, R_{t+1}\)</span> via the MDP dynamics measure. So let’s put this together. The agent selects <span class="math inline">\(a\)</span> with probability <span class="math inline">\(\pi(a \mid s)\)</span>, and then the environment transitions to <span class="math inline">\((s', r)\)</span> with probability <span class="math inline">\(p(s', r | s,a)\)</span>. We don’t care about the <span class="math inline">\(s'\)</span> right now. So we get reward <span class="math inline">\(r\)</span> with probability <span class="math inline">\(\sum_{s'} p(s',r | s,a)\)</span>. Thus we have <span class="math display">\[
+<p>Intuitively, when <span class="math inline">\(S_t = s\)</span> then we know that <span class="math inline">\(A_t\)</span> is distributed according to <span class="math inline">\(\pi(\cdot | s)\)</span> and then from <span class="math inline">\(S_t\)</span> and <span class="math inline">\(A_t\)</span> we can get the next <span class="math inline">\(S_{t+1}, R_{t+1}\)</span> via the MDP dynamics measure. So let’s put this together. The agent selects <span class="math inline">\(a\)</span> with probability <span class="math inline">\(\pi(a \mid s)\)</span>, and then the environment transitions to <span class="math inline">\((s', r)\)</span> with probability <span class="math inline">\(p(s', r | s,a)\)</span>. We don’t care about the <span class="math inline">\(s'\)</span> right now. So, we get reward <span class="math inline">\(r\)</span> with probability <span class="math inline">\(\sum_{s'} p(s',r | s,a)\)</span>. Thus we have <span class="math display">\[
 \mathbb{E}_{\pi}[R_{t+1} \mid S_t = s]
 = \sum_{a} \pi(a|s) \sum_{r} r \left(\sum_{s'} p(s',r | s,a)\right)
 \]</span> Or in a nicer format <span class="math display">\[
@@ -710,45 +721,53 @@ G_0 = R_1 + \gamma G_1 =  2 + 0.9 \cdot G_1 = 2 + 0.9 \cdot 70 = 65
 \end{split}
 \]</span></p>
 </div>
-<p>The value functions quantify how desirable it is to be in a given state (or to take a given action in a state), under that policy:</p>
+<p>The value functions quantify how desirable it is to be in a given state (or to take a given action in a state) under a policy:</p>
 <ul>
-<li><em>state value function</em>: <span class="math display">\[
+<li><em>state value function</em>: <span id="eq-state-value-function"><span class="math display">\[
 v_\pi(s) := \mathbb{E}_{\pi}[G_t \mid S_t = s]
-\]</span></li>
-<li><em>action-value function</em>: <span class="math display">\[
+\tag{3.6}\]</span></span></li>
+<li><em>action-value function</em>: <span id="eq-action-value-function"><span class="math display">\[
 q_{\pi}(s,a) := \mathbb{E}_{\pi}[G_t \mid S_t = s, A_t = a]
-\]</span></li>
+\tag{3.7}\]</span></span></li>
 </ul>
 <div id="exr-3.12" class="theorem exercise">
 <p><span class="theorem-title"><strong>Exercise 3.12</strong></span> Give an equation for <span class="math inline">\(v_\pi\)</span> in terms of <span class="math inline">\(q_\pi\)</span> and <span class="math inline">\(\pi\)</span>.</p>
 </div>
 <div id="sol-3.12" class="proof solution">
-<p><span class="proof-title"><em>Solution 3.12</em>. </span>Quick and easy answer is: <span id="eq-conversion-value-from-action-value"><span class="math display">\[
+<p><span class="proof-title"><em>Solution 3.12</em>. </span>The quick and easy answer is: <span id="eq-conversion-value-from-action-value"><span class="math display">\[
 v_{\pi}(s) = \sum_{a} \pi(a|s) q_{\pi}(s,a)
-\tag{3.6}\]</span></span></p>
+\tag{3.8}\]</span></span></p>
 </div>
 <div id="exr-3.13" class="theorem exercise">
 <p><span class="theorem-title"><strong>Exercise 3.13</strong></span> Give an equation for <span class="math inline">\(q_\pi\)</span> in terms of <span class="math inline">\(v_\pi\)</span> and the four-argument <span class="math inline">\(p\)</span></p>
 </div>
 <div id="sol-3.13" class="proof solution">
-<p><span class="proof-title"><em>Solution 3.13</em>. </span>And again: <span id="eq-conversion-action-value-from-value"><span class="math display">\[
+<p><span class="proof-title"><em>Solution 3.13</em>. </span>Again quick and easy: <span id="eq-conversion-action-value-from-value"><span class="math display">\[
 q_{\pi}(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma v_{\pi}(s')]
-\tag{3.7}\]</span></span></p>
-</div>
-<p>We can get the Bellman equations for <span class="math inline">\(v_\pi\)</span> and <span class="math inline">\(q_\pi\)</span> by combining <a href="#eq-conversion-value-from-action-value" class="quarto-xref">Equation&nbsp;<span>3.6</span></a> with <a href="#eq-conversion-action-value-from-value" class="quarto-xref">Equation&nbsp;<span>3.7</span></a>. <span id="eq-bellman-state-value"><span class="math display">\[
-v_\pi(s) = \sum_{a} \pi(a|s) \sum_{s',r}p(s',r|s,a)[r + \gamma v_\pi(s')]
-\tag{3.8}\]</span></span> <span id="eq-bellman-action-value"><span class="math display">\[
-q_{\pi}(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma \sum_{a'}\pi(a'|s')q_{\pi}(s'|a')]
 \tag{3.9}\]</span></span></p>
-<p>Some people say they express, in a kind of recursive form, the relationship between the state’s value and the next state’s value. (I wouldn’t call this “recursive” myself, especially in continuing tasks where there’s no base case)</p>
-<p>What I found helpful for understanding was writing the Bellman equations as a system of linear equations. We won’t be needing any of this later. Let’s write the value function as a vector <span class="math inline">\(v_\pi\)</span> (indexed by <span class="math inline">\(\mathcal{S}\)</span>). Then we can write the Bellman equations like <span class="math display">\[
+</div>
+<p>We can get the Bellman equations for <span class="math inline">\(v_\pi\)</span> and <span class="math inline">\(q_\pi\)</span> by writing <a href="#eq-state-value-function" class="quarto-xref">Equation&nbsp;<span>3.6</span></a> and <a href="#eq-action-value-function" class="quarto-xref">Equation&nbsp;<span>3.7</span></a> in their “one-step look-ahead” form <span id="eq-state-value-one-step-look-ahead"><span class="math display">\[
+v_\pi(s) = \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t = s]
+\tag{3.10}\]</span></span> <span id="eq-action-value-one-step-look-ahead"><span class="math display">\[
+q_\pi(s,a) = \mathbb{E}_\pi[R_{t+1} + \gamma q_\pi(S_{t+1}, A_{t+1}) \mid S_t = s, A_t = a]
+\tag{3.11}\]</span></span></p>
+<p>We then write down the expectations with the MDP’s transition dynamics and the policy’s action probabilities: <span id="eq-bellman-state-value"><span class="math display">\[
+v_\pi(s) = \sum_{a} \pi(a|s) \sum_{s',r}p(s',r|s,a)[r + \gamma v_\pi(s')]
+\tag{3.12}\]</span></span> <span id="eq-bellman-action-value"><span class="math display">\[
+q_{\pi}(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma \sum_{a'}\pi(a'|s')q_{\pi}(s'|a')]
+\tag{3.13}\]</span></span></p>
+<p>Equivalently, one can derive these by combining <a href="#eq-conversion-value-from-action-value" class="quarto-xref">Equation&nbsp;<span>3.8</span></a> with <a href="#eq-conversion-action-value-from-value" class="quarto-xref">Equation&nbsp;<span>3.9</span></a>.</p>
+<p>This is typically stated as a recursive relationship between the state’s value and the next state’s value. (I wouldn’t call this ‘recursive’ myself, especially in continuing tasks where there’s no base case)</p>
+<p>What I found helpful for understanding was writing the Bellman equations as a system of linear equations. We see the value function as a vector <span class="math inline">\(v_\pi\)</span> (indexed by <span class="math inline">\(\mathcal{S}\)</span>) and then we can write the Bellman equations like: <span class="math display">\[
 \mathbf{v}_\pi = \mathbf{r}_{\pi} + \gamma \mathbf{P}_\pi \mathbf{v}_\pi,
-\]</span> where <span class="math inline">\(\mathbf{r}_\pi\)</span> is the expected reward, and <span class="math inline">\(\mathbf{P}_\pi\)</span> is the transition matrix under policy <span class="math inline">\(\pi\)</span>: Specifically <span class="math display">\[
+\]</span></p>
+<p>where <span class="math inline">\(\mathbf{r}_\pi\)</span> is the expected reward, and <span class="math inline">\(\mathbf{P}_\pi\)</span> is the transition matrix under policy <span class="math inline">\(\pi\)</span>. Specifically, <span class="math display">\[
 (\mathbf{R}_\pi)_s = \sum_{a} \pi(a|s) \sum_{s',r}p(s',r|s,a)r
-\]</span> and <span class="math display">\[
+\]</span></p>
+<p>and <span class="math display">\[
 (\mathbf{P}_\pi)_{s,s'} = \sum_{a} \pi(a|s) \sum_{r} p(s',r|s,a).
 \]</span></p>
-<p>One can check that the Bellman equation for <span class="math inline">\(v_\pi\)</span> (<a href="#eq-bellman-state-value" class="quarto-xref">Equation&nbsp;<span>3.8</span></a>) is indeed one row of this vector equation. For episodic tasks, we use the convention that that <span class="math inline">\((\mathbf{R}_\pi)_s = 0\)</span>, <span class="math inline">\((\mathbf{P}_\pi)_{s,s} =1\)</span>, and <span class="math inline">\((\mathbf{v}_\pi)_{s} = 0\)</span> for terminal states <span class="math inline">\(s\)</span>.</p>
+<p>One can check that the Bellman equation for <span class="math inline">\(v_\pi\)</span> (<a href="#eq-bellman-state-value" class="quarto-xref">Equation&nbsp;<span>3.12</span></a>) is indeed one row of this vector equation. For episodic tasks, we use the convention that that <span class="math inline">\((\mathbf{R}_\pi)_s = 0\)</span>, <span class="math inline">\((\mathbf{P}_\pi)_{s,s} =1\)</span>, and <span class="math inline">\((\mathbf{v}_\pi)_{s} = 0\)</span> for terminal states <span class="math inline">\(s\)</span>.</p>
 <div id="exm-3.5" class="theorem example">
 <p><span class="theorem-title"><strong>Example 3.1</strong></span> This is <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>, example 3.5: Gridworld)</span>.</p>
 <p>First, Apologies for this ugly gridworld diagram below - this was the best I could manage with Graphviz.</p>
@@ -822,7 +841,7 @@ q_{\pi}(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma \sum_{a'}\pi(a'|s')q_{\pi}(s'
 </div>
 </div>
 <p>Let’s solve the Bellman equation for the Gridworld in python. Here is some code that sets up the Gridworld class and a nice plotter for the value function. It’s good code but no need to read the fine print.</p>
-<div id="02904dc8" class="cell" data-execution_count="2">
+<div id="6d48dbae" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
@@ -923,30 +942,30 @@ q_{\pi}(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma \sum_{a'}\pi(a'|s')q_{\pi}(s'
 <span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> plot_value_grid(</span>
 <span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a>    V: np.ndarray,</span>
 <span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a>    size: <span class="bu">int</span>,</span>
-<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a>    cmap: <span class="bu">str</span> <span class="op">=</span> <span class="st">'viridis'</span>,</span>
-<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a>    fmt: <span class="bu">str</span> <span class="op">=</span> <span class="st">'.2f'</span>,</span>
+<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a>    cmap: <span class="bu">str</span> <span class="op">=</span> <span class="st">"viridis"</span>,</span>
+<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a>    fmt: <span class="bu">str</span> <span class="op">=</span> <span class="st">".2f"</span>,</span>
 <span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a>    figsize: Tuple[<span class="bu">int</span>, <span class="bu">int</span>] <span class="op">=</span> (<span class="dv">6</span>, <span class="dv">6</span>),</span>
 <span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a>):</span>
-<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a>    <span class="co">'''</span></span>
+<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
 <span id="cb1-104"><a href="#cb1-104" aria-hidden="true" tabindex="-1"></a><span class="co">    Plot the state-value grid with annotations and a colorbar.</span></span>
-<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a><span class="co">    '''</span></span>
-<span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a>    V <span class="op">=</span> V.reshape(size,size)</span>
+<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a>    V <span class="op">=</span> V.reshape(size, size)</span>
 <span id="cb1-107"><a href="#cb1-107" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-108"><a href="#cb1-108" aria-hidden="true" tabindex="-1"></a>    fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>figsize)</span>
 <span id="cb1-109"><a href="#cb1-109" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-110"><a href="#cb1-110" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Display heatmap</span></span>
-<span id="cb1-111"><a href="#cb1-111" aria-hidden="true" tabindex="-1"></a>    cax <span class="op">=</span> ax.matshow(V, cmap<span class="op">=</span>cmap, origin<span class="op">=</span><span class="st">'upper'</span>)</span>
+<span id="cb1-111"><a href="#cb1-111" aria-hidden="true" tabindex="-1"></a>    cax <span class="op">=</span> ax.matshow(V, cmap<span class="op">=</span>cmap, origin<span class="op">=</span><span class="st">"upper"</span>)</span>
 <span id="cb1-112"><a href="#cb1-112" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-113"><a href="#cb1-113" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Annotate each cell</span></span>
 <span id="cb1-114"><a href="#cb1-114" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i, j), val <span class="kw">in</span> np.ndenumerate(V):</span>
-<span id="cb1-115"><a href="#cb1-115" aria-hidden="true" tabindex="-1"></a>        ax.text(j, i, <span class="bu">format</span>(val, fmt), ha<span class="op">=</span><span class="st">'center'</span>, va<span class="op">=</span><span class="st">'center'</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb1-115"><a href="#cb1-115" aria-hidden="true" tabindex="-1"></a>        ax.text(j, i, <span class="bu">format</span>(val, fmt), ha<span class="op">=</span><span class="st">"center"</span>, va<span class="op">=</span><span class="st">"center"</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
 <span id="cb1-116"><a href="#cb1-116" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-117"><a href="#cb1-117" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Configure ticks</span></span>
 <span id="cb1-118"><a href="#cb1-118" aria-hidden="true" tabindex="-1"></a>    ax.set_xticks(<span class="bu">range</span>(size))</span>
 <span id="cb1-119"><a href="#cb1-119" aria-hidden="true" tabindex="-1"></a>    ax.set_yticks(<span class="bu">range</span>(size))</span>
-<span id="cb1-120"><a href="#cb1-120" aria-hidden="true" tabindex="-1"></a>    ax.set_xlabel(<span class="st">'Column'</span>)</span>
-<span id="cb1-121"><a href="#cb1-121" aria-hidden="true" tabindex="-1"></a>    ax.set_ylabel(<span class="st">'Row'</span>)</span>
-<span id="cb1-122"><a href="#cb1-122" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="st">'State-Value Function under Random Policy'</span>)</span>
+<span id="cb1-120"><a href="#cb1-120" aria-hidden="true" tabindex="-1"></a>    ax.set_xlabel(<span class="st">"Column"</span>)</span>
+<span id="cb1-121"><a href="#cb1-121" aria-hidden="true" tabindex="-1"></a>    ax.set_ylabel(<span class="st">"Row"</span>)</span>
+<span id="cb1-122"><a href="#cb1-122" aria-hidden="true" tabindex="-1"></a>    ax.set_title(<span class="st">"State-Value Function under Random Policy"</span>)</span>
 <span id="cb1-123"><a href="#cb1-123" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-124"><a href="#cb1-124" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Add colorbar</span></span>
 <span id="cb1-125"><a href="#cb1-125" aria-hidden="true" tabindex="-1"></a>    fig.colorbar(cax, ax<span class="op">=</span>ax, fraction<span class="op">=</span><span class="fl">0.046</span>, pad<span class="op">=</span><span class="fl">0.04</span>)</span>
@@ -954,10 +973,11 @@ q_{\pi}(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma \sum_{a'}\pi(a'|s')q_{\pi}(s'
 <span id="cb1-127"><a href="#cb1-127" aria-hidden="true" tabindex="-1"></a>    plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p>The solving of the Bellman equation comes here. To solve for <span class="math inline">\(\mathbf{v}\)</span> (I leave the indices for now) we solve compute <span class="math display">\[
+<p>To solve for <span class="math inline">\(\mathbf{v}\)</span> we let python compute <span class="math display">\[
 \mathbf{v} = (\mathbf{I} - \gamma \mathbf{P})^{-1} \mathbf{r}.
 \]</span></p>
-<p>So here is the meat of this computation. We print the heat map of the value function at the end (which is the same as in <span class="citation" data-cites="sutton2018">Sutton and Barto (<a href="#ref-sutton2018" role="doc-biblioref">2018</a>)</span> but with more precision so <a href="#exr-3.14" class="quarto-xref">Exercise&nbsp;<span>3.14</span></a> is more fun)</p>
+<p>(I left the <span class="math inline">\(\pi\)</span> indices implicit here)</p>
+<p>So here is the meat of this computation. We let numpy solve the bellmann equations for grid world.</p>
 <div id="cell-fig-gridworld-random-agent-value-function" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === solving gridworld ===</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># setup parameters</span></span>
@@ -1000,7 +1020,7 @@ Figure&nbsp;3.1: This is like the right part of Figure 3.2 <span class="citation
 </div>
 </div>
 <div id="exr-3.14" class="theorem exercise">
-<p><span class="theorem-title"><strong>Exercise 3.14</strong></span> The Bellman equation (<a href="#eq-bellman-state-value" class="quarto-xref">Equation&nbsp;<span>3.8</span></a>) must hold for each state for the value function <span class="math inline">\(v_\pi\)</span> shown in <a href="#fig-gridworld-random-agent-value-function" class="quarto-xref">Figure&nbsp;<span>3.1</span></a> of <a href="#exm-3.5" class="quarto-xref">Example&nbsp;<span>3.1</span></a>. Show numerically that this equation holds for the center state, valued at +0.7, with respect to its four neighboring states, valued at +2.3, +0.4, 0.4, and +0.7. (These numbers are accurate only to one decimal place.)</p>
+<p><span class="theorem-title"><strong>Exercise 3.14</strong></span> The Bellman equation (<a href="#eq-bellman-state-value" class="quarto-xref">Equation&nbsp;<span>3.12</span></a>) must hold for each state for the value function <span class="math inline">\(v_\pi\)</span> shown in <a href="#fig-gridworld-random-agent-value-function" class="quarto-xref">Figure&nbsp;<span>3.1</span></a> of <a href="#exm-3.5" class="quarto-xref">Example&nbsp;<span>3.1</span></a>. Show numerically that this equation holds for the center state, valued at +0.7, with respect to its four neighboring states, valued at +2.3, +0.4, 0.4, and +0.7. (These numbers are accurate only to one decimal place.)</p>
 </div>
 <div id="sol-3.14" class="proof solution">
 <p><span class="proof-title"><em>Solution 3.14</em>. </span>We’ll use the numbers accurate to two decimal places. Basically we have to show that for the middle state <span class="math inline">\(s\)</span> we have <span class="math display">\[
@@ -1060,7 +1080,7 @@ v'_{\pi}(s) &amp;= \mathbb{E}_{\pi}\left[\sum_{k=0}^{T-t-1} (R_{t+k+1} + c) \mid
 <p><span class="theorem-title"><strong>Exercise 3.17</strong></span> What is the Bellman equation for action values, that is, for <span class="math inline">\(q_\pi\)</span>? It must give the action values <span class="math inline">\(q_\pi(s,a)\)</span> in terms of the action values <span class="math inline">\(q_\pi(s'a')\)</span>, of possible successors to the state-action pair <span class="math inline">\((s,a)\)</span>.</p>
 </div>
 <div id="sol-3.17" class="proof solution">
-<p><span class="proof-title"><em>Solution 3.17</em>. </span>This is just <a href="#eq-bellman-action-value" class="quarto-xref">Equation&nbsp;<span>3.9</span></a>.</p>
+<p><span class="proof-title"><em>Solution 3.17</em>. </span>This is just <a href="#eq-bellman-action-value" class="quarto-xref">Equation&nbsp;<span>3.13</span></a>.</p>
 </div>
 <div id="exr-3.18" class="theorem exercise">
 <p><span class="theorem-title"><strong>Exercise 3.18</strong></span> The value of a state depends on the values of the actions possible in that state and on how likely each action is to be taken under the current policy. We can think of this in terms of a small backup diagram rooted at the state and considering each possible action:</p>
@@ -1069,10 +1089,10 @@ v'_{\pi}(s) &amp;= \mathbb{E}_{\pi}\left[\sum_{k=0}^{T-t-1} (R_{t+k+1} + c) \mid
 <div>
 <p></p><figure class="figure"><p></p>
 <div>
-<svg width="384" height="480" viewbox="0.00 0.00 168.52 177.00" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none">
+<svg width="384" height="480" viewbox="0.00 0.00 160.52 177.00" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none">
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 173)">
 <title>PolicyDiagram</title>
-<polygon fill="white" stroke="transparent" points="-4,4 -4,-173 164.52,-173 164.52,4 -4,4"></polygon>
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-173 156.52,-173 156.52,4 -4,4"></polygon>
 <!-- s -->
 <g id="node1" class="node">
 <title>s</title>
@@ -1118,12 +1138,12 @@ v'_{\pi}(s) &amp;= \mathbb{E}_{\pi}\left[\sum_{k=0}^{T-t-1} (R_{t+k+1} + c) \mid
 <!-- vpi -->
 <g id="node5" class="node">
 <title>vpi</title>
-<text text-anchor="middle" x="121.6" y="-147.4" font-family="Helvetica,sans-Serif" font-size="12.00">v_π(s)</text>
+<text text-anchor="middle" x="113.6" y="-147.4" font-family="Helvetica,sans-Serif" font-size="12.00">v_π(s)</text>
 </g>
 <!-- s&#45;&gt;vpi -->
 <g id="edge4" class="edge">
 <title>s-&gt;vpi</title>
-<path fill="none" stroke="black" stroke-dasharray="5,2" d="M61.88,-151C73.55,-151 85.21,-151 96.87,-151"></path>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M61.65,-151C73.28,-151 84.92,-151 96.55,-151"></path>
 </g>
 <!-- qpi -->
 <g id="node6" class="node">
@@ -1159,74 +1179,74 @@ v_{\pi}(s) &amp;= \mathbb{E}_{\pi}[q_\pi(s, A_t) \mid S_t = s] \\
 <div>
 <p></p><figure class="figure"><p></p>
 <div>
-<svg width="384" height="480" viewbox="0.00 0.00 204.54 238.52" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none">
-<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 234.52)">
+<svg width="384" height="480" viewbox="0.00 0.00 178.00 205.80" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 201.8)">
 <title>mdp</title>
-<polygon fill="white" stroke="transparent" points="-4,4 -4,-234.52 200.54,-234.52 200.54,4 -4,4"></polygon>
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-201.8 174,-201.8 174,4 -4,4"></polygon>
 <!-- sa -->
 <g id="node1" class="node">
 <title>sa</title>
-<ellipse fill="black" stroke="black" cx="101.78" cy="-130.92" rx="26.7" ry="26.7"></ellipse>
-<text text-anchor="middle" x="101.78" y="-126.72" font-family="Helvetica,sans-Serif" font-size="14.00" fill="white">s, a</text>
+<ellipse fill="black" stroke="black" cx="98" cy="-106.8" rx="18" ry="18"></ellipse>
+<text text-anchor="middle" x="98" y="-102.6" font-family="Helvetica,sans-Serif" font-size="14.00" fill="white">s, a</text>
 </g>
 <!-- s1 -->
 <g id="node2" class="node">
 <title>s1</title>
-<ellipse fill="none" stroke="black" cx="100.78" cy="-25.76" rx="25.52" ry="25.52"></ellipse>
-<text text-anchor="middle" x="100.78" y="-21.56" font-family="Helvetica,sans-Serif" font-size="14.00">s₁'</text>
+<ellipse fill="none" stroke="black" cx="98" cy="-18" rx="18" ry="18"></ellipse>
+<text text-anchor="middle" x="98" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">s₁'</text>
 </g>
 <!-- sa&#45;&gt;s1 -->
 <g id="edge1" class="edge">
 <title>sa-&gt;s1</title>
-<path fill="none" stroke="black" d="M101.53,-104.15C101.41,-91.41 101.26,-75.83 101.12,-62"></path>
-<polygon fill="black" stroke="black" points="104.62,-61.8 101.02,-51.84 97.62,-61.87 104.62,-61.8"></polygon>
-<text text-anchor="middle" x="108.36" y="-73.72" font-family="Times,serif" font-size="14.00">r₁</text>
+<path fill="none" stroke="black" d="M98,-88.65C98,-76.52 98,-60.02 98,-46.12"></path>
+<polygon fill="black" stroke="black" points="101.5,-46.11 98,-36.11 94.5,-46.11 101.5,-46.11"></polygon>
+<text text-anchor="middle" x="105.58" y="-58.2" font-family="Times,serif" font-size="14.00">r₁</text>
 </g>
 <!-- s2 -->
 <g id="node3" class="node">
 <title>s2</title>
-<ellipse fill="none" stroke="black" cx="170.78" cy="-25.76" rx="25.52" ry="25.52"></ellipse>
-<text text-anchor="middle" x="170.78" y="-21.56" font-family="Helvetica,sans-Serif" font-size="14.00">s₂'</text>
+<ellipse fill="none" stroke="black" cx="152" cy="-18" rx="18" ry="18"></ellipse>
+<text text-anchor="middle" x="152" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">s₂'</text>
 </g>
 <!-- sa&#45;&gt;s2 -->
 <g id="edge2" class="edge">
 <title>sa-&gt;s2</title>
-<path fill="none" stroke="black" d="M116.41,-108.04C126.49,-92.97 140.01,-72.77 151.04,-56.27"></path>
-<polygon fill="black" stroke="black" points="154.22,-57.81 156.88,-47.55 148.41,-53.91 154.22,-57.81"></polygon>
-<text text-anchor="middle" x="147.36" y="-73.72" font-family="Times,serif" font-size="14.00">r₂</text>
+<path fill="none" stroke="black" d="M107.16,-91.08C115.46,-77.73 127.83,-57.84 137.48,-42.34"></path>
+<polygon fill="black" stroke="black" points="140.48,-44.14 142.79,-33.8 134.54,-40.44 140.48,-44.14"></polygon>
+<text text-anchor="middle" x="136.58" y="-58.2" font-family="Times,serif" font-size="14.00">r₂</text>
 </g>
 <!-- s3 -->
 <g id="node4" class="node">
 <title>s3</title>
-<ellipse fill="none" stroke="black" cx="30.78" cy="-25.76" rx="25.52" ry="25.52"></ellipse>
-<text text-anchor="middle" x="30.78" y="-21.56" font-family="Helvetica,sans-Serif" font-size="14.00">s₃'</text>
+<ellipse fill="none" stroke="black" cx="36" cy="-18" rx="18" ry="18"></ellipse>
+<text text-anchor="middle" x="36" y="-13.8" font-family="Helvetica,sans-Serif" font-size="14.00">s₃'</text>
 </g>
 <!-- sa&#45;&gt;s3 -->
 <g id="edge3" class="edge">
 <title>sa-&gt;s3</title>
-<path fill="none" stroke="black" d="M87.07,-108.54C76.56,-93.26 62.28,-72.53 50.74,-55.76"></path>
-<polygon fill="black" stroke="black" points="53.54,-53.65 44.99,-47.4 47.78,-57.62 53.54,-53.65"></polygon>
-<text text-anchor="middle" x="77.36" y="-73.72" font-family="Times,serif" font-size="14.00">r₃</text>
+<path fill="none" stroke="black" d="M87.76,-91.47C78.01,-77.82 63.19,-57.06 51.9,-41.26"></path>
+<polygon fill="black" stroke="black" points="54.71,-39.17 46.05,-33.07 49.01,-43.24 54.71,-39.17"></polygon>
+<text text-anchor="middle" x="79.58" y="-58.2" font-family="Times,serif" font-size="14.00">r₃</text>
 </g>
 <!-- q -->
 <g id="node5" class="node">
 <title>q</title>
-<text text-anchor="middle" x="101.78" y="-208.32" font-family="Helvetica,sans-Serif" font-size="14.00">q_π(s, a)</text>
+<text text-anchor="middle" x="98" y="-175.6" font-family="Helvetica,sans-Serif" font-size="14.00">q_π(s, a)</text>
 </g>
 <!-- q&#45;&gt;sa -->
 <g id="edge4" class="edge">
 <title>q-&gt;sa</title>
-<path fill="none" stroke="black" stroke-dasharray="5,2" d="M101.78,-194.25C101.78,-183.55 101.78,-169.61 101.78,-157.63"></path>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M98,-161.61C98,-150.45 98,-135.96 98,-124.83"></path>
 </g>
 <!-- v3 -->
 <g id="node6" class="node">
 <title>v3</title>
-<text text-anchor="middle" x="28.78" y="-126.72" font-family="Helvetica,sans-Serif" font-size="14.00">v_π(s')</text>
+<text text-anchor="middle" x="27" y="-102.6" font-family="Helvetica,sans-Serif" font-size="14.00">v_π(s')</text>
 </g>
 <!-- v3&#45;&gt;s3 -->
 <g id="edge5" class="edge">
 <title>v3-&gt;s3</title>
-<path fill="none" stroke="black" stroke-dasharray="5,2" d="M29.11,-112.88C29.44,-96.17 29.93,-70.51 30.3,-51.54"></path>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M28.78,-88.65C30.36,-73.43 32.65,-51.32 34.23,-36.11"></path>
 </g>
 </g>
 </svg>
@@ -1246,6 +1266,145 @@ q_{\pi}(s,a) &amp;= \mathbb{E}[R_{t+1} + \gamma v_{\pi}(S_{t+1}) \mid S_t = s, A
 \]</span></p>
 <p>Note, I have left out the subscript <span class="math inline">\(\pi\)</span> for the expectation as the transition <span class="math inline">\((S_t,A_t)\to (S_{t+1}, R_{t+1})\)</span> is independent of the agent.</p>
 </div>
+</section>
+<section id="optimal-policies-and-optimal-value-functions" class="level2" data-number="3.6">
+<h2 data-number="3.6" class="anchored" data-anchor-id="optimal-policies-and-optimal-value-functions"><span class="header-section-number">3.6</span> Optimal Policies and Optimal Value Functions</h2>
+<p>In the next chapter (<a href="04-dynamic-programming.html#sec-policy-improvement" class="quarto-xref"><span>Section 4.2</span></a>), we will see that any MDP has an optimal deterministic policy. We’ll take this fact for granted for now and focus on their value functions.</p>
+<p>A policy is deterministic if <span class="math inline">\(\pi(a|s) = 1\)</span> for exactly one action for each <span class="math inline">\(s \in \mathcal{S}\)</span>. We then also just write <span class="math inline">\(\pi(s)\)</span> for this action.</p>
+<p>A policy <span class="math inline">\(\pi_*\)</span> is optimal if <span class="math inline">\(\pi_* \geq \pi\)</span> for any other <span class="math inline">\(\pi\)</span>. Here we use <span class="math inline">\(\geq\)</span>, a partial order on all policies for the MDP, defiend by <span class="math display">\[
+\pi \leq \pi' \quad:\Longleftrightarrow\quad v_\pi(s) \leq \pi'(s) \; \text{, for all }s \in \mathcal{S}.
+\]</span></p>
+<p>There might be more than one optimal policy, but they must have the same value function (otherwise, they wouldn’t be optimal). We can define the optimal state-value function as <span class="math display">\[
+v_*(s) := \max_{\pi} v_{\pi}(s)
+\]</span></p>
+<p>and the optimal action-value function as <span class="math display">\[
+q_*(s,a) := \max_{\pi} q_\pi(s,a).
+\]</span></p>
+<p>These definitions are well-defined by the existence of optimal policies.</p>
+<p>The conversion formula from <span class="math inline">\(q_*\)</span> to <span class="math inline">\(v_*\)</span> takes a special simple form (we also prove this in the next chapter in <a href="04-dynamic-programming.html#thm-optimal-policy-equation" class="quarto-xref">Theorem&nbsp;<span>4.2</span></a>): <span class="math display">\[
+v_*(s) = \max_{a} q_\pi(a,s)
+\]</span></p>
+<p>Combining this with <a href="#eq-conversion-action-value-from-value" class="quarto-xref">Equation&nbsp;<span>3.9</span></a>, we get the Bellman optimality equations for the state value: <span class="math display">\[
+v_*(s) = \max_{a} \sum_{s',r}p(s',r|s,a)[r + \gamma v_*(s')]
+\]</span></p>
+<p>and the state-action value: <span class="math display">\[
+q_*(s,a) = \sum_{s',r}p(s',r|s,a) [r + \gamma \max_{a'}q_*(s',a')]
+\]</span></p>
+<p>In principal, these Bellman optimality equations can be solved and having access to either <span class="math inline">\(v_*\)</span> or <span class="math inline">\(q_*\)</span> gives us direct access to an optimal <span class="math inline">\(\pi_*\)</span> (for <span class="math inline">\(v_* \to \pi_*\)</span> we need to know the dynamics of the MDP though; see <a href="#exr-3.28" class="quarto-xref">Exercise&nbsp;<span>3.28</span></a>)</p>
+<div id="exr-3.20" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.20</strong></span> Draw or describe the optimal state-value function for the golf example.</p>
+</div>
+<div id="sol-3.20" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.20</em>. </span>I’m not 100% sure about this solution as I don’t like the golf example too much and as a result haven’t thought it completely through:</p>
+<p>Use driver when not on the green. Use putter on the green.</p>
+</div>
+<div id="exr-3.21" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.21</strong></span> Draw or describe the contours of the optimal action-value function for putting, <span class="math inline">\(q_*(s, \mathrm{putter})\)</span>, for the golf example.</p>
+</div>
+<div id="sol-3.21" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.21</em>. </span>I’m even less sure here.</p>
+<p>Inside the -2 contour of <span class="math inline">\(v_\mathrm{putt}\)</span> it’s like <span class="math inline">\(v_{\mathrm{putt}}\)</span>. In the sand it’s -3. Everywhere else it’s like the <span class="math inline">\(q_*(s,\mathrm{driver})\)</span> but shifted by a putter distance outwards and the value is one less.</p>
+</div>
+<div id="exr-3.22" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.22</strong></span> Consider the continuing MDP shown on to the right. The only decision to be made is that in the top state, where two actions are available, <span class="math inline">\(\mathrm{left}\)</span> and <span class="math inline">\(\mathrm{right}\)</span>. The numbers show the rewards that are received deterministically after each action. There are exactly two deterministic policies, <span class="math inline">\(\pi_{\mathrm{left}}\)</span> and <span class="math inline">\(\pi_{\mathrm{right}}\)</span>. What policy is optimal if <span class="math inline">\(\gamma = 0\)</span>? If <span class="math inline">\(\gamma = 0.9\)</span>? If <span class="math inline">\(\gamma = 0.5\)</span>?</p>
+</div>
+<div id="sol-3.22" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.22</em>. </span>Here is a table indicating which policy is best in which case.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: center;"><span class="math inline">\(\gamma\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(v_{\pi_{\mathrm{left}}}\)</span></th>
+<th style="text-align: center;"><span class="math inline">\(v_{\pi_{\mathrm{right}}}\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">0</td>
+<td style="text-align: center;"><strong>1</strong></td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0.9</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;"><strong>1.8</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0.5</td>
+<td style="text-align: center;"><strong>0.5</strong></td>
+<td style="text-align: center;"><strong>0.5</strong></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="exr-3.23" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.23</strong></span> Give the Bellman equation for <span class="math inline">\(q_*\)</span> for the recycling robot.</p>
+</div>
+<div id="sol-3.23" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.23</em>. </span></p>
+</div>
+<div id="exr-3.24" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.24</strong></span> Figure 3.5 gives the optimal value of the best state of the gridworld as 24.4, to one decimal place. Use your knowledge of the optimal policy and (3.8) to express this value symbolically, and then to compute it to three decimal places.</p>
+</div>
+<div id="sol-3.24" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.24</em>. </span>The solution is <span class="math display">\[
+\begin{split}
+v_*(s) &amp;= 10 + 0\gamma + 0\gamma^2 + 0\gamma^3 + 0\gamma^4 + 10\gamma^5 + \dots \\
+&amp;= 10 \sum_{i=0}^\infty \gamma^{5i} = \frac{10}{1-\gamma^5}
+\end{split}
+\]</span> Which is for <span class="math inline">\(\gamma = 0.9\)</span> approximately <span class="math inline">\(24.41943\)</span>.</p>
+</div>
+<div id="exr-3.25" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.25</strong></span> Give an equation for <span class="math inline">\(v_*\)</span> in terms of <span class="math inline">\(q_*\)</span>.</p>
+</div>
+<div id="sol-3.25" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.25</em>. </span><span class="math display">\[
+v_*(s) = \max_a q_*(s,a)
+\]</span></p>
+</div>
+<div id="exr-3.26" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.26</strong></span> Give an equation for <span class="math inline">\(q_*\)</span> in terms of <span class="math inline">\(v_*\)</span> and the four-argument <span class="math inline">\(p\)</span>.</p>
+</div>
+<div id="sol-3.26" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.26</em>. </span><span class="math display">\[
+q_*(s,a) = \sum_{s',r} p(s',r|s,a) [r + \gamma v_*(s)]
+\]</span></p>
+</div>
+<div id="exr-3.27" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.27</strong></span> Give an equation for <span class="math inline">\(\pi_*\)</span> in terms of <span class="math inline">\(q_\pi\)</span>.</p>
+</div>
+<div id="sol-3.27" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.27</em>. </span><span class="math display">\[
+\pi_*(s) = \underset{a}{\mathrm{argmax}} \; q_*(s,a)
+\]</span></p>
+</div>
+<div id="exr-3.28" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.28</strong></span> Give an equation for <span class="math inline">\(\pi_*\)</span> in terms of <span class="math inline">\(v_*\)</span> and the four-argument <span class="math inline">\(p\)</span>.</p>
+</div>
+<div id="sol-3.28" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.28</em>. </span><span class="math display">\[
+\pi_*(s) = \underset{a}{\mathrm{argmax}} \sum_{s',r} p(s',r|s,a) [r + \gamma v_*(s)]
+\]</span></p>
+</div>
+<div id="exr-3.29" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 3.29</strong></span> Rewrite the four Bellman equations for the four value functions (<span class="math inline">\(v_\pi\)</span>, <span class="math inline">\(v_*\)</span>, <span class="math inline">\(q_\pi\)</span>, and <span class="math inline">\(q_*\)</span>) in terms of the three argument function <span class="math inline">\(p\)</span> (3.4) and the two-argument function <span class="math inline">\(r\)</span> (3.5).</p>
+</div>
+<div id="sol-3.29" class="proof solution">
+<p><span class="proof-title"><em>Solution 3.29</em>. </span><span class="math display">\[
+\begin{split}
+v_\pi(s) &amp;= \sum_{a} \pi(a|s) \Big[r(a,s) + \gamma \sum_{s'} p(s'|a,s) v_\pi(s')\Big] \\
+v_*(s) &amp;= \max_a r(a,s) + \gamma \sum_{s'} p(s'|a,s) v_*(s') \\
+q_\pi(a,s) &amp;= r(a,s) + \gamma \sum_{s'} p(s'|s,a) \sum_{a'} \pi(a'|s') q_\pi(a',s') \\
+q_*(a,s) &amp;= r(a,s) + \gamma \sum_{s'} p(s'|s,a) \max_{a'} q_*(a',s')
+\end{split}
+\]</span></p>
+</div>
+</section>
+<section id="optimality-and-approximation" class="level2" data-number="3.7">
+<h2 data-number="3.7" class="anchored" data-anchor-id="optimality-and-approximation"><span class="header-section-number">3.7</span> Optimality and Approximation</h2>
+</section>
+<section id="summary" class="level2" data-number="3.8">
+<h2 data-number="3.8" class="anchored" data-anchor-id="summary"><span class="header-section-number">3.8</span> Summary</h2>
 
 
 <div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
@@ -1681,6 +1840,9 @@ Sutton, Richard S., and Andrew G. Barto. 2018. <em>Reinforcement Learning: An In
       </a>          
   </div>
   <div class="nav-page nav-page-next">
+      <a href="../chapters/04-dynamic-programming.html" class="pagination-link" aria-label="Dynamic Programming">
+        <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Dynamic Programming</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
   </div>
 </nav>
 </div> <!-- /content -->

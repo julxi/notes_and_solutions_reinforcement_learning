@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>1&nbsp; Introduction – Notes on Sutton &amp; Barto</title>
+<title>4&nbsp; Dynamic Programming – Notes on Sutton &amp; Barto</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -20,7 +20,27 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 
 <script src="../site_libs/quarto-nav/quarto-nav.js"></script>
@@ -30,8 +50,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
-<link href="../chapters/02-multi-armed-bandits.html" rel="next">
-<link href="../index.html" rel="prev">
+<link href="../chapters/03-finite-markov-decision-processes.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
 <script src="../site_libs/quarto-html/popper.min.js"></script>
@@ -273,7 +292,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/01-intro.html"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../chapters/04-dynamic-programming.html"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Dynamic Programming</span></a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -309,7 +328,7 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../chapters/01-intro.html" class="sidebar-item-text sidebar-link active">
+  <a href="../chapters/01-intro.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
   </div>
 </li>
@@ -327,7 +346,7 @@ window.Quarto = {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="../chapters/04-dynamic-programming.html" class="sidebar-item-text sidebar-link">
+  <a href="../chapters/04-dynamic-programming.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Dynamic Programming</span></span></a>
   </div>
 </li>
@@ -336,8 +355,16 @@ window.Quarto = {
 </nav>
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
-        
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#policy-evaluation" id="toc-policy-evaluation" class="nav-link active" data-scroll-target="#policy-evaluation"><span class="header-section-number">4.1</span> Policy Evaluation</a></li>
+  <li><a href="#sec-policy-improvement" id="toc-sec-policy-improvement" class="nav-link" data-scroll-target="#sec-policy-improvement"><span class="header-section-number">4.2</span> Policy Improvement</a></li>
+  <li><a href="#policy-iteration" id="toc-policy-iteration" class="nav-link" data-scroll-target="#policy-iteration"><span class="header-section-number">4.3</span> Policy Iteration</a></li>
+  </ul>
+</nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
@@ -345,7 +372,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></h1>
+<h1 class="title"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Dynamic Programming</span></h1>
 </div>
 
 
@@ -362,40 +389,247 @@ window.Quarto = {
 </header>
 
 
-<div id="exr-1.1" class="theorem exercise">
-<p><span class="theorem-title"><strong>Exercise 1.1 (Self-Play)</strong></span> Suppose, instead of playing against a random opponent, the reinforcement learning algorithm described above played against itself, with both sides learning. What do you think would happen in this case? Would it learn a different policy for selecting moves?</p>
+<section id="policy-evaluation" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="policy-evaluation"><span class="header-section-number">4.1</span> Policy Evaluation</h2>
+<p>The Bellman equations for state-value <a href="03-finite-markov-decision-processes.html#eq-bellman-state-value" class="quarto-xref">Equation&nbsp;<span>3.12</span></a> and for action-value <a href="03-finite-markov-decision-processes.html#eq-bellman-action-value" class="quarto-xref">Equation&nbsp;<span>3.13</span></a> can be used as update rules to approximate <span class="math inline">\(v_\pi\)</span> and <span class="math inline">\(q_\pi\)</span>: <span id="eq-bellman-update-state-value"><span class="math display">\[
+v_{k+1}(s) = \sum_a \pi(a|s) \sum_{s',r} p(s',r|s,a)[r+\gamma v_{k}(s')]
+\tag{4.1}\]</span></span> <span id="eq-bellman-update-action-value"><span class="math display">\[
+q_{k+1}(s,a) = \sum_{s',r}p(s',r|s,a) [r + \gamma \sum_{a'}\pi(a'|s')q_k(s',a')]
+\tag{4.2}\]</span></span></p>
+<div id="exm-4.1" class="theorem example">
+<p><span class="theorem-title"><strong>Example 4.1</strong></span> This is <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>, Example 4.1)</span></p>
+<p>Here is the quick summary:</p>
+<ul>
+<li>states: non-terminal states are numbered 1 through 14. The two gray cells are treated as a single terminal state.</li>
+<li>actions: Four deterministic actions available in each state: up, down, left, right. Moving “off the grid” results in no state change.</li>
+<li>rewards: A reward of -1 is given for every transition until the terminal state is reached</li>
+<li>return: undiscounted</li>
+</ul>
+<div class="cell" data-fig-width="4" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<svg width="384" height="480" viewbox="0.00 0.00 128.00 128.00" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 124)">
+<title>G</title>
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-124 124,-124 124,4 -4,4"></polygon>
+<!-- grid -->
+<g id="node1" class="node">
+<title>grid</title>
+<polygon fill="lightgray" stroke="transparent" points="0,-90 0,-120 30,-120 30,-90 0,-90"></polygon>
+<polygon fill="none" stroke="black" points="0,-90 0,-120 30,-120 30,-90 0,-90"></polygon>
+<polygon fill="none" stroke="black" points="30,-90 30,-120 60,-120 60,-90 30,-90"></polygon>
+<text text-anchor="start" x="41.5" y="-100.8" font-family="Times,serif" font-size="14.00">1</text>
+<polygon fill="none" stroke="black" points="60,-90 60,-120 90,-120 90,-90 60,-90"></polygon>
+<text text-anchor="start" x="71.5" y="-100.8" font-family="Times,serif" font-size="14.00">2</text>
+<polygon fill="none" stroke="black" points="90,-90 90,-120 120,-120 120,-90 90,-90"></polygon>
+<text text-anchor="start" x="101.5" y="-100.8" font-family="Times,serif" font-size="14.00">3</text>
+<polygon fill="none" stroke="black" points="0,-60 0,-90 30,-90 30,-60 0,-60"></polygon>
+<text text-anchor="start" x="11.5" y="-70.8" font-family="Times,serif" font-size="14.00">4</text>
+<polygon fill="none" stroke="black" points="30,-60 30,-90 60,-90 60,-60 30,-60"></polygon>
+<text text-anchor="start" x="41.5" y="-70.8" font-family="Times,serif" font-size="14.00">5</text>
+<polygon fill="none" stroke="black" points="60,-60 60,-90 90,-90 90,-60 60,-60"></polygon>
+<text text-anchor="start" x="71.5" y="-70.8" font-family="Times,serif" font-size="14.00">6</text>
+<polygon fill="none" stroke="black" points="90,-60 90,-90 120,-90 120,-60 90,-60"></polygon>
+<text text-anchor="start" x="101.5" y="-70.8" font-family="Times,serif" font-size="14.00">7</text>
+<polygon fill="none" stroke="black" points="0,-30 0,-60 30,-60 30,-30 0,-30"></polygon>
+<text text-anchor="start" x="11.5" y="-40.8" font-family="Times,serif" font-size="14.00">8</text>
+<polygon fill="none" stroke="black" points="30,-30 30,-60 60,-60 60,-30 30,-30"></polygon>
+<text text-anchor="start" x="41.5" y="-40.8" font-family="Times,serif" font-size="14.00">9</text>
+<polygon fill="none" stroke="black" points="60,-30 60,-60 90,-60 90,-30 60,-30"></polygon>
+<text text-anchor="start" x="68" y="-40.8" font-family="Times,serif" font-size="14.00">10</text>
+<polygon fill="none" stroke="black" points="90,-30 90,-60 120,-60 120,-30 90,-30"></polygon>
+<text text-anchor="start" x="98" y="-40.8" font-family="Times,serif" font-size="14.00">11</text>
+<polygon fill="none" stroke="black" points="0,0 0,-30 30,-30 30,0 0,0"></polygon>
+<text text-anchor="start" x="8" y="-10.8" font-family="Times,serif" font-size="14.00">12</text>
+<polygon fill="none" stroke="black" points="30,0 30,-30 60,-30 60,0 30,0"></polygon>
+<text text-anchor="start" x="38" y="-10.8" font-family="Times,serif" font-size="14.00">13</text>
+<polygon fill="none" stroke="black" points="60,0 60,-30 90,-30 90,0 60,0"></polygon>
+<text text-anchor="start" x="68" y="-10.8" font-family="Times,serif" font-size="14.00">14</text>
+<polygon fill="lightgray" stroke="transparent" points="90,0 90,-30 120,-30 120,0 90,0"></polygon>
+<polygon fill="none" stroke="black" points="90,0 90,-30 120,-30 120,0 90,0"></polygon>
+</g>
+</g>
+</svg>
 </div>
-<div id="sol-1.1" class="proof solution">
-<p><span class="proof-title"><em>Solution 1.1</em>. </span>The algorithm would learn the true game-theoretic values of each board state because, in the long run, both sides would learn the optimal strategy against their opponent.</p>
+<p></p></figure><p></p>
 </div>
-<div id="exr-1.2" class="theorem exercise">
-<p><span class="theorem-title"><strong>Exercise 1.2 (Symmetries)</strong></span> Many tic-tac-toe positions appear different but are really the same because of symmetries. How might we amend the learning process described above to take advantage of this? In what ways would this change improve the learning process? Now think again. Suppose the opponent did not take advantage of symmetries. In that case, should we? Is it true, then, that symmetrically equivalent positions should necessarily have the same value?</p>
 </div>
-<div id="sol-1.2" class="proof solution">
-<p><span class="proof-title"><em>Solution 1.2</em>. </span>We could alter the learning process by using a canonical representative for each board state instead of the board state itself. This would speed up learning (the algorithm would generalise for symmetric states) and require less memory.</p>
-<p>If the opponent does not respect the board symmetries, then the environment (board state plus opponent) should be treated as having no symmetries.</p>
 </div>
-<div id="exr-1.3" class="theorem exercise">
-<p><span class="theorem-title"><strong>Exercise 1.3 (Greedy Play)</strong></span> Suppose the reinforcement learning player was greedy, that is, it always played the move that brought it to the position that it rated the best. Might it learn to play better, or worse, than a non-greedy player? What problems might occur?</p>
+<p>And here are the state-values for the random policy:</p>
+<div class="cell" data-fig-width="4" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<svg width="384" height="480" viewbox="0.00 0.00 128.00 128.00" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 124)">
+<title>G</title>
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-124 124,-124 124,4 -4,4"></polygon>
+<!-- grid -->
+<g id="node1" class="node">
+<title>grid</title>
+<polygon fill="lightgray" stroke="transparent" points="0,-90 0,-120 30,-120 30,-90 0,-90"></polygon>
+<polygon fill="none" stroke="black" points="0,-90 0,-120 30,-120 30,-90 0,-90"></polygon>
+<text text-anchor="start" x="11.5" y="-100.8" font-family="Times,serif" font-size="14.00">0</text>
+<polygon fill="none" stroke="black" points="30,-90 30,-120 60,-120 60,-90 30,-90"></polygon>
+<text text-anchor="start" x="35.67" y="-100.8" font-family="Times,serif" font-size="14.00">-14</text>
+<polygon fill="none" stroke="black" points="60,-90 60,-120 90,-120 90,-90 60,-90"></polygon>
+<text text-anchor="start" x="65.67" y="-100.8" font-family="Times,serif" font-size="14.00">-20</text>
+<polygon fill="none" stroke="black" points="90,-90 90,-120 120,-120 120,-90 90,-90"></polygon>
+<text text-anchor="start" x="95.67" y="-100.8" font-family="Times,serif" font-size="14.00">-22</text>
+<polygon fill="none" stroke="black" points="0,-60 0,-90 30,-90 30,-60 0,-60"></polygon>
+<text text-anchor="start" x="5.67" y="-70.8" font-family="Times,serif" font-size="14.00">-14</text>
+<polygon fill="none" stroke="black" points="30,-60 30,-90 60,-90 60,-60 30,-60"></polygon>
+<text text-anchor="start" x="35.67" y="-70.8" font-family="Times,serif" font-size="14.00">-18</text>
+<polygon fill="none" stroke="black" points="60,-60 60,-90 90,-90 90,-60 60,-60"></polygon>
+<text text-anchor="start" x="65.67" y="-70.8" font-family="Times,serif" font-size="14.00">-20</text>
+<polygon fill="none" stroke="black" points="90,-60 90,-90 120,-90 120,-60 90,-60"></polygon>
+<text text-anchor="start" x="95.67" y="-70.8" font-family="Times,serif" font-size="14.00">-20</text>
+<polygon fill="none" stroke="black" points="0,-30 0,-60 30,-60 30,-30 0,-30"></polygon>
+<text text-anchor="start" x="5.67" y="-40.8" font-family="Times,serif" font-size="14.00">-20</text>
+<polygon fill="none" stroke="black" points="30,-30 30,-60 60,-60 60,-30 30,-30"></polygon>
+<text text-anchor="start" x="35.67" y="-40.8" font-family="Times,serif" font-size="14.00">-20</text>
+<polygon fill="none" stroke="black" points="60,-30 60,-60 90,-60 90,-30 60,-30"></polygon>
+<text text-anchor="start" x="65.67" y="-40.8" font-family="Times,serif" font-size="14.00">-18</text>
+<polygon fill="none" stroke="black" points="90,-30 90,-60 120,-60 120,-30 90,-30"></polygon>
+<text text-anchor="start" x="95.67" y="-40.8" font-family="Times,serif" font-size="14.00">-14</text>
+<polygon fill="none" stroke="black" points="0,0 0,-30 30,-30 30,0 0,0"></polygon>
+<text text-anchor="start" x="5.67" y="-10.8" font-family="Times,serif" font-size="14.00">-22</text>
+<polygon fill="none" stroke="black" points="30,0 30,-30 60,-30 60,0 30,0"></polygon>
+<text text-anchor="start" x="35.67" y="-10.8" font-family="Times,serif" font-size="14.00">-20</text>
+<polygon fill="none" stroke="black" points="60,0 60,-30 90,-30 90,0 60,0"></polygon>
+<text text-anchor="start" x="65.67" y="-10.8" font-family="Times,serif" font-size="14.00">-14</text>
+<polygon fill="lightgray" stroke="transparent" points="90,0 90,-30 120,-30 120,0 90,0"></polygon>
+<polygon fill="none" stroke="black" points="90,0 90,-30 120,-30 120,0 90,0"></polygon>
+<text text-anchor="start" x="101.5" y="-10.8" font-family="Times,serif" font-size="14.00">0</text>
+</g>
+</g>
+</svg>
 </div>
-<div id="sol-1.3" class="proof solution">
-<p><span class="proof-title"><em>Solution 1.3</em>. </span>It could potentially learn to play better or worse. The greedy player has the advantage of always exploiting its knowledge. However, it has the significant disadvantage of never exploring. It could end up valuing a position as a draw that is actually a win as it never explores subsequent positions that would lead to win.</p>
+<p></p></figure><p></p>
 </div>
-<div id="exr-1.4" class="theorem exercise">
-<p><span class="theorem-title"><strong>Exercise 1.4 (Learning from Exploration)</strong></span> Suppose learning updates occurred after all moves, including exploratory moves. If the step-size parameter is appropriately reduced over time (but not the tendency to explore), then the state values would converge to a different set of probabilities. What (conceptually) are the two sets of probabilities computed when we do, and when we do not, learn from exploratory moves? Assuming that we do continue to make exploratory moves, which set of probabilities might be better to learn? Which would result in more wins?</p>
 </div>
-<div id="sol-1.4" class="proof solution">
-<p><span class="proof-title"><em>Solution 1.4</em>. </span>Without exploratory moves we learn the values of the states according to the optimal policy. With exploratory moves we learn the values of the states according to the <span class="math inline">\(\varepsilon\)</span>-optimal policy.</p>
-<p>If we continue playing with <span class="math inline">\(\varepsilon\)</span>-soft, the latter values are preferable.</p>
 </div>
-<div id="exr-1.5" class="theorem exercise">
-<p><span class="theorem-title"><strong>Exercise 1.5 (Other Improvements)</strong></span> Can you think of other ways to improve the reinforcement learning player? Can you think of any better way to solve the tic-tac-toe problem as posed?</p>
+<p>Note that these values are (luckily) exact, which will be useful for the next exercises</p>
 </div>
-<div id="sol-1.5" class="proof solution">
-<p><span class="proof-title"><em>Solution 1.5</em>. </span>Surely there are many ways. And I think this book will discuss many of them. Just to give one example we could use <span class="math inline">\(n\)</span>-step temporal difference (update a state’s value only after <span class="math inline">\(n\)</span> moves).</p>
+<div id="exr-4.1" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 4.1</strong></span> In <a href="#exm-4.1" class="quarto-xref">Example&nbsp;<span>4.1</span></a>, if <span class="math inline">\(\pi\)</span> is the equiprobable random policy, what is <span class="math inline">\(q_\pi(11, \mathrm{down})\)</span>? What is <span class="math inline">\(q_\pi(7, \mathrm{down})\)</span>?</p>
 </div>
+<div id="sol-4.1" class="proof solution">
+<p><span class="proof-title"><em>Solution 4.1</em>. </span>We can use the state-value function given in the example: <span class="math display">\[
+\begin{split}
+q_\pi(11, \mathrm{down}) &amp;= -1 + 0 = -1\\
+q_\pi(7, \mathrm{down}) &amp;= -1 + v_\pi(11) = -1 + (-14) = -15
+\end{split}
+\]</span></p>
+</div>
+<div id="exr-4.2" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 4.2</strong></span> In <a href="#exm-4.1" class="quarto-xref">Example&nbsp;<span>4.1</span></a>, suppose a new state 15 is added to the gridworld just below state 13, and its actions, left, up, right, and down, take the agent to states 12, 13, 14, and 15, respectively. Assume that the transitions from the original states are unchanged. What, then, is <span class="math inline">\(v_\pi(15)\)</span> for the equiprobable random policy?</p>
+<p>Now suppose the dynamics of state 13 are also changed, such that action down from state 13 takes the agent to the new state 15. What is <span class="math inline">\(v_\pi(15)\)</span> for the equiprobable random policy in this case?</p>
+</div>
+<div id="sol-4.2" class="proof solution">
+<p><span class="proof-title"><em>Solution 4.2</em>. </span>Since the MDP is deterministic and all transitions give the same reward, the undiscounted Bellman equation <a href="03-finite-markov-decision-processes.html#eq-bellman-state-value" class="quarto-xref">Equation&nbsp;<span>3.12</span></a> simplifies to: <span class="math display">\[
+v_{\pi}(s) = r + \sum_{a}\pi(a|s') [v_{\pi}(s')],
+\]</span></p>
+<p>where <span class="math inline">\(r = -1\)</span>.</p>
+<p>The first case is quite easy to compute. The transitions for all original states remain unchanged, so their values also remain unchanged. For the new state 15, we can write: <span class="math display">\[
+v_\pi(15) = -1 + \frac{1}{4}(v_\pi(12) + v_\pi(13) + v_\pi(14) + v_\pi(15))
+\]</span> which gives <span class="math inline">\(v_\pi(15) = -20\)</span>.</p>
+<p>Now in the second case we might be up for a lot of work, as state 13 has a new transition: taking action “down” leads to state 15. This changes the dynamics of the MDP, so in principle the values might change. However, luckily the existing state-value function still satisfies the Bellman equation for state 13: <span class="math display">\[
+v_\pi(13) = -1 + \frac{1}{4}(v_\pi(12) + v_\pi(9) + v_\pi(13) + v_\pi(15))
+\]</span></p>
+<p>Substitute the known values we see that the equation holds <span class="math display">\[
+v_\pi(13) = -20 = -1 + \frac{1}{4}(-22 - 20 - 14 - 20)
+\]</span></p>
+<p>So <span class="math inline">\(v_\pi(13)\)</span> remains consistent with the new dynamics. Since all Bellman equations continue to hold with the same values, the state-value function does not change. So, <span class="math inline">\(v_\pi(15)=-20\)</span> also in this case.</p>
+</div>
+<div id="exr-4.3" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 4.3</strong></span> What are the equations analogous to <a href="03-finite-markov-decision-processes.html#eq-state-value-one-step-look-ahead" class="quarto-xref">Equation&nbsp;<span>3.10</span></a>, <a href="03-finite-markov-decision-processes.html#eq-bellman-state-value" class="quarto-xref">Equation&nbsp;<span>3.12</span></a>, and <a href="#eq-bellman-update-state-value" class="quarto-xref">Equation&nbsp;<span>4.1</span></a> for the action-value function <span class="math inline">\(q_\pi\)</span> and its successive approximation by a sequence of functions <span class="math inline">\(q_0, q_1, \dots\)</span>?</p>
+</div>
+<div id="sol-4-3" class="proof solution">
+<p><span class="proof-title"><em>Solution 4.3</em>. </span>We have already stated these equations in tandem as <a href="03-finite-markov-decision-processes.html#eq-action-value-one-step-look-ahead" class="quarto-xref">Equation&nbsp;<span>3.11</span></a>, <a href="03-finite-markov-decision-processes.html#eq-bellman-action-value" class="quarto-xref">Equation&nbsp;<span>3.13</span></a>, and <a href="#eq-bellman-update-action-value" class="quarto-xref">Equation&nbsp;<span>4.2</span></a>.</p>
+</div>
+</section>
+<section id="sec-policy-improvement" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="sec-policy-improvement"><span class="header-section-number">4.2</span> Policy Improvement</h2>
+<p>An optimal policy can always be chosen to be deterministic. This is quite intuitive: why would introducing randomness in action selection be beneficial if all you care about is maximising expected return? More rigorously, if you are choosing between two actions, <span class="math inline">\(a_1\)</span> and <span class="math inline">\(a_2\)</span>, and you know their values <span class="math inline">\(q_\pi(s,a_1)\)</span> and <span class="math inline">\(q_\pi(s,a_2)\)</span>, then it is clearly best to take the one with the higher value. A key tool for this kind of reasoning is the policy improvement theorem.</p>
+<div id="thm-policy-improvement-theorem" class="theorem">
+<p><span class="theorem-title"><strong>Theorem 4.1</strong></span> Let <span class="math inline">\(\pi\)</span> be any policy and <span class="math inline">\(\pi'\)</span> a deterministic policy. Then <span class="math inline">\(\pi \leq \pi'\)</span> if <span class="math display">\[
+v_\pi(s) \leq q_\pi(s,\pi'(s)),
+\]</span> for all <span class="math inline">\(s \in \mathcal{S}\)</span>.</p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>From the assumption, we have: <span class="math display">\[
+\begin{split}
+v_\pi(s) &amp;\leq q_\pi(s, \pi'(s)) \\
+&amp;= \mathbb{E}[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t = s, A_t = \pi'(s)] \\
+&amp;= \mathbb{E}_{\pi'}[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t = s] \\
+\end{split}
+\]</span> (if you wonder about the indices in the expectation: the first expectation is completely determined by the MDP, in the second one we stipulate action selection according to <span class="math inline">\(\pi'\)</span>.)</p>
+<p>Now, we can unroll this expression recursively: <span class="math display">\[
+\begin{align}
+v_\pi(s) &amp;\leq \mathbb{E}_{\pi'}[R_{t+1} + \gamma v_\pi(S_{t+1}) \mid S_t = s] \\
+&amp;\leq \mathbb{E}_{\pi'}[R_{t+1} + \gamma \mathbb{E}_{\pi'}[R'_{t+2} + \gamma v_\pi(S'_{t+2}) \mid S'_{t+1} = S_{t+1}] \mid S_t = s] \\
+&amp;= \mathbb{E}_{\pi'}[R_{t+1} + \gamma R_{t+2} + \gamma^2 v_\pi(S_{t+2}) \mid S_t = s]
+\end{align}
+\]</span></p>
+<p>and so on. The last equality should be justified formally by the law of total expectation and the law of the unconscious statistician (<a href="02-multi-armed-bandits.html#thm-law-of-total-expectation" class="quarto-xref">Theorem&nbsp;<span>2.4</span></a> and <a href="02-multi-armed-bandits.html#thm-law-of-the-unconscious-statistician" class="quarto-xref">Theorem&nbsp;<span>2.1</span></a>).</p>
+<p>Iterating this process a couple of times we get <span class="math display">\[
+v_\pi(s) \leq \mathbb{E}_{\pi'}\bigg[\sum_{i=0}^{N} \gamma^i R_{t+1+i} + \gamma^{N+1} v_\pi(S_{t+1+N}) \;\bigg|\; S_t = s \bigg]
+\]</span></p>
+<p>and in the limit (everything is bounded so this should be kosher) <span class="math display">\[
+v_\pi(s) \leq \mathbb{E}_{\pi'}\bigg[\sum_{i=0}^{\infty} \gamma^i R_{t+1+i} \;\bigg| \; S_t = s \bigg] = v_{\pi'}(s).
+\]</span></p>
+</div>
+<p>This result allows us to show that every finite MDP has an optimal deterministic policy.</p>
+<p>Let <span class="math inline">\(\pi\)</span> be any policy. Define a new deterministic policy <span class="math inline">\(\pi'\)</span> by <span class="math display">\[
+\pi'(s)= \underset{a \in \mathcal{A}}{\mathrm{argmax}} q_{\pi}(s,a)
+\]</span></p>
+<p>By the policy improvement theorem, we have <span class="math inline">\(\pi \leq \pi'\)</span>. Now consider two deterministic policies, <span class="math inline">\(\pi_1\)</span> and <span class="math inline">\(\pi_2\)</span>, and define their meet (pointwise maximum policy) as <span class="math display">\[
+(\pi_1 \vee \pi_2)(s) =
+\begin{cases}\pi_1(s) &amp;\text{if } v_{\pi_1}(s) \geq v_{\pi_2}(s) \\
+\pi_2(s) &amp;\text{else}
+\end{cases}
+\]</span></p>
+<p>Then, again by the policy improvement theorem, we have <span class="math inline">\(\pi_1, \pi_2 \leq \pi_1 \vee \pi_2\)</span>.</p>
+<p>Now, since the number of deterministic policies is finite (as both <span class="math inline">\(\mathcal{S}\)</span> and <span class="math inline">\(\mathcal{A}\)</span> are finite), we can take the meet over all deterministic policies and obtain an optimal deterministic policy.</p>
+<p>This leads directly to a characterisation of optimality in terms of greedy action selection.</p>
+<div id="thm-optimal-policy-equation" class="theorem">
+<p><span class="theorem-title"><strong>Theorem 4.2</strong></span> A policy <span class="math inline">\(\pi\)</span> is optimal, if and only if, <span id="eq-conversion-action-to-state-value-for-optimal-policy"><span class="math display">\[
+v_\pi(s) = \max_{a \in \mathcal{A}(s)} q_{\pi}(s,a),
+\tag{4.3}\]</span></span></p>
+<p>for all <span class="math inline">\(s \in \mathcal{S}\)</span>.</p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>If <span class="math inline">\(\pi\)</span> is optimal then <span class="math inline">\(v_\pi(s) &lt; \max_{a} q_\pi(s,a)\)</span> would lead to a contradiction using the policy improvement theorem.</p>
+<p>For the converse we do an argument very similar to the proof of <a href="#thm-policy-improvement-theorem" class="quarto-xref">Theorem&nbsp;<span>4.1</span></a>. So similar in fact that I’m afraid that were doing the same work twice. Let <span class="math inline">\(\pi\)</span> satisfy <a href="#eq-conversion-action-to-state-value-for-optimal-policy" class="quarto-xref">Equation&nbsp;<span>4.3</span></a>. We show that <span class="math inline">\(\pi\)</span> is optimal by showing that <span class="math display">\[
+\Delta(s) = v_{\pi_*}(s) - v_{\pi}(s)
+\]</span> is <span class="math inline">\(0\)</span> for all <span class="math inline">\(s \in \mathcal{S}\)</span>, where <span class="math inline">\(\pi_*\)</span> is any deterministic, optimal policy.</p>
+<p>We can bound <span class="math inline">\(\Delta(s)\)</span> like so <span class="math display">\[
+\begin{split}
+\Delta(s) &amp;= q_{\pi_*}(s,\pi_*(s)) - \max_a q_{\pi}(s,a) \\
+&amp;\leq q_{\pi_*}(s,\pi_*(s)) - q_\pi(s,\pi_*(s)) \\
+&amp;= \mathbb{E}_{\pi_*}[ R_{t+1} + \gamma v_{\pi_*}(S_{t+1}) - (R_{t+1} + \gamma v_{\pi}(S_{t+1})) | S_{t} = s] \\
+&amp;= \mathbb{E}_{\pi_*}[\gamma \Delta(S_{t+1}) | S_t = s]
+\end{split}
+\]</span></p>
+<p>Iterating this and taking the limit gives <span class="math display">\[
+\Delta(s) \leq \lim_{k \to \infty} \mathbb{E}_{\pi_*}[\gamma^k \Delta(S_{t+k}) \mid S_t = s] = 0.
+\]</span></p>
+</div>
+</section>
+<section id="policy-iteration" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="policy-iteration"><span class="header-section-number">4.3</span> Policy Iteration</h2>
 
 
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-sutton2018" class="csl-entry" role="listitem">
+Sutton, Richard S., and Andrew G. Barto. 2018. <em>Reinforcement Learning: An Introduction</em>. Second edition. Adaptive Computation and Machine Learning Series. Cambridge, MA: MIT Press. <a href="https://mitpress.mit.edu/9780262039246/reinforcement-learning/">https://mitpress.mit.edu/9780262039246/reinforcement-learning/</a>.
+</div>
+</div>
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
@@ -812,14 +1046,11 @@ window.Quarto = {
   </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="../index.html" class="pagination-link" aria-label="Preface">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Preface</span>
+      <a href="../chapters/03-finite-markov-decision-processes.html" class="pagination-link" aria-label="Finite Markov Decision Processes">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Finite Markov Decision Processes</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="../chapters/02-multi-armed-bandits.html" class="pagination-link" aria-label="Multi-armed Bandits">
-        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Multi-armed Bandits</span></span> <i class="bi bi-arrow-right-short"></i>
-      </a>
   </div>
 </nav>
 </div> <!-- /content -->
