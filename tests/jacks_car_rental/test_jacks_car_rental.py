@@ -1,9 +1,8 @@
 import pytest
 import numpy as np
 from jacks_car_rental.jacks_car_rental import JacksCarRental, JacksCarRentalConfig
-from dataclasses import asdict
-from scipy.stats import poisson
 from pytest import approx
+from scipy.stats import poisson
 
 # -----------------------------
 # Test Initialization
@@ -39,24 +38,6 @@ def test_action_space():
 
 
 # -----------------------------
-# Test Poisson Cache
-# -----------------------------
-
-
-def test_poisson_cache_shape():
-    config = JacksCarRentalConfig()
-    env = JacksCarRental(config)
-    assert env._poisson_cache.shape == (4, config.max_cars + 1)
-
-
-def test_poisson_cache_sums_to_one():
-    config = JacksCarRentalConfig()
-    env = JacksCarRental(config)
-    for i in range(4):
-        assert np.isclose(env._poisson_cache[i].sum(), 1.0)
-
-
-# -----------------------------
 # Test Move Method
 # -----------------------------
 
@@ -68,7 +49,7 @@ def test_move_positive_action():
     action = 3
     new_state, cost = env.move(state, action)
     assert new_state == (2, 8)
-    assert cost == -2 * (3 - 1)  # move_cost * (move_amount - free_moves)
+    assert cost == -2 * (3 - 1)
 
 
 def test_move_negative_action():
@@ -78,17 +59,17 @@ def test_move_negative_action():
     action = -2
     new_state, cost = env.move(state, action)
     assert new_state == (5, 3)
-    assert cost == -1 * 2  # move_cost * move_amount
+    assert cost == -1 * 2
 
 
 def test_move_clipping():
-    config = JacksCarRentalConfig(max_cars=10, move_cost=1)
+    config = JacksCarRentalConfig(max_cars=10, max_move=10, move_cost=1)
     env = JacksCarRental(config)
     state = (5, 5)
     action = 10
     new_state, cost = env.move(state, action)
     assert new_state == (0, 10)
-    assert cost == -1 * 10  # move_cost * move_amount (even if clipped)
+    assert cost == -1 * 10
 
 
 def test_parking_cost():
@@ -98,7 +79,7 @@ def test_parking_cost():
     action = 0
     new_state, cost = env.move(state, action)
     assert new_state == (7, 3)
-    assert cost == -3  # only first location exceeds max_free_parking
+    assert cost == -3
 
 
 # -----------------------------
@@ -106,24 +87,18 @@ def test_parking_cost():
 # -----------------------------
 
 
-# Helper to compute expected revenue for a single location
 def expected_revenue_for_location(cars, λ_rent, max_cars, rental_revenue):
     expected = 0.0
     for req in range(cars + 1):
         if req < cars:
             prob = poisson.pmf(req, λ_rent)
         else:
-            # Account for all remaining probability mass
             prob = 1.0 - sum(poisson.pmf(r, λ_rent) for r in range(req))
         expected += req * prob * rental_revenue
     return expected
 
 
 def test_expected_revenue_known_values():
-    """
-    Test expected revenue against manually calculated values
-    using small λ and max_cars for easy verification.
-    """
     config = JacksCarRentalConfig(
         max_cars=2, λ1_rent=1.0, λ2_rent=0.5, rental_revenue=10.0
     )
@@ -143,31 +118,22 @@ def test_expected_revenue_known_values():
 
 
 def test_expected_revenue_with_zero_rental_rate():
-    """
-    Test expected revenue when λ_rent = 0 (no rentals possible).
-    """
     config = JacksCarRentalConfig(
         max_cars=5, λ1_rent=0.0, λ2_rent=0.0, rental_revenue=10.0
     )
     env = JacksCarRental(config)
 
-    # No matter how many cars, no revenue possible
     for s1 in range(6):
         for s2 in range(6):
             assert env.get_expected_revenue((s1, s2)) == 0.0
 
 
 def test_expected_revenue_with_high_rental_rate():
-    """
-    Test expected revenue when λ_rent > max_cars.
-    Expected revenue should be capped by available cars.
-    """
     config = JacksCarRentalConfig(
-        max_cars=2, λ1_rent=10.0, λ2_rent=10.0, rental_revenue=10.0  # High λ_rent
+        max_cars=2, λ1_rent=10.0, λ2_rent=10.0, rental_revenue=10.0
     )
     env = JacksCarRental(config)
 
-    # Expected revenue should be capped at max_cars * rental_revenue
     expected_per_location = config.max_cars * config.rental_revenue
     assert env.get_expected_revenue((2, 2)) == approx(
         expected_per_location * 2, rel=1e-3
@@ -175,9 +141,6 @@ def test_expected_revenue_with_high_rental_rate():
 
 
 def test_expected_revenue_additivity():
-    """
-    Test that expected revenue is additive across locations.
-    """
     config = JacksCarRentalConfig(max_cars=10)
     env = JacksCarRental(config)
 
@@ -188,18 +151,11 @@ def test_expected_revenue_additivity():
 
 
 def test_expected_revenue_with_poisson_cache():
-    """
-    Test that expected revenue matches direct Poisson calculation.
-    """
     config = JacksCarRentalConfig(
         max_cars=1, λ1_rent=0.5, λ2_rent=0.5, rental_revenue=10.0
     )
     env = JacksCarRental(config)
 
-    # Expected revenue for (1, 1):
-    # E[loc1] = 10 * (1 - e^-0.5)
-    # E[loc2] = 10 * (1 - e^-0.5)
-    # Total = 20 * (1 - e^-0.5) ≈ 7.87
     expected = 20 * (1 - np.exp(-0.5))
     assert env.get_expected_revenue((1, 1)) == approx(expected, rel=1e-3)
 
@@ -217,6 +173,64 @@ def test_transition_prob_sum():
         for s2_new in range(config.max_cars + 1):
             total += env.get_transition_probability((0, 0), (s1_new, s2_new))
     assert np.isclose(total, 1.0)
+
+
+def test_transition_probability_zero_state():
+    config = JacksCarRentalConfig()
+    env = JacksCarRental(config)
+    s1, s2 = (0, 0)
+    s1_after, s2_after = (0, 0)
+    prob = env.get_transition_probability((s1, s2), (s1_after, s2_after))
+
+    λ1_rent = config.λ1_rent
+    λ2_rent = config.λ2_rent
+    λ1_return = config.λ1_return
+    λ2_return = config.λ2_return
+
+    p_rent1 = poisson.pmf(0, λ1_rent)
+    p_return1 = poisson.pmf(0, λ1_return)
+    p_rent2 = poisson.pmf(0, λ2_rent)
+    p_return2 = poisson.pmf(0, λ2_return)
+
+    expected = (p_rent1 * p_return1) * (p_rent2 * p_return2)
+    assert prob == approx(expected, rel=1e-3)
+
+
+def test_transition_probability_deterministic():
+    config = JacksCarRentalConfig(
+        max_cars=3, λ1_rent=0.0, λ2_rent=0.0, λ1_return=0.0, λ2_return=0.0
+    )
+    env = JacksCarRental(config)
+
+    for cars1 in range(4):
+        for cars2 in range(4):
+            state = (cars1, cars2)
+            prob = env.get_transition_probability(state, state)
+            assert prob == approx(1.0)
+
+
+def test_per_location_transition_prob():
+    config = JacksCarRentalConfig(
+        max_cars=1, λ1_rent=0.5, λ1_return=0.5, λ2_rent=0.0, λ2_return=0.0
+    )
+    env = JacksCarRental(config)
+
+    cars_before = 1
+    cars_after = 1
+
+    λ_rent = config.λ1_rent
+    λ_return = config.λ1_return
+
+    p_rent_0 = poisson.pmf(0, λ_rent)
+    p_return_0 = 1.0  # TAIL for returns >= 0
+
+    p_rent_1 = poisson.sf(0, λ_rent)  # TAIL for rentals >=1
+    p_return_1 = poisson.sf(0, λ_return)  # TAIL for returns >=1
+
+    expected = p_rent_0 * p_return_0 + p_rent_1 * p_return_1
+
+    actual = env.transition_probs[cars_before][cars_after][env.LOC1]
+    assert actual == approx(expected, rel=1e-3)
 
 
 # -----------------------------

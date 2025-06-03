@@ -5,109 +5,128 @@ from typing import Tuple
 import numpy as np
 
 
-@dataclass
+State = Tuple[int, int]
+Action = int  # Positive: loc1 → loc2, Negative: loc2 → loc1
+
+
+@dataclass(frozen=True)
 class JacksCarRentalConfig:
     max_cars: int = 20
+
+    # poisson means for rentals and returns at each location
     λ1_rent: float = 3.0
     λ2_rent: float = 4.0
     λ1_return: float = 3.0
     λ2_return: float = 2.0
+
+    # moving cars between locations
     max_move: int = 5
     move_cost: float = 2.0
     rental_revenue: float = 10.0
 
-    # parameters for exercise 4.7
+    # for exercise 4.7
     free_moves_from_1_to_2: int = 0
     max_free_parking: int = 0
     extra_parking_cost: float = 0
 
 
-State = Tuple[int, int]
-Action = int  # >0: from 1 to 2, <0: from 2 to 1
-
-
 class JacksCarRental:
+    """Implementation of Jack's Car Rental MDP environment"""
 
-    # constants for indexing
-    LOC1, LOC2 = 0, 1
-    REQ1, REQ2, RET1, RET2 = 0, 1, 2, 3
+    RENT, RETURN = 0, 1  # event types
+    POINT, TAIL = 0, 1  # P(X = k), P(X >= k)
+    LOC1, LOC2 = 0, 1  # location indices
 
     def __init__(self, config):
         self.config = config
         self._build_state_space()
         self._build_action_space()
-        self._build_poisson_cache()
+        self._build_poisson_probability_cache()
         self._build_transition_model()
+        self._build_action_model()
 
     def _build_state_space(self):
-        """Build state space as all combinations of cars at both locations"""
+        """All (cars at loc1, cars at loc2) pairs from 0..max_cars."""
         max_cars = self.config.max_cars
         self.state_space = [
-            (l1, l2) for l1 in range(max_cars + 1) for l2 in range(max_cars + 1)
+            (cars1, cars2)
+            for cars1 in range(max_cars + 1)
+            for cars2 in range(max_cars + 1)
         ]
 
     def _build_action_space(self):
-        """Build action space (technically this includes invalid moves)"""
+        """Generate all possible move actions
+        (includes invalid moves, but they get clipped in moves)"""
         max_move = self.config.max_move
-        self.action_space = [a for a in range(-max_move, max_move + 1)]
+        self.action_space = list(range(-max_move, max_move + 1))
 
-    def _build_poisson_cache(self):
-        """Precompute Poisson probabilities for requests and returns"""
+    def _build_poisson_probability_cache(self):
+        """
+        Precompute Poisson PMF and tail-function.
+
+        Cache Dimensions:
+        [dist_type][event_type][n_events][location]
+            dist_type   ∈ {POINT=0, TAIL=1}
+            event_type  ∈ {RENT=0, RETURN=1}
+            n_events    ∈ {0,1,...,max_cars}
+            location    ∈ {LOC1=0, LOC2=1}
+        """
         max_cars = self.config.max_cars
-        λ_values = [
-            self.config.λ1_rent,
-            self.config.λ2_rent,
-            self.config.λ1_return,
-            self.config.λ2_return,
-        ]
-        self._poisson_cache = np.zeros((4, max_cars + 1))
-        for idx, λ in enumerate(λ_values):
-            self._poisson_cache[idx] = poisson.pmf(np.arange(max_cars + 1), λ)
+
+        λ_rentals = [self.config.λ1_rent, self.config.λ2_rent]
+        λ_returns = [self.config.λ1_return, self.config.λ2_return]
+        λ_values = np.array([λ_rentals, λ_returns])
+
+        events = np.arange(max_cars + 1)
+        events_reshaped = events.reshape((max_cars + 1, 1, 1))
+
+        pmf = poisson.pmf(events_reshaped, λ_values)
+        sf = poisson.sf(events_reshaped - 1, λ_values)
+
+        cache = np.stack([pmf, sf], axis=0)
+        self._poisson_cache = np.transpose(cache, (0, 2, 1, 3))
 
     def _build_transition_model(self):
-        """Build expected rewards and transition probabilities"""
+        """Build expected rental revenue and transition probabilities"""
         config = self.config
         max_cars = config.max_cars
 
-        er = np.zeros((max_cars + 1, 2))
-        p = np.zeros((max_cars + 1, max_cars + 1, 2))
-        # compute the location rewards and probabilities
-        for l in range(max_cars + 1):
-            p_req_total = np.zeros((2))
-            for req in range(l + 1):
-                # probabilities of requests
-                if req == l:
-                    p_req = 1 - p_req_total
-                else:
-                    p_req = np.array(
-                        [
-                            self._poisson_cache[self.REQ1, req],
-                            self._poisson_cache[self.REQ2, req],
-                        ]
-                    )
-                    p_req_total += p_req
+        # precompute per-location rental revenue and transition probabilities
+        expected_revenue = np.zeros((max_cars + 1, 2))  # [cars, location]
+        transition_probs = np.zeros(
+            (max_cars + 1, max_cars + 1, 2)
+        )  # [cars_before, cars_after, location]
 
-                # expected rewards
-                cars_left = l - req
-                er[l] += req * config.rental_revenue * p_req
+        for cars_before in range(max_cars + 1):
+            for requests in range(cars_before + 1):
 
-                # probabilities of returns
-                p_ret_total = np.zeros((2))
-                for ret in range(max_cars - cars_left + 1):
-                    if ret == max_cars - cars_left:
-                        p_ret = 1 - p_ret_total
-                    else:
-                        p_ret = np.array(
-                            [
-                                self._poisson_cache[self.RET1, ret],
-                                self._poisson_cache[self.RET2, ret],
-                            ]
-                        )
-                        p_ret_total += p_ret
+                request_prob = self._poisson_cache[
+                    self.TAIL if requests == cars_before else self.POINT,
+                    self.RENT,
+                    requests,
+                ]
+
+                # expected revenue
+                cars_after_rent = cars_before - requests
+                expected_revenue[cars_before] += (
+                    requests * config.rental_revenue * request_prob
+                )
+
+                max_returns = max_cars - cars_after_rent
+                for returns in range(max_returns + 1):
+                    return_prob = self._poisson_cache[
+                        self.TAIL if returns == max_returns else self.POINT,
+                        self.RETURN,
+                        returns,
+                    ]
+
                     # transition probabilities
-                    p[l][cars_left + ret] += p_req * p_ret
+                    cars_after_return = cars_after_rent + returns
+                    transition_probs[cars_before][cars_after_return] += (
+                        request_prob * return_prob
+                    )
 
-        # now the state expected rewards and probabilities
+        # build full state transition model
         self._expected_revenue = np.zeros((config.max_cars + 1, config.max_cars + 1))
         self._transition_prob = np.zeros(
             (
@@ -117,48 +136,73 @@ class JacksCarRental:
                 max_cars + 1,
             )
         )
-        for l1, l2 in self.state_space:
-            self._expected_revenue[l1, l2] = er[l1][self.LOC1] + er[l2][self.LOC2]
+        for cars1, cars2 in self.state_space:
+            self._expected_revenue[cars1, cars2] = (
+                expected_revenue[cars1][self.LOC1] + expected_revenue[cars2][self.LOC2]
+            )
 
-            for l1_new, l2_new in self.state_space:
-                self._transition_prob[l1, l2, l1_new, l2_new] = (
-                    p[l1][l1_new][self.LOC1] * p[l2][l2_new][self.LOC2]
+            for cars1_after, cars2_after in self.state_space:
+                self._transition_prob[cars1, cars2, cars1_after, cars2_after] = (
+                    transition_probs[cars1][cars1_after][self.LOC1]
+                    * transition_probs[cars2][cars2_after][self.LOC2]
                 )
 
-    def move(self, s: State, a: Action):
-        """Compute state after moving cars from location 1 to 2 and corresponding costs"""
+    def _build_action_model(self):
+        """
+        For every (state, action), pre-compute:
+          - after_state: how many cars end up at each location after moving
+          - immediate_cost: cost of moving + parking penalty
+
+        Note: illegal moves (more cars get moved then available) get clipped
+        but move cost is calculated for full action to penalize illegal moves
+        """
         config = self.config
-        max_cars = self.config.max_cars
-        s1, s2 = s
-        move_amount = abs(a)
-        move_cost = 0
-        after_state = s
+        max_cars = config.max_cars
+        self._move_model = {}
 
-        # calculate move cost (unclipped) and clipped move amount
-        if a > 0:
-            move_cost = -config.move_cost * max(
-                0, move_amount - config.free_moves_from_1_to_2
-            )
-            move_amount = min(move_amount, s1, max_cars - s2)
-            after_state = (s1 - move_amount, s2 + move_amount)
-        if a < 0:
-            move_cost = -config.move_cost * move_amount
-            move_amount = min(move_amount, s2, max_cars - s1)
-            after_state = (s1 + move_amount, s2 - move_amount)
+        for s in self.state_space:
+            for a in self.action_space:
+                cars1, cars2 = s
+                move_amount = abs(a)
 
-        # calculate rent penalty
-        parking_cost = 0
-        for cars in after_state:
-            if cars > config.max_free_parking:
-                parking_cost += -config.extra_parking_cost
+                # calculate move cost (unclipped) and after_state (clipped)
+                move_cost = 0
+                if a > 0:
+                    move_cost = -config.move_cost * max(
+                        0, move_amount - config.free_moves_from_1_to_2
+                    )
+                    actual_move = min(move_amount, cars1, max_cars - cars2)
+                    after_state = (cars1 - actual_move, cars2 + actual_move)
+                elif a < 0:
+                    move_cost = -config.move_cost * move_amount
+                    actual_move = min(move_amount, cars2, max_cars - cars1)
+                    after_state = (cars1 + move_amount, cars2 - move_amount)
+                else:
+                    after_state = s
 
-        return after_state, move_cost + parking_cost
+                # calculate parking penalty
+                parking_cost = 0
+                for cars_after in after_state:
+                    if cars_after > config.max_free_parking:
+                        parking_cost -= config.extra_parking_cost
+
+                self._move_model[(s, a)] = (after_state, move_cost + parking_cost)
+
+    def move(self, s: State, a: Action):
+        """
+        Returns (after_state, immediate_cost) after moving cars:
+            - a>0: loc1→loc2
+            - a<0: loc2→loc1
+        """
+        return self._move_model[(s, a)]
 
     def get_expected_revenue(self, s: State):
-        s1, s2 = s
-        return self._expected_revenue[s1, s2]
+        """Expected rental revenue for after-state"""
+        cars1, cars2 = s
+        return self._expected_revenue[cars1, cars2]
 
     def get_transition_probability(self, s1: State, s2: State):
-        l1, l2 = s1
-        l1_new, l2_new = s2
-        return self._transition_prob[l1, l2, l1_new, l2_new]
+        """Probability of landing in s2 from after-state s1."""
+        cars1, cars2 = s1
+        cars1_new, cars2_new = s2
+        return self._transition_prob[cars1, cars2, cars1_new, cars2_new]
