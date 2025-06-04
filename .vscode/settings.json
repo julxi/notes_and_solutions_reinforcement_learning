@@ -1,9 +1,0 @@
-{
-    "python.analysis.extraPaths": [
-        "${workspaceFolder}/"
-    ],
-    "python.analysis.packageIndexDepths": {
-        "scripts": 3
-    },
-    "python.envFile": "${workspaceFolder}/.env"
-}
