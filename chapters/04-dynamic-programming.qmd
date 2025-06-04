@@ -171,7 +171,7 @@ $$
 So $v_\pi(13)$ remains consistent with the new dynamics. Since all Bellman equations continue to hold with the same values, the state-value function does not change. So, $v_\pi(15)=-20$ also in this case.
 :::
 
-:::{#exr-4.3}(also see @sec-policy-iteration)
+:::{#exr-4.3}
 What are the equations analogous to @eq-state-value-one-step-look-ahead, @eq-bellman-state-value, and @eq-bellman-update-state-value for the action-value function $q_\pi$ and its successive approximation by a sequence of functions $q_0, q_1, \dots$?
 :::
 :::{#sol-4-3}
