@@ -1200,7 +1200,7 @@ CONFIG = dict(
     steps=300_000,
     keep=50_000,
     runs=200,
-    q_0 = 10,
+    q_0=10,
     drift_sd=0.1,
 )
 

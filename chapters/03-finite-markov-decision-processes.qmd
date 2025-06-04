@@ -547,9 +547,9 @@ $$
 
 So here is the meat of this computation. We let numpy solve the bellmann equations for grid world.
 ```{python}
-#|code-fold: false
-#| label: fig-gridworld-random-agent-value-function
-#| fig-cap: "This is like the right part of Figure 3.2 [@sutton2018]: the state-value function for the equiprobable random policy"
+# |code-fold: false
+# | label: fig-gridworld-random-agent-value-function
+# | fig-cap: "This is like the right part of Figure 3.2 [@sutton2018]: the state-value function for the equiprobable random policy"
 # === solving gridworld ===
 # setup parameters
 grid_size = 5
@@ -562,22 +562,23 @@ specials = {
 }
 env = Gridworld(size=grid_size, special_cells=specials)
 
+
 # setup random policy
 def random_policy(_: int, __: Action) -> float:
     """Uniform random policy over all actions."""
     return 1 / len(Action)
 
+
 # obtain variables of Bellman equation
 R = env.expected_rewards(random_policy)
 P = env.transition_matrix(random_policy)
 
-#--- solve the Bellman equation ---
-I = np.eye(grid_size*grid_size)
+# --- solve the Bellman equation ---
+I = np.eye(grid_size * grid_size)
 v = np.linalg.solve(I - γ * P, R)
 
 plot_value_grid(v, grid_size)
 ```
-
 :::
 
 :::{#exr-3.14}
