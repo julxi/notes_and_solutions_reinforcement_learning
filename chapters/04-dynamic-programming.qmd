@@ -1,3 +1,7 @@
+---
+code-annotations: select
+---
+
 # Dynamic Programming
 
 ## Policy Evaluation
@@ -9,6 +13,23 @@ $${#eq-bellman-update-state-value}
 $$
 q_{k+1}(s,a) = \sum_{s',r}p(s',r|s,a) [r + \gamma \sum_{a'}\pi(a'|s')q_k(s',a')]
 $${#eq-bellman-update-action-value}
+
+These equations form the basis for iterative policy evaluation. The algorithm below demonstrates how to approximate $v_\pi$, where updates are performed in "sweeps" rather than "chunk updates".
+This constitutes the policy evaluations step,$\pi \overset{\mathrm{Eval}}{\to} v_{\pi}$, in the policy iteration algorithm (@sec-policy-iteration).
+
+::: {.callout-note appearance="simple" icon=false title="Iterative Policy Evaluation, for estimating $V \approx v_\pi$"}
+| **Input**: $\pi$, the policy to be evaluated
+| **Parameters**: $\theta > 0$, determining accuracy of estimation
+| **Initialisation**: $V(s)$, for all $s \in \mathcal{S}$ arbitrarily, and $V(\mathrm{terminal}) = 0$
+| Loop:  
+|    $\Delta \gets 0$
+|    Loop for each $s \in \mathcal{S}$:
+|        $v \gets V(s)$
+|        $V(s) \gets \sum_a \pi(a|s) \sum_{s',r}p(s',r|s,a)[r + \gamma V(s')]$
+|        $\Delta \gets \max(\Delta, |v - V(s))$
+| until $\Delta < \theta$
+:::
+
 
 :::{#exm-4.1}
 This is [@sutton2018, Example 4.1]
@@ -150,7 +171,7 @@ $$
 So $v_\pi(13)$ remains consistent with the new dynamics. Since all Bellman equations continue to hold with the same values, the state-value function does not change. So, $v_\pi(15)=-20$ also in this case.
 :::
 
-:::{#exr-4.3}
+:::{#exr-4.3}(also see @sec-policy-iteration)
 What are the equations analogous to @eq-state-value-one-step-look-ahead, @eq-bellman-state-value, and @eq-bellman-update-state-value for the action-value function $q_\pi$ and its successive approximation by a sequence of functions $q_0, q_1, \dots$?
 :::
 :::{#sol-4-3}
@@ -257,7 +278,388 @@ $$
 $$
 :::
 
+For a policy $\pi$, if we define $\pi'(s) := \underset{a}{\mathrm{argmax}}\;q_\pi(s,a)$, we get an improved policy, unless $\pi$ was already optimal.
+This constitutes the policy improvement step,$v_\pi \overset{\mathrm{Imp}}{\to} \pi'$, in the policy iteration algorithm.
+
+## Policy Iteration {#sec-policy-iteration}
+
+The policy iteration algorithm chains evaluation and improvement and converges to an optimal policy, for any initial policy $\pi_0$:
+$$
+\pi_0 \overset{\mathrm{Eval}}{\to} v_{\pi_0} \overset{\mathrm{Imp}}{\to}
+\pi_1 \overset{\mathrm{Eval}}{\to} v_{\pi_1} \overset{\mathrm{Imp}}{\to}
+\pi_2 \overset{\mathrm{Eval}}{\to} v_{\pi_2} \overset{\mathrm{Imp}}{\to}
+\dots
+\overset{\mathrm{Imp}}{\to} \pi_* \overset{\mathrm{Eval}}{\to} v_{*}
+$$
+
+And here is the pseudo code.
+
+::: {.callout-note icon=false title="Policy Iteration (using iterative policy evaluation) for estimating $\pi \approx \pi_*$"}
+| **Parameter**:
+| $\theta$: a small positive number determining the accuracy of estimation
+|
+| **Initialisation**:
+| $V(s) \in \mathbb{R}$, $\pi(s) \in \mathcal{A}(s)$ arbitrarily, $V(\mathrm{terminal}) = 0$
+|
+| **Policy Evaluation**
+| Loop:  
+|     $\Delta \gets 0$
+|     Loop for each $s \in \mathcal{S}$:
+|         $v \gets V(s)$
+|         $V(s) \gets  \sum_{s',r}p(s',r|s,\pi(s))[r + \gamma V(s')]$
+|         $\Delta \gets \max(\Delta, |v - V(s))$
+| until $\Delta < \theta$
+|
+| **Policy Improvement**
+| $\text{policy-stable} \gets \mathrm{true}$
+| For each $s \in \mathcal{S}$:
+|     $\text{old-action} \gets \pi(s)$
+|     $\pi(s) \gets \underset{a}{\mathrm{argmax}} \sum_{s',r} p(s', r |s,a)[r + \gamma V(s')]$
+|     If $\text{old-action} \neq \pi(s)$, then $\text{policy-stable} \gets \text{false}$
+| If $\text{policy-stable}$:
+|     return $V \approx v_*$ and $\pi \approx \pi_*$
+| else:
+|     go to **Policy Evaluation**
+:::
+
+Note that the final policy improvement step does not change the policy and is basically just checking that the current policy is optimal. So this is basically an extra step to see that this chain is done:
+$\pi_0 \overset{\mathrm{Eval}}{\to} v_{\pi_0} \overset{\mathrm{Imp}}{\to}
+\dots
+\overset{\mathrm{Imp}}{\to} \pi_* \overset{\mathrm{Eval}}{\to} v_{*} \overset{\mathrm{Imp}}{\to} \text{Finished}$
+
+:::{#exm-4.2}
+This is [@sutton2018, Example 4.2] - Jack's car rental.
+
+Here's a quick summary:
+  
+  - two locations, each with a maximum of 20 cars (more cars added to a location magically vanish into thin air)
+  - during the day, a random amount of customers rent cars and then another random amount of customers return cars
+  - at the end of a day, up to 5 cars can be moved between the locations
+  - each car rented rewards 10
+  - each move car costs 2
+  - rentals and returns are Poisson distributed:  
+   $\lambda_{1,\text{rent}} =3$, $\lambda_{1,\text{return}} =3$, $\lambda_{2,\text{rent}} =4$, $\lambda_{2,\text{return}} =2$
+
+We solve Jack’s car rental using policy iteration.
+The core computation in policy iteration is the one-step lookahead, which is used both in policy evaluation and policy improvement. This is the main performance bottleneck:
+$$
+(s,a) \to \sum_{s',r} p(s',r|s,a) [ r + \gamma V(s')]
+$$
+
+This expression is good for theorizing about the algorithm but its direct implementation feels awkward and inefficient.
+In practice, it's better to split the four-argument $p(s',r|s,a)$ into expected immediate reward $r(s,a)$ and the transition probability $p(s'|s,a)$.
+
+$$
+\begin{split}
+\sum_{s',r}p(s',r|s,a)[r + \gamma V(s')] &= \sum_{s',r}p(s',r|s,a)r + \gamma\sum_{s',r}p(s',r|s,a)V(s') \\
+&= r(s,a) + \gamma \sum_{s'}p(s'|s, a) V(s')
+\end{split}
+$$
+
+Furthermore, we can make the algorithm more natural for this problem by introducing afterstates [@sutton2018, Sec. 6.8]. Although we don’t use them to their full potential (we don’t learn an afterstate value function).
+
+An afterstate is the environment state immediately after the agent's action, but before the environment's stochastic dynamics. This formulation is particularly effective when actions have deterministic effects. In Jack's car rental, moving cars deterministically leads to an afterstate $s \oplus a$, while the stochastic dynamics—rentals and returns—then determine the next state $s'$.
+
+The one-step lookahead using afterstates becomes:
+$$
+(s,a) \to c(a) + r(s \oplus a) + \gamma \sum_{s'} p(s'|s\oplus a)V(s'),
+$$ {#eq-one-step-lookahead-with-afterstates}
+
+where $c(a)$ is the cost of the, $r(s \oplus a)$ is the expected immediate reward for the afterstate.
+
+The following code is a nearly verbatim implementation of the policy iteration pseudocode, using @eq-one-step-lookahead-with-afterstates for evaluation. (Select annotations to see inline explanations.)
+```{python} 
+# | code-fold: false
+# | code-annotations: hover
+# === policy iteration for Jack's car rental ===
+from collections import namedtuple
+from typing import Dict, List
+from scripts.jacks_car_rental.jacks_car_rental import (  # <1>
+    JacksCarRental,  # <1>
+    State,  # <1>
+    Action,  # <1>
+)  # <1>
+
+Policy = Dict[State, Action]  # <2>
+ValueFn = Dict[State, float]
 
 
-## Policy Iteration
+def compute_state_action_value(  # <3>
+    env: JacksCarRental, state: State, action: Action, value: ValueFn, γ: float  # <3>
+) -> float:  # <3>
+    """
+    Compute the expected one‐step return
+    """
+    after_state, cost = env.move(state, action)
 
+    future_return = 0.0
+    for state_new in env.state_space:
+        p = env.get_transition_probability(after_state, state_new)
+        future_return += p * value[state_new]
+
+    return cost + env.get_expected_revenue(after_state) + γ * future_return
+
+
+def policy_evaluation(
+    env: JacksCarRental, π: Policy, value: ValueFn, θ: float, γ: float
+):
+    """
+    Approximates the ValueFn from a deterministic policy
+    """
+    while True:
+        Δ = 0.0
+
+        for s in env.state_space:
+            v_old = value[s]
+            v_new = compute_state_action_value(env, s, π[s], value, γ)
+            value[s] = v_new
+            Δ = max(Δ, abs(v_old - v_new))
+
+        if Δ < θ:
+            break
+
+
+def policy_improvement(
+    env: JacksCarRental, π: Policy, value: ValueFn, γ: float
+) -> bool:
+    """
+    Improve a policy according to the provided value‐function
+
+    If no state's action changes, return True (policy is stable). Otherwise return False.
+    """
+    stable = True
+
+    for s in env.state_space:
+        old_action = π[s]
+        best_action = max(  # <4>
+            env.action_space,
+            key=lambda a: compute_state_action_value(env, s, a, value, γ),  # <4>
+        )  # <4>
+
+        π[s] = best_action
+        if best_action != old_action:
+            stable = False
+
+    return stable
+
+
+PolicyIterationStep = namedtuple("PolicyIterationStep", ["policy", "values"])
+
+
+def policy_iteration(env, θ, γ) -> List[PolicyIterationStep]:  # <5>
+    optimal = False
+    history = []
+
+    # init policy and value-function
+    π: Policy = {s: 0 for s in env.state_space}
+    value: ValueFn = {s: 0.0 for s in env.state_space}
+
+    while not optimal:
+
+        # evaluation and save
+        policy_evaluation(env, π, value, θ, γ)
+        history.append(PolicyIterationStep(π.copy(), value.copy()))
+
+        # find better policy
+        optimal = policy_improvement(env, π, value, γ)
+
+    return history
+```
+1. Import the environment class and type aliases (State, Action) from the Jack’s car‐rental module.
+2. Since we are dealing with deterministic policies we can define Policy as a mapping.
+3. Implements the one‐step lookahead with afterstates (see @eq-one-step-lookahead-with-afterstates).
+4. Choose the action $a\in A$ that maximises the one‐step lookahead; this is a concise way to do "$\mathrm{argmax}_a \dots$"" in Python
+5. The only slight change to the pseudocode: instead of just returning the optimal policy and its state-value function we return the history of policies.
+
+Here is some more code just to be able to visualize our solution for Jack's car rental problem...
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import BoundaryNorm
+from matplotlib import cm
+
+from scripts.jacks_car_rental.jacks_car_rental import (
+    JacksCarRentalConfig,
+)
+
+
+def plot_policy(title: str, config: JacksCarRentalConfig, π: dict):
+    max_cars = config.max_cars
+    max_move = config.max_move
+
+    # Build a (max_cars+1)×(max_cars+1) integer grid of “action” values
+    policy_grid = np.zeros((max_cars + 1, max_cars + 1), dtype=int)
+    for (cars1, cars2), action in π.items():
+        policy_grid[cars1, cars2] = action
+
+    # X/Y coordinates for pcolormesh:
+    x = np.arange(max_cars + 1)
+    y = np.arange(max_cars + 1)
+    X, Y = np.meshgrid(x, y)
+
+    fig, ax = plt.subplots(figsize=(9, 9))
+
+    # Discrete actions range
+    actions = np.arange(-max_move, max_move + 1)
+    n_colors = len(actions)
+
+    # Create a “coolwarm” colormap with exactly n_colors bins
+    cmap = plt.get_cmap("coolwarm", n_colors)
+
+    # For a discrete colormap, we want boundaries at x.5, so that integer values
+    # get mapped to their own color. Example: if max_move=2, actions = [-2, -1, 0, 1, 2],
+    # then boundaries = [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].
+    bounds = np.arange(-max_move - 0.5, max_move + 0.5 + 1e-6, 1)
+    norm = BoundaryNorm(boundaries=bounds, ncolors=cmap.N)
+
+    cax = ax.pcolormesh(
+        X,
+        Y,
+        policy_grid,
+        cmap=cmap,
+        norm=norm,
+        edgecolors="black",
+        linewidth=0.4,
+    )
+
+    # Axis labels and title
+    ax.set_xlabel("Cars at Location 2", fontsize=12)
+    ax.set_ylabel("Cars at Location 1", fontsize=12)
+    ax.set_title(title, fontsize=14, pad=12)
+
+    # Square aspect ratio so each cell is a square:
+    ax.set_aspect("equal")
+
+    # Ticks every 5 cars
+    step = 5
+    ax.set_xticks(np.arange(0, max_cars + 1, step))
+    ax.set_yticks(np.arange(0, max_cars + 1, step))
+
+    # Colorbar (horizontal, at the bottom)
+    cbar = fig.colorbar(
+        cax,
+        ax=ax,
+        orientation="horizontal",
+        pad=0.08,
+        shrink=0.85,
+        boundaries=bounds,
+        ticks=actions,
+        label="Action (Car Movement)",
+    )
+    cbar.ax.xaxis.set_label_position("bottom")
+    cbar.ax.xaxis.tick_bottom()
+
+    fig.tight_layout(rect=[0, 0.03, 1, 1])
+
+    plt.show()
+
+
+def plot_valueFn(title, config, val):
+    """
+    3D surface plot of the value function
+    """
+    max_cars = config.max_cars
+
+    # Build a (max_cars+1)×(max_cars+1) grid of value estimates
+    value_grid = np.zeros((max_cars + 1, max_cars + 1), dtype=float)
+    for (l1, l2), v in val.items():
+        value_grid[l1, l2] = v
+
+    # Meshgrid for locations on each axis
+    x = np.arange(max_cars + 1)
+    y = np.arange(max_cars + 1)
+    X, Y = np.meshgrid(x, y)
+
+    fig = plt.figure(figsize=(11, 7))
+    ax = fig.add_subplot(111, projection="3d")
+
+    # Shaded surface plot
+    surf = ax.plot_surface(
+        X,
+        Y,
+        value_grid,
+        rstride=1,
+        cstride=1,
+        cmap=cm.viridis,
+        edgecolor="none",
+        antialiased=True,
+    )
+
+    ax.set_xlabel("Cars at Location 2", fontsize=12, labelpad=10)
+    ax.set_ylabel("Cars at Location 1", fontsize=12, labelpad=10)
+    ax.set_title(title, fontsize=14, pad=12)
+    ax.view_init(elev=35, azim=-60)
+
+    fig.tight_layout()
+    plt.show()
+```    
+
+...and now we can solve it:
+
+```{python}
+# | code-fold: false
+# | label: fig-jacks-car-rental-optimal-solution
+# | fig-cap: "This is like the last two diagrmas in Figure 4.2 [@sutton2018]: the first diagrams shows the optimal policy - which looks to me identical to Sutton-Barto's optimal policy. The second diagram shows its value function (the optimal value function), which seems to have a higher maximum as Sutton-Barto's - I don't know why."
+# | fig-subcap:
+# |  - "Heatmap of the optimal policy $\\pi_∗(s)$. Each cell at coordinates $(i,j)$ shows the number of cars moved from location 1 to location 2."
+# |  - "3D surface of the optimal state‐value function $v_∗​(s)$ corresponding to the policy in (a). The maximum value here is approximately $\\max⁡_s v_∗(s)\\approx 625$; Sutton & Barto’s reported maximum is $\\approx 612$."
+# === Solving Jack's car rental ===
+
+# Hyperparameter for "training"
+γ = 0.9
+θ = 1e-5
+
+# config and environment
+config = JacksCarRentalConfig(max_cars=20)
+env = JacksCarRental(config)
+
+# do policy iteration
+history = policy_iteration(env, θ, γ)
+
+# print last (optimal) policy and its value function
+plot_policy(
+    f"Optimal Policy after {len(history)-1} iterations", config, history[-1].policy
+)
+plot_valueFn(f"Value function for optimal policy", config, history[-1].values)
+```
+
+The runtime of this policy iteration is quite reasonable - just a few seconds. But considering we're only dealing with $441$ states, it highlights how dynamic programming is limited to small MDPs.
+
+Another thought: although we now have the optimal solution, the meaning of the value function is still somewhat abstract. Mathematically it’s clear, but I couldn't, for example, directly interpret from it whether Jack can pay his monthly rent with this business.
+:::
+
+:::{#exr-4.4}
+The policy iteration algorithm on page 80 [@sutton2018] (also see @sec-policy-iteration) has a subtle bug in that it may never terminate if the policy continually switches between two or more policies that are equally good. This is ok for pedagogy, but not for actual use. Modify the  seudocode so that convergence is guaranteed.
+:::
+:::{#sol-4.4}
+Assuming perfect precision in computation then the only problem could be the determination of the argmax.
+
+If ties in the argmax are determined randomly, this could easily result in a soft-lock when there are enough states with possible ties. Here we should add a condition that the policy is only changed if the change results in an actual improvement.
+
+If we don't assume perfect precision then maybe calculating the value function can also result in floating point flips for "best action". In this case we should maybe only change the policy action if it improves the value by more than $\theta$.
+
+So this should be a practical fix for that bug:
+
+::: {.callout-note icon=false title="Modified Converging Policy Improvement"}
+| $\text{policy-stable} \gets \mathrm{true}$
+| 
+| for each $s \in \mathcal{S}$:
+|     $\text{old-action} \gets \pi(s)$
+| 
+|     for each $a \in \mathcal{A}(s)$:
+|         $Q(a) \gets \sum_{s',r} p(s',r | s,a) [ r + \gamma V(s') ]$
+| 
+|     $\text{best-value} \gets \max_{a} Q(a)$
+| 
+|     if $Q(\text{old-action}) + \theta < \text{best-value}$:
+|         $\pi(s) \gets a^*$ for which $Q(a_*) = \text{best-value}$
+|         $\text{policy‐stable} \gets \mathrm{false}$
+|
+| if policy‐stable:
+|     return $V \approx v_*$ and $π ≈ π_*$
+| else:
+|     go to Policy Evaluation
+:::
+
+:::
