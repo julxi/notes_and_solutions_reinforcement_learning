@@ -20,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 /* CSS for citations */
 div.csl-bib-body { }
 div.csl-entry {
@@ -362,7 +397,7 @@ window.Quarto = {
   <ul>
   <li><a href="#policy-evaluation" id="toc-policy-evaluation" class="nav-link active" data-scroll-target="#policy-evaluation"><span class="header-section-number">4.1</span> Policy Evaluation</a></li>
   <li><a href="#sec-policy-improvement" id="toc-sec-policy-improvement" class="nav-link" data-scroll-target="#sec-policy-improvement"><span class="header-section-number">4.2</span> Policy Improvement</a></li>
-  <li><a href="#policy-iteration" id="toc-policy-iteration" class="nav-link" data-scroll-target="#policy-iteration"><span class="header-section-number">4.3</span> Policy Iteration</a></li>
+  <li><a href="#sec-policy-iteration" id="toc-sec-policy-iteration" class="nav-link" data-scroll-target="#sec-policy-iteration"><span class="header-section-number">4.3</span> Policy Iteration</a></li>
   </ul>
 </nav>
     </div>
@@ -396,6 +431,29 @@ v_{k+1}(s) = \sum_a \pi(a|s) \sum_{s',r} p(s',r|s,a)[r+\gamma v_{k}(s')]
 \tag{4.1}\]</span></span> <span id="eq-bellman-update-action-value"><span class="math display">\[
 q_{k+1}(s,a) = \sum_{s',r}p(s',r|s,a) [r + \gamma \sum_{a'}\pi(a'|s')q_k(s',a')]
 \tag{4.2}\]</span></span></p>
+<p>These equations form the basis for iterative policy evaluation. The algorithm below demonstrates how to approximate <span class="math inline">\(v_\pi\)</span>, where updates are performed in “sweeps” rather than “chunk updates”. This constitutes the policy evaluations step,<span class="math inline">\(\pi \overset{\mathrm{Eval}}{\to} v_{\pi}\)</span>, in the policy iteration algorithm (<a href="#sec-policy-iteration" class="quarto-xref"><span>Section 4.3</span></a>).</p>
+<div class="callout callout-style-simple callout-note no-icon callout-titled" title="Iterative Policy Evaluation, for estimating $V \approx v_\pi$">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Iterative Policy Evaluation, for estimating <span class="math inline">\(V \approx v_\pi\)</span>
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="line-block"><strong>Input</strong>: <span class="math inline">\(\pi\)</span>, the policy to be evaluated<br>
+<strong>Parameters</strong>: <span class="math inline">\(\theta &gt; 0\)</span>, determining accuracy of estimation<br>
+<strong>Initialisation</strong>: <span class="math inline">\(V(s)\)</span>, for all <span class="math inline">\(s \in \mathcal{S}\)</span> arbitrarily, and <span class="math inline">\(V(\mathrm{terminal}) = 0\)</span><br>
+Loop:<br>
+&nbsp;&nbsp;&nbsp;<span class="math inline">\(\Delta \gets 0\)</span><br>
+&nbsp;&nbsp;&nbsp;Loop for each <span class="math inline">\(s \in \mathcal{S}\)</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(v \gets V(s)\)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(V(s) \gets \sum_a \pi(a|s) \sum_{s',r}p(s',r|s,a)[r + \gamma V(s')]\)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(\Delta \gets \max(\Delta, |v - V(s))\)</span><br>
+until <span class="math inline">\(\Delta &lt; \theta\)</span></div>
+</div>
+</div>
 <div id="exm-4.1" class="theorem example">
 <p><span class="theorem-title"><strong>Example 4.1</strong></span> This is <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>, Example 4.1)</span></p>
 <p>Here is the quick summary:</p>
@@ -545,12 +603,7 @@ v_\pi(13) = -20 = -1 + \frac{1}{4}(-22 - 20 - 14 - 20)
 \]</span></p>
 <p>So <span class="math inline">\(v_\pi(13)\)</span> remains consistent with the new dynamics. Since all Bellman equations continue to hold with the same values, the state-value function does not change. So, <span class="math inline">\(v_\pi(15)=-20\)</span> also in this case.</p>
 </div>
-<div id="exr-4.3" class="theorem exercise">
-<p><span class="theorem-title"><strong>Exercise 4.3</strong></span> What are the equations analogous to <a href="03-finite-markov-decision-processes.html#eq-state-value-one-step-look-ahead" class="quarto-xref">Equation&nbsp;<span>3.10</span></a>, <a href="03-finite-markov-decision-processes.html#eq-bellman-state-value" class="quarto-xref">Equation&nbsp;<span>3.12</span></a>, and <a href="#eq-bellman-update-state-value" class="quarto-xref">Equation&nbsp;<span>4.1</span></a> for the action-value function <span class="math inline">\(q_\pi\)</span> and its successive approximation by a sequence of functions <span class="math inline">\(q_0, q_1, \dots\)</span>?</p>
-</div>
-<div id="sol-4-3" class="proof solution">
-<p><span class="proof-title"><em>Solution 4.3</em>. </span>We have already stated these equations in tandem as <a href="03-finite-markov-decision-processes.html#eq-action-value-one-step-look-ahead" class="quarto-xref">Equation&nbsp;<span>3.11</span></a>, <a href="03-finite-markov-decision-processes.html#eq-bellman-action-value" class="quarto-xref">Equation&nbsp;<span>3.13</span></a>, and <a href="#eq-bellman-update-action-value" class="quarto-xref">Equation&nbsp;<span>4.2</span></a>.</p>
-</div>
+<p>:::{#exr-4.3}(also see <a href="#sec-policy-iteration" class="quarto-xref"><span>Section 4.3</span></a>) What are the equations analogous to <a href="03-finite-markov-decision-processes.html#eq-state-value-one-step-look-ahead" class="quarto-xref">Equation&nbsp;<span>3.10</span></a>, <a href="03-finite-markov-decision-processes.html#eq-bellman-state-value" class="quarto-xref">Equation&nbsp;<span>3.12</span></a>, and <a href="#eq-bellman-update-state-value" class="quarto-xref">Equation&nbsp;<span>4.1</span></a> for the action-value function <span class="math inline">\(q_\pi\)</span> and its successive approximation by a sequence of functions <span class="math inline">\(q_0, q_1, \dots\)</span>? ::: :::{#sol-4-3} We have already stated these equations in tandem as <a href="03-finite-markov-decision-processes.html#eq-action-value-one-step-look-ahead" class="quarto-xref">Equation&nbsp;<span>3.11</span></a>, <a href="03-finite-markov-decision-processes.html#eq-bellman-action-value" class="quarto-xref">Equation&nbsp;<span>3.13</span></a>, and <a href="#eq-bellman-update-action-value" class="quarto-xref">Equation&nbsp;<span>4.2</span></a>. :::</p>
 </section>
 <section id="sec-policy-improvement" class="level2" data-number="4.2">
 <h2 data-number="4.2" class="anchored" data-anchor-id="sec-policy-improvement"><span class="header-section-number">4.2</span> Policy Improvement</h2>
@@ -619,9 +672,427 @@ v_\pi(s) = \max_{a \in \mathcal{A}(s)} q_{\pi}(s,a),
 \Delta(s) \leq \lim_{k \to \infty} \mathbb{E}_{\pi_*}[\gamma^k \Delta(S_{t+k}) \mid S_t = s] = 0.
 \]</span></p>
 </div>
+<p>For a policy <span class="math inline">\(\pi\)</span>, if we define <span class="math inline">\(\pi'(s) := \underset{a}{\mathrm{argmax}}\;q_\pi(s,a)\)</span>, we get an improved policy, unless <span class="math inline">\(\pi\)</span> was already optimal. This constitutes the policy improvement step,<span class="math inline">\(v_\pi \overset{\mathrm{Imp}}{\to} \pi'\)</span>, in the policy iteration algorithm.</p>
 </section>
-<section id="policy-iteration" class="level2" data-number="4.3">
-<h2 data-number="4.3" class="anchored" data-anchor-id="policy-iteration"><span class="header-section-number">4.3</span> Policy Iteration</h2>
+<section id="sec-policy-iteration" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="sec-policy-iteration"><span class="header-section-number">4.3</span> Policy Iteration</h2>
+<p>The policy iteration algorithm chains evaluation and improvement and converges to an optimal policy, for any initial policy <span class="math inline">\(\pi_0\)</span>: <span class="math display">\[
+\pi_0 \overset{\mathrm{Eval}}{\to} v_{\pi_0} \overset{\mathrm{Imp}}{\to}
+\pi_1 \overset{\mathrm{Eval}}{\to} v_{\pi_1} \overset{\mathrm{Imp}}{\to}
+\pi_2 \overset{\mathrm{Eval}}{\to} v_{\pi_2} \overset{\mathrm{Imp}}{\to}
+\dots
+\overset{\mathrm{Imp}}{\to} \pi_* \overset{\mathrm{Eval}}{\to} v_{*}
+\]</span></p>
+<p>And here is the pseudo code.</p>
+<div class="callout callout-style-default callout-note no-icon callout-titled" title="Policy Iteration (using iterative policy evaluation) for estimating $\pi \approx \pi_*$">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Policy Iteration (using iterative policy evaluation) for estimating <span class="math inline">\(\pi \approx \pi_*\)</span>
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="line-block"><strong>Parameter</strong>:<br>
+<span class="math inline">\(\theta\)</span>: a small positive number determining the accuracy of estimation<br>
+<br>
+<strong>Initialisation</strong>:<br>
+<span class="math inline">\(V(s) \in \mathbb{R}\)</span>, <span class="math inline">\(\pi(s) \in \mathcal{A}(s)\)</span> arbitrarily, <span class="math inline">\(V(\mathrm{terminal}) = 0\)</span><br>
+<br>
+<strong>Policy Evaluation</strong><br>
+Loop:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(\Delta \gets 0\)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;Loop for each <span class="math inline">\(s \in \mathcal{S}\)</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(v \gets V(s)\)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(V(s) \gets  \sum_{s',r}p(s',r|s,\pi(s))[r + \gamma V(s')]\)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(\Delta \gets \max(\Delta, |v - V(s))\)</span><br>
+until <span class="math inline">\(\Delta &lt; \theta\)</span><br>
+<br>
+<strong>Policy Improvement</strong><br>
+<span class="math inline">\(\text{policy-stable} \gets \mathrm{true}\)</span><br>
+For each <span class="math inline">\(s \in \mathcal{S}\)</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(\text{old-action} \gets \pi(s)\)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(\pi(s) \gets \underset{a}{\mathrm{argmax}} \sum_{s',r} p(s', r |s,a)[r + \gamma V(s')]\)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;If <span class="math inline">\(\text{old-action} \neq \pi(s)\)</span>, then <span class="math inline">\(\text{policy-stable} \gets \text{false}\)</span><br>
+If <span class="math inline">\(\text{policy-stable}\)</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;return <span class="math inline">\(V \approx v_*\)</span> and <span class="math inline">\(\pi \approx \pi_*\)</span><br>
+else:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;go to <strong>Policy Evaluation</strong></div>
+</div>
+</div>
+<p>Note that the final policy improvement step does not change the policy and is basically just checking that the current policy is optimal. So this is basically an extra step to see that this chain is done: <span class="math inline">\(\pi_0 \overset{\mathrm{Eval}}{\to} v_{\pi_0} \overset{\mathrm{Imp}}{\to}
+\dots
+\overset{\mathrm{Imp}}{\to} \pi_* \overset{\mathrm{Eval}}{\to} v_{*} \overset{\mathrm{Imp}}{\to} \text{Finished}\)</span></p>
+<div id="exm-4.2" class="theorem example">
+<p><span class="theorem-title"><strong>Example 4.2</strong></span> This is <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>, Example 4.2)</span> - Jack’s car rental.</p>
+<p>Here’s a quick summary:</p>
+<ul>
+<li>two locations, each with a maximum of 20 cars (more cars added to a location magically vanish into thin air)</li>
+<li>during the day, a random amount of customers rent cars and then another random amount of customers return cars</li>
+<li>at the end of a day, up to 5 cars can be moved between the locations</li>
+<li>each car rented rewards 10</li>
+<li>each move car costs 2</li>
+<li>rentals and returns are Poisson distributed:<br>
+<span class="math inline">\(\lambda_{1,\text{rent}} =3\)</span>, <span class="math inline">\(\lambda_{1,\text{return}} =3\)</span>, <span class="math inline">\(\lambda_{2,\text{rent}} =4\)</span>, <span class="math inline">\(\lambda_{2,\text{return}} =2\)</span></li>
+</ul>
+<p>We solve Jack’s car rental using policy iteration. The core computation in policy iteration is the one-step lookahead, which is used both in policy evaluation and policy improvement. This is the main performance bottleneck: <span class="math display">\[
+(s,a) \to \sum_{s',r} p(s',r|s,a) [ r + \gamma V(s')]
+\]</span></p>
+<p>This expression is good for theorizing about the algorithm but its direct implementation feels awkward and inefficient. In practice, it’s better to split the four-argument <span class="math inline">\(p(s',r|s,a)\)</span> into expected immediate reward <span class="math inline">\(r(s,a)\)</span> and the transition probability <span class="math inline">\(p(s'|s,a)\)</span>.</p>
+<p><span class="math display">\[
+\begin{split}
+\sum_{s',r}p(s',r|s,a)[r + \gamma V(s')] &amp;= \sum_{s',r}p(s',r|s,a)r + \gamma\sum_{s',r}p(s',r|s,a)V(s') \\
+&amp;= r(s,a) + \gamma \sum_{s'}p(s'|s, a) V(s')
+\end{split}
+\]</span></p>
+<p>Furthermore, we can make the algorithm more natural for this problem by introducing afterstates <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018, sec. 6.8</a>)</span>. Although we don’t use them to their full potential (we don’t learn an afterstate value function).</p>
+<p>An afterstate is the environment state immediately after the agent’s action, but before the environment’s stochastic dynamics. This formulation is particularly effective when actions have deterministic effects. In Jack’s car rental, moving cars deterministically leads to an afterstate <span class="math inline">\(s \oplus a\)</span>, while the stochastic dynamics—rentals and returns—then determine the next state <span class="math inline">\(s'\)</span>.</p>
+<p>The one-step lookahead using afterstates becomes: <span id="eq-one-step-lookahead-with-afterstates"><span class="math display">\[
+(s,a) \to c(a) + r(s \oplus a) + \gamma \sum_{s'} p(s'|s\oplus a)V(s'),
+\tag{4.4}\]</span></span></p>
+<p>where <span class="math inline">\(c(a)\)</span> is the cost of the, <span class="math inline">\(r(s \oplus a)\)</span> is the expected immediate reward for the afterstate.</p>
+<p>The following code is a nearly verbatim implementation of the policy iteration pseudocode, using <a href="#eq-one-step-lookahead-with-afterstates" class="quarto-xref">Equation&nbsp;<span>4.4</span></a> for evaluation. (Select annotations to see inline explanations.)</p>
+<div id="e9f2bff4" class="cell" data-code-annotations="hover" data-execution_count="2">
+<div class="sourceCode cell-code" id="annotated-cell-1"><pre class="sourceCode python code-annotation-code code-with-copy code-annotated"><code class="sourceCode python"><span id="annotated-cell-1-1"><a href="#annotated-cell-1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === policy iteration for Jack's car rental ===</span></span>
+<span id="annotated-cell-1-2"><a href="#annotated-cell-1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> collections <span class="im">import</span> namedtuple</span>
+<span id="annotated-cell-1-3"><a href="#annotated-cell-1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> typing <span class="im">import</span> Dict, List</span>
+<button class="code-annotation-anchor" data-target-cell="annotated-cell-1" data-target-annotation="1">1</button><span id="annotated-cell-1-4" class="code-annotation-target"><a href="#annotated-cell-1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scripts.jacks_car_rental.jacks_car_rental <span class="im">import</span> (</span>
+<span id="annotated-cell-1-5"><a href="#annotated-cell-1-5" aria-hidden="true" tabindex="-1"></a>    JacksCarRental,</span>
+<span id="annotated-cell-1-6"><a href="#annotated-cell-1-6" aria-hidden="true" tabindex="-1"></a>    State,</span>
+<span id="annotated-cell-1-7"><a href="#annotated-cell-1-7" aria-hidden="true" tabindex="-1"></a>    Action,</span>
+<span id="annotated-cell-1-8"><a href="#annotated-cell-1-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="annotated-cell-1-9"><a href="#annotated-cell-1-9" aria-hidden="true" tabindex="-1"></a></span>
+<button class="code-annotation-anchor" data-target-cell="annotated-cell-1" data-target-annotation="2">2</button><span id="annotated-cell-1-10" class="code-annotation-target"><a href="#annotated-cell-1-10" aria-hidden="true" tabindex="-1"></a>Policy <span class="op">=</span> Dict[State, Action]</span>
+<span id="annotated-cell-1-11"><a href="#annotated-cell-1-11" aria-hidden="true" tabindex="-1"></a>ValueFn <span class="op">=</span> Dict[State, <span class="bu">float</span>]</span>
+<span id="annotated-cell-1-12"><a href="#annotated-cell-1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-13"><a href="#annotated-cell-1-13" aria-hidden="true" tabindex="-1"></a></span>
+<button class="code-annotation-anchor" data-target-cell="annotated-cell-1" data-target-annotation="3">3</button><span id="annotated-cell-1-14" class="code-annotation-target"><a href="#annotated-cell-1-14" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> compute_state_action_value(</span>
+<span id="annotated-cell-1-15"><a href="#annotated-cell-1-15" aria-hidden="true" tabindex="-1"></a>    env: JacksCarRental, state: State, action: Action, value: ValueFn, γ: <span class="bu">float</span></span>
+<span id="annotated-cell-1-16"><a href="#annotated-cell-1-16" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="annotated-cell-1-17"><a href="#annotated-cell-1-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="annotated-cell-1-18"><a href="#annotated-cell-1-18" aria-hidden="true" tabindex="-1"></a><span class="co">    Compute the expected one‐step return</span></span>
+<span id="annotated-cell-1-19"><a href="#annotated-cell-1-19" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="annotated-cell-1-20"><a href="#annotated-cell-1-20" aria-hidden="true" tabindex="-1"></a>    after_state, cost <span class="op">=</span> env.move(state, action)</span>
+<span id="annotated-cell-1-21"><a href="#annotated-cell-1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-22"><a href="#annotated-cell-1-22" aria-hidden="true" tabindex="-1"></a>    future_return <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="annotated-cell-1-23"><a href="#annotated-cell-1-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> state_new <span class="kw">in</span> env.state_space:</span>
+<span id="annotated-cell-1-24"><a href="#annotated-cell-1-24" aria-hidden="true" tabindex="-1"></a>        p <span class="op">=</span> env.get_transition_probability(after_state, state_new)</span>
+<span id="annotated-cell-1-25"><a href="#annotated-cell-1-25" aria-hidden="true" tabindex="-1"></a>        future_return <span class="op">+=</span> p <span class="op">*</span> value[state_new]</span>
+<span id="annotated-cell-1-26"><a href="#annotated-cell-1-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-27"><a href="#annotated-cell-1-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> cost <span class="op">+</span> env.get_expected_revenue(after_state) <span class="op">+</span> γ <span class="op">*</span> future_return</span>
+<span id="annotated-cell-1-28"><a href="#annotated-cell-1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-29"><a href="#annotated-cell-1-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-30"><a href="#annotated-cell-1-30" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> policy_evaluation(</span>
+<span id="annotated-cell-1-31"><a href="#annotated-cell-1-31" aria-hidden="true" tabindex="-1"></a>    env: JacksCarRental, π: Policy, value: ValueFn, θ: <span class="bu">float</span>, γ: <span class="bu">float</span></span>
+<span id="annotated-cell-1-32"><a href="#annotated-cell-1-32" aria-hidden="true" tabindex="-1"></a>):</span>
+<span id="annotated-cell-1-33"><a href="#annotated-cell-1-33" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="annotated-cell-1-34"><a href="#annotated-cell-1-34" aria-hidden="true" tabindex="-1"></a><span class="co">    Approximates the ValueFn from a deterministic policy</span></span>
+<span id="annotated-cell-1-35"><a href="#annotated-cell-1-35" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="annotated-cell-1-36"><a href="#annotated-cell-1-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="annotated-cell-1-37"><a href="#annotated-cell-1-37" aria-hidden="true" tabindex="-1"></a>        Δ <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="annotated-cell-1-38"><a href="#annotated-cell-1-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-39"><a href="#annotated-cell-1-39" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> s <span class="kw">in</span> env.state_space:</span>
+<span id="annotated-cell-1-40"><a href="#annotated-cell-1-40" aria-hidden="true" tabindex="-1"></a>            v_old <span class="op">=</span> value[s]</span>
+<span id="annotated-cell-1-41"><a href="#annotated-cell-1-41" aria-hidden="true" tabindex="-1"></a>            v_new <span class="op">=</span> compute_state_action_value(env, s, π[s], value, γ)</span>
+<span id="annotated-cell-1-42"><a href="#annotated-cell-1-42" aria-hidden="true" tabindex="-1"></a>            value[s] <span class="op">=</span> v_new</span>
+<span id="annotated-cell-1-43"><a href="#annotated-cell-1-43" aria-hidden="true" tabindex="-1"></a>            Δ <span class="op">=</span> <span class="bu">max</span>(Δ, <span class="bu">abs</span>(v_old <span class="op">-</span> v_new))</span>
+<span id="annotated-cell-1-44"><a href="#annotated-cell-1-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-45"><a href="#annotated-cell-1-45" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> Δ <span class="op">&lt;</span> θ:</span>
+<span id="annotated-cell-1-46"><a href="#annotated-cell-1-46" aria-hidden="true" tabindex="-1"></a>            <span class="cf">break</span></span>
+<span id="annotated-cell-1-47"><a href="#annotated-cell-1-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-48"><a href="#annotated-cell-1-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-49"><a href="#annotated-cell-1-49" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> policy_improvement(</span>
+<span id="annotated-cell-1-50"><a href="#annotated-cell-1-50" aria-hidden="true" tabindex="-1"></a>    env: JacksCarRental, π: Policy, value: ValueFn, γ: <span class="bu">float</span></span>
+<span id="annotated-cell-1-51"><a href="#annotated-cell-1-51" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">bool</span>:</span>
+<span id="annotated-cell-1-52"><a href="#annotated-cell-1-52" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="annotated-cell-1-53"><a href="#annotated-cell-1-53" aria-hidden="true" tabindex="-1"></a><span class="co">    Improve a policy according to the provided value‐function</span></span>
+<span id="annotated-cell-1-54"><a href="#annotated-cell-1-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-55"><a href="#annotated-cell-1-55" aria-hidden="true" tabindex="-1"></a><span class="co">    If no state's action changes, return True (policy is stable). Otherwise return False.</span></span>
+<span id="annotated-cell-1-56"><a href="#annotated-cell-1-56" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="annotated-cell-1-57"><a href="#annotated-cell-1-57" aria-hidden="true" tabindex="-1"></a>    stable <span class="op">=</span> <span class="va">True</span></span>
+<span id="annotated-cell-1-58"><a href="#annotated-cell-1-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-59"><a href="#annotated-cell-1-59" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> s <span class="kw">in</span> env.state_space:</span>
+<span id="annotated-cell-1-60"><a href="#annotated-cell-1-60" aria-hidden="true" tabindex="-1"></a>        old_action <span class="op">=</span> π[s]</span>
+<button class="code-annotation-anchor" data-target-cell="annotated-cell-1" data-target-annotation="4">4</button><span id="annotated-cell-1-61" class="code-annotation-target"><a href="#annotated-cell-1-61" aria-hidden="true" tabindex="-1"></a>        best_action <span class="op">=</span> <span class="bu">max</span>(</span>
+<span id="annotated-cell-1-62"><a href="#annotated-cell-1-62" aria-hidden="true" tabindex="-1"></a>            env.action_space,</span>
+<span id="annotated-cell-1-63"><a href="#annotated-cell-1-63" aria-hidden="true" tabindex="-1"></a>            key<span class="op">=</span><span class="kw">lambda</span> a: compute_state_action_value(env, s, a, value, γ),</span>
+<span id="annotated-cell-1-64"><a href="#annotated-cell-1-64" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="annotated-cell-1-65"><a href="#annotated-cell-1-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-66"><a href="#annotated-cell-1-66" aria-hidden="true" tabindex="-1"></a>        π[s] <span class="op">=</span> best_action</span>
+<span id="annotated-cell-1-67"><a href="#annotated-cell-1-67" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> best_action <span class="op">!=</span> old_action:</span>
+<span id="annotated-cell-1-68"><a href="#annotated-cell-1-68" aria-hidden="true" tabindex="-1"></a>            stable <span class="op">=</span> <span class="va">False</span></span>
+<span id="annotated-cell-1-69"><a href="#annotated-cell-1-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-70"><a href="#annotated-cell-1-70" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> stable</span>
+<span id="annotated-cell-1-71"><a href="#annotated-cell-1-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-72"><a href="#annotated-cell-1-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-73"><a href="#annotated-cell-1-73" aria-hidden="true" tabindex="-1"></a>PolicyIterationStep <span class="op">=</span> namedtuple(<span class="st">"PolicyIterationStep"</span>, [<span class="st">"policy"</span>, <span class="st">"values"</span>])</span>
+<span id="annotated-cell-1-74"><a href="#annotated-cell-1-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-75"><a href="#annotated-cell-1-75" aria-hidden="true" tabindex="-1"></a></span>
+<button class="code-annotation-anchor" data-target-cell="annotated-cell-1" data-target-annotation="5">5</button><span id="annotated-cell-1-76" class="code-annotation-target"><a href="#annotated-cell-1-76" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> policy_iteration(env, θ, γ) <span class="op">-&gt;</span> List[PolicyIterationStep]:</span>
+<span id="annotated-cell-1-77"><a href="#annotated-cell-1-77" aria-hidden="true" tabindex="-1"></a>    optimal <span class="op">=</span> <span class="va">False</span></span>
+<span id="annotated-cell-1-78"><a href="#annotated-cell-1-78" aria-hidden="true" tabindex="-1"></a>    history <span class="op">=</span> []</span>
+<span id="annotated-cell-1-79"><a href="#annotated-cell-1-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-80"><a href="#annotated-cell-1-80" aria-hidden="true" tabindex="-1"></a>    <span class="co"># init policy and value-function</span></span>
+<span id="annotated-cell-1-81"><a href="#annotated-cell-1-81" aria-hidden="true" tabindex="-1"></a>    π: Policy <span class="op">=</span> {s: <span class="dv">0</span> <span class="cf">for</span> s <span class="kw">in</span> env.state_space}</span>
+<span id="annotated-cell-1-82"><a href="#annotated-cell-1-82" aria-hidden="true" tabindex="-1"></a>    value: ValueFn <span class="op">=</span> {s: <span class="fl">0.0</span> <span class="cf">for</span> s <span class="kw">in</span> env.state_space}</span>
+<span id="annotated-cell-1-83"><a href="#annotated-cell-1-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-84"><a href="#annotated-cell-1-84" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="kw">not</span> optimal:</span>
+<span id="annotated-cell-1-85"><a href="#annotated-cell-1-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-86"><a href="#annotated-cell-1-86" aria-hidden="true" tabindex="-1"></a>        <span class="co"># evaluation and save</span></span>
+<span id="annotated-cell-1-87"><a href="#annotated-cell-1-87" aria-hidden="true" tabindex="-1"></a>        policy_evaluation(env, π, value, θ, γ)</span>
+<span id="annotated-cell-1-88"><a href="#annotated-cell-1-88" aria-hidden="true" tabindex="-1"></a>        history.append(PolicyIterationStep(π.copy(), value.copy()))</span>
+<span id="annotated-cell-1-89"><a href="#annotated-cell-1-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-90"><a href="#annotated-cell-1-90" aria-hidden="true" tabindex="-1"></a>        <span class="co"># find better policy</span></span>
+<span id="annotated-cell-1-91"><a href="#annotated-cell-1-91" aria-hidden="true" tabindex="-1"></a>        optimal <span class="op">=</span> policy_improvement(env, π, value, γ)</span>
+<span id="annotated-cell-1-92"><a href="#annotated-cell-1-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="annotated-cell-1-93"><a href="#annotated-cell-1-93" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> history</span><div class="code-annotation-gutter-bg"></div><div class="code-annotation-gutter"></div></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-annotation">
+<dl class="code-annotation-container-hidden code-annotation-container-grid">
+<dt data-target-cell="annotated-cell-1" data-target-annotation="1">1</dt>
+<dd>
+<span data-code-cell="annotated-cell-1" data-code-lines="4,5,6,7,8" data-code-annotation="1">Import the environment class and type aliases (State, Action) from the Jack’s car‐rental module.</span>
+</dd>
+<dt data-target-cell="annotated-cell-1" data-target-annotation="2">2</dt>
+<dd>
+<span data-code-cell="annotated-cell-1" data-code-lines="10" data-code-annotation="2">Since we are dealing with deterministic policies we can define Policy as a mapping.</span>
+</dd>
+<dt data-target-cell="annotated-cell-1" data-target-annotation="3">3</dt>
+<dd>
+<span data-code-cell="annotated-cell-1" data-code-lines="14,15,16" data-code-annotation="3">Implements the one‐step lookahead with afterstates (see <a href="#eq-one-step-lookahead-with-afterstates" class="quarto-xref">Equation&nbsp;<span>4.4</span></a>).</span>
+</dd>
+<dt data-target-cell="annotated-cell-1" data-target-annotation="4">4</dt>
+<dd>
+<span data-code-cell="annotated-cell-1" data-code-lines="61,63,64" data-code-annotation="4">Choose the action <span class="math inline">\(a\in A\)</span> that maximises the one‐step lookahead; this is a concise way to do “<span class="math inline">\(\mathrm{argmax}_a \dots\)</span>”” in Python</span>
+</dd>
+<dt data-target-cell="annotated-cell-1" data-target-annotation="5">5</dt>
+<dd>
+<span data-code-cell="annotated-cell-1" data-code-lines="76" data-code-annotation="5">The only slight change to the pseudocode: instead of just returning the optimal policy and its state-value function we return the history of policies.</span>
+</dd>
+</dl>
+</div>
+</div>
+<p>Here is some more code just to be able to visualize our solution for Jack’s car rental problem…</p>
+<div id="b6ae47fb" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> matplotlib.colors <span class="im">import</span> BoundaryNorm</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> matplotlib <span class="im">import</span> cm</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scripts.jacks_car_rental.jacks_car_rental <span class="im">import</span> (</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    JacksCarRentalConfig,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> plot_policy(title: <span class="bu">str</span>, config: JacksCarRentalConfig, π: <span class="bu">dict</span>):</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    max_cars <span class="op">=</span> config.max_cars</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    max_move <span class="op">=</span> config.max_move</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Build a (max_cars+1)×(max_cars+1) integer grid of “action” values</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    policy_grid <span class="op">=</span> np.zeros((max_cars <span class="op">+</span> <span class="dv">1</span>, max_cars <span class="op">+</span> <span class="dv">1</span>), dtype<span class="op">=</span><span class="bu">int</span>)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (cars1, cars2), action <span class="kw">in</span> π.items():</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>        policy_grid[cars1, cars2] <span class="op">=</span> action</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># X/Y coordinates for pcolormesh:</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.arange(max_cars <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> np.arange(max_cars <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    X, Y <span class="op">=</span> np.meshgrid(x, y)</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">9</span>, <span class="dv">9</span>))</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Discrete actions range</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>    actions <span class="op">=</span> np.arange(<span class="op">-</span>max_move, max_move <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    n_colors <span class="op">=</span> <span class="bu">len</span>(actions)</span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Create a “coolwarm” colormap with exactly n_colors bins</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    cmap <span class="op">=</span> plt.get_cmap(<span class="st">"coolwarm"</span>, n_colors)</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>    <span class="co"># For a discrete colormap, we want boundaries at x.5, so that integer values</span></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>    <span class="co"># get mapped to their own color. Example: if max_move=2, actions = [-2, -1, 0, 1, 2],</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>    <span class="co"># then boundaries = [-2.5, -1.5, -0.5, 0.5, 1.5, 2.5].</span></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>    bounds <span class="op">=</span> np.arange(<span class="op">-</span>max_move <span class="op">-</span> <span class="fl">0.5</span>, max_move <span class="op">+</span> <span class="fl">0.5</span> <span class="op">+</span> <span class="fl">1e-6</span>, <span class="dv">1</span>)</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>    norm <span class="op">=</span> BoundaryNorm(boundaries<span class="op">=</span>bounds, ncolors<span class="op">=</span>cmap.N)</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>    cax <span class="op">=</span> ax.pcolormesh(</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>        X,</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>        Y,</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>        policy_grid,</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>        cmap<span class="op">=</span>cmap,</span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>        norm<span class="op">=</span>norm,</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>        edgecolors<span class="op">=</span><span class="st">"black"</span>,</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>        linewidth<span class="op">=</span><span class="fl">0.4</span>,</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Axis labels and title</span></span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>    ax.set_xlabel(<span class="st">"Cars at Location&nbsp;2"</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>    ax.set_ylabel(<span class="st">"Cars at Location&nbsp;1"</span>, fontsize<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>    ax.set_title(title, fontsize<span class="op">=</span><span class="dv">14</span>, pad<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Square aspect ratio so each cell is a square:</span></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>    ax.set_aspect(<span class="st">"equal"</span>)</span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Ticks every 5 cars</span></span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>    step <span class="op">=</span> <span class="dv">5</span></span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>    ax.set_xticks(np.arange(<span class="dv">0</span>, max_cars <span class="op">+</span> <span class="dv">1</span>, step))</span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>    ax.set_yticks(np.arange(<span class="dv">0</span>, max_cars <span class="op">+</span> <span class="dv">1</span>, step))</span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Colorbar (horizontal, at the bottom)</span></span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a>    cbar <span class="op">=</span> fig.colorbar(</span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>        cax,</span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a>        ax<span class="op">=</span>ax,</span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>        orientation<span class="op">=</span><span class="st">"horizontal"</span>,</span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>        pad<span class="op">=</span><span class="fl">0.08</span>,</span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>        shrink<span class="op">=</span><span class="fl">0.85</span>,</span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>        boundaries<span class="op">=</span>bounds,</span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>        ticks<span class="op">=</span>actions,</span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a>        label<span class="op">=</span><span class="st">"Action (Car Movement)"</span>,</span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>    cbar.ax.xaxis.set_label_position(<span class="st">"bottom"</span>)</span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>    cbar.ax.xaxis.tick_bottom()</span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a>    fig.tight_layout(rect<span class="op">=</span>[<span class="dv">0</span>, <span class="fl">0.03</span>, <span class="dv">1</span>, <span class="dv">1</span>])</span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a>    plt.show()</span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> plot_valueFn(title, config, val):</span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""</span></span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a><span class="co">    3D surface plot of the value function</span></span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a><span class="co">    """</span></span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a>    max_cars <span class="op">=</span> config.max_cars</span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Build a (max_cars+1)×(max_cars+1) grid of value estimates</span></span>
+<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a>    value_grid <span class="op">=</span> np.zeros((max_cars <span class="op">+</span> <span class="dv">1</span>, max_cars <span class="op">+</span> <span class="dv">1</span>), dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (l1, l2), v <span class="kw">in</span> val.items():</span>
+<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a>        value_grid[l1, l2] <span class="op">=</span> v</span>
+<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Meshgrid for locations on each axis</span></span>
+<span id="cb1-94"><a href="#cb1-94" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.arange(max_cars <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> np.arange(max_cars <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a>    X, Y <span class="op">=</span> np.meshgrid(x, y)</span>
+<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a>    fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">11</span>, <span class="dv">7</span>))</span>
+<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a>    ax <span class="op">=</span> fig.add_subplot(<span class="dv">111</span>, projection<span class="op">=</span><span class="st">"3d"</span>)</span>
+<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Shaded surface plot</span></span>
+<span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a>    surf <span class="op">=</span> ax.plot_surface(</span>
+<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a>        X,</span>
+<span id="cb1-104"><a href="#cb1-104" aria-hidden="true" tabindex="-1"></a>        Y,</span>
+<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a>        value_grid,</span>
+<span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a>        rstride<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb1-107"><a href="#cb1-107" aria-hidden="true" tabindex="-1"></a>        cstride<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb1-108"><a href="#cb1-108" aria-hidden="true" tabindex="-1"></a>        cmap<span class="op">=</span>cm.viridis,</span>
+<span id="cb1-109"><a href="#cb1-109" aria-hidden="true" tabindex="-1"></a>        edgecolor<span class="op">=</span><span class="st">"none"</span>,</span>
+<span id="cb1-110"><a href="#cb1-110" aria-hidden="true" tabindex="-1"></a>        antialiased<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb1-111"><a href="#cb1-111" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb1-112"><a href="#cb1-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-113"><a href="#cb1-113" aria-hidden="true" tabindex="-1"></a>    ax.set_xlabel(<span class="st">"Cars at Location 2"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb1-114"><a href="#cb1-114" aria-hidden="true" tabindex="-1"></a>    ax.set_ylabel(<span class="st">"Cars at Location 1"</span>, fontsize<span class="op">=</span><span class="dv">12</span>, labelpad<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb1-115"><a href="#cb1-115" aria-hidden="true" tabindex="-1"></a>    ax.set_title(title, fontsize<span class="op">=</span><span class="dv">14</span>, pad<span class="op">=</span><span class="dv">12</span>)</span>
+<span id="cb1-116"><a href="#cb1-116" aria-hidden="true" tabindex="-1"></a>    ax.view_init(elev<span class="op">=</span><span class="dv">35</span>, azim<span class="op">=-</span><span class="dv">60</span>)</span>
+<span id="cb1-117"><a href="#cb1-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-118"><a href="#cb1-118" aria-hidden="true" tabindex="-1"></a>    fig.tight_layout()</span>
+<span id="cb1-119"><a href="#cb1-119" aria-hidden="true" tabindex="-1"></a>    plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+</div>
+<p>…and now we can solve it:</p>
+<div class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === Solving Jack's car rental ===</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Hyperparameter for "training"</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>γ <span class="op">=</span> <span class="fl">0.9</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>θ <span class="op">=</span> <span class="fl">1e-5</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># config and environment</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> JacksCarRentalConfig(max_cars<span class="op">=</span><span class="dv">20</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>env <span class="op">=</span> JacksCarRental(config)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># do policy iteration</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>history <span class="op">=</span> policy_iteration(env, θ, γ)</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co"># print last (optimal) policy and its value function</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>plot_policy(</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"Optimal Policy after </span><span class="sc">{</span><span class="bu">len</span>(history)<span class="op">-</span><span class="dv">1</span><span class="sc">}</span><span class="ss"> iterations"</span>, config, history[<span class="op">-</span><span class="dv">1</span>].policy</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>plot_valueFn(<span class="ss">f"Value function for optimal policy"</span>, config, history[<span class="op">-</span><span class="dv">1</span>].values)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="fig-jacks-car-rental-optimal-solution" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="4">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-jacks-car-rental-optimal-solution-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output cell-output-display">
+<div id="fig-jacks-car-rental-optimal-solution-1" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-jacks-car-rental-optimal-solution-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="04-dynamic-programming_files/figure-html/fig-jacks-car-rental-optimal-solution-output-1.png" class="img-fluid figure-img" data-ref-parent="fig-jacks-car-rental-optimal-solution">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-jacks-car-rental-optimal-solution-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(a) Heatmap of the optimal policy <span class="math inline">\(\pi_∗(s)\)</span>. Each cell at coordinates <span class="math inline">\((i,j)\)</span> shows the number of cars moved from location 1 to location 2.
+</figcaption>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-display">
+<div id="fig-jacks-car-rental-optimal-solution-2" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-jacks-car-rental-optimal-solution-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="04-dynamic-programming_files/figure-html/fig-jacks-car-rental-optimal-solution-output-2.png" class="img-fluid figure-img" data-ref-parent="fig-jacks-car-rental-optimal-solution">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-jacks-car-rental-optimal-solution-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(b) 3D surface of the optimal state‐value function <span class="math inline">\(v_∗​(s)\)</span> corresponding to the policy in (a). The maximum value here is approximately <span class="math inline">\(\max⁡_s v_∗(s)\approx 625\)</span>; Sutton &amp; Barto’s reported maximum is <span class="math inline">\(\approx 612\)</span>.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-jacks-car-rental-optimal-solution-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4.1: This is like the last two diagrmas in Figure 4.2 <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>)</span>: the first diagrams shows the optimal policy - which looks to me identical to Sutton-Barto’s optimal policy. The second diagram shows its value function (the optimal value function), which seems to have a higher maximum as Sutton-Barto’s - I don’t know why.
+</figcaption>
+</figure>
+</div>
+</div>
+<p>The runtime of this policy iteration is quite reasonable - just a few seconds. But considering we’re only dealing with <span class="math inline">\(441\)</span> states, it highlights how dynamic programming is limited to small MDPs.</p>
+<p>Another thought: although we now have the optimal solution, the meaning of the value function is still somewhat abstract. Mathematically it’s clear, but I couldn’t, for example, directly interpret from it whether Jack can pay his monthly rent with this business.</p>
+</div>
+<div id="exr-4.4" class="theorem exercise">
+<p><span class="theorem-title"><strong>Exercise 4.3</strong></span> The policy iteration algorithm on page 80 <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>)</span> (also see <a href="#sec-policy-iteration" class="quarto-xref"><span>Section 4.3</span></a>) has a subtle bug in that it may never terminate if the policy continually switches between two or more policies that are equally good. This is ok for pedagogy, but not for actual use. Modify the seudocode so that convergence is guaranteed.</p>
+</div>
+<div id="sol-4.4" class="proof solution">
+<p><span class="proof-title"><em>Solution 4.3</em>. </span>Assuming perfect precision in computation then the only problem could be the determination of the argmax.</p>
+<p>If ties in the argmax are determined randomly, this could easily result in a soft-lock when there are enough states with possible ties. Here we should add a condition that the policy is only changed if the change results in an actual improvement.</p>
+<p>If we don’t assume perfect precision then maybe calculating the value function can also result in floating point flips for “best action”. In this case we should maybe only change the policy action if it improves the value by more than <span class="math inline">\(\theta\)</span>.</p>
+<p>So this should be a practical fix for that bug:</p>
+<div class="callout callout-style-default callout-note no-icon callout-titled" title="Modified Converging Policy Improvement">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon no-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Modified Converging Policy Improvement
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<div class="line-block"><span class="math inline">\(\text{policy-stable} \gets \mathrm{true}\)</span><br>
+<br>
+for each <span class="math inline">\(s \in \mathcal{S}\)</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(\text{old-action} \gets \pi(s)\)</span><br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;for each <span class="math inline">\(a \in \mathcal{A}(s)\)</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(Q(a) \gets \sum_{s',r} p(s',r | s,a) [ r + \gamma V(s') ]\)</span><br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(\text{best-value} \gets \max_{a} Q(a)\)</span><br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;if <span class="math inline">\(Q(\text{old-action}) + \theta &lt; \text{best-value}\)</span>:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(\pi(s) \gets a^*\)</span> for which <span class="math inline">\(Q(a_*) = \text{best-value}\)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="math inline">\(\text{policy‐stable} \gets \mathrm{false}\)</span><br>
+<br>
+if policy‐stable:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;return <span class="math inline">\(V \approx v_*\)</span> and <span class="math inline">\(π ≈ π_*\)</span><br>
+else:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;go to Policy Evaluation</div>
+</div>
+</div>
+</div>
 
 
 <div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
@@ -985,25 +1456,66 @@ Sutton, Richard S., and Andrew G. Barto. 2018. <em>Reinforcement Learning: An In
           }
         };
       }
-        // Attach click handler to the DT
-        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
-        for (const annoteDlNode of annoteDls) {
-          annoteDlNode.addEventListener('click', (event) => {
-            const clickedEl = event.target;
-            if (clickedEl !== selectedAnnoteEl) {
-              unselectCodeLines();
-              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
-              if (activeEl) {
-                activeEl.classList.remove('code-annotation-active');
-              }
-              selectCodeLines(clickedEl);
-              clickedEl.classList.add('code-annotation-active');
-            } else {
-              // Unselect the line
-              unselectCodeLines();
-              clickedEl.classList.remove('code-annotation-active');
+        const annoteTargets = window.document.querySelectorAll('.code-annotation-anchor');
+        for (let i=0; i<annoteTargets.length; i++) {
+          const annoteTarget = annoteTargets[i];
+          const targetCell = annoteTarget.getAttribute("data-target-cell");
+          const targetAnnotation = annoteTarget.getAttribute("data-target-annotation");
+          const contentFn = () => {
+            const content = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+            if (content) {
+              const tipContent = content.cloneNode(true);
+              tipContent.classList.add("code-annotation-tip-content");
+              return tipContent.outerHTML;
             }
-          });
+          }
+          const config = {
+            allowHTML: true,
+            content: contentFn,
+            onShow: (instance) => {
+              selectCodeLines(instance.reference);
+              instance.reference.classList.add('code-annotation-active');
+              window.tippy.hideAll();
+            },
+            onHide: (instance) => {
+              unselectCodeLines();
+              instance.reference.classList.remove('code-annotation-active');
+            },
+            maxWidth: 300,
+            delay: [50, 0],
+            duration: [200, 0],
+            offset: [5, 10],
+            arrow: true,
+            trigger: 'click',
+            appendTo: function(el) {
+              return el.parentElement.parentElement.parentElement;
+            },
+            interactive: true,
+            interactiveBorder: 10,
+            theme: 'quarto',
+            placement: 'right',
+            positionFixed: true,
+            popperOptions: {
+              modifiers: [
+              {
+                name: 'flip',
+                options: {
+                  flipVariations: false, // true by default
+                  allowedAutoPlacements: ['right'],
+                  fallbackPlacements: ['right', 'top', 'top-start', 'top-end', 'bottom', 'bottom-start', 'bottom-end', 'left'],
+                },
+              },
+              {
+                name: 'preventOverflow',
+                options: {
+                  mainAxis: false,
+                  altAxis: false
+                }
+              }
+              ]        
+            }      
+          };
+          window.tippy(annoteTarget, config); 
         }
     const findCites = (el) => {
       const parentEl = el.parentElement;
