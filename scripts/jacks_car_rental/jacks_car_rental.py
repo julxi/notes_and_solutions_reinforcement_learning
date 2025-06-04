@@ -92,8 +92,8 @@ class JacksCarRental:
         max_cars = config.max_cars
 
         # precompute per-location rental revenue and transition probabilities
-        expected_revenue = np.zeros((max_cars + 1, 2))  # [cars, location]
-        transition_probs = np.zeros(
+        exp_rev_local = np.zeros((max_cars + 1, 2))  # [cars, location]
+        trans_prob_local = np.zeros(
             (max_cars + 1, max_cars + 1, 2)
         )  # [cars_before, cars_after, location]
 
@@ -108,7 +108,7 @@ class JacksCarRental:
 
                 # expected revenue
                 cars_after_rent = cars_before - requests
-                expected_revenue[cars_before] += (
+                exp_rev_local[cars_before] += (
                     requests * config.rental_revenue * request_prob
                 )
 
@@ -122,7 +122,7 @@ class JacksCarRental:
 
                     # transition probabilities
                     cars_after_return = cars_after_rent + returns
-                    transition_probs[cars_before][cars_after_return] += (
+                    trans_prob_local[cars_before][cars_after_return] += (
                         request_prob * return_prob
                     )
 
@@ -138,14 +138,16 @@ class JacksCarRental:
         )
         for cars1, cars2 in self.state_space:
             self._expected_revenue[cars1, cars2] = (
-                expected_revenue[cars1][self.LOC1] + expected_revenue[cars2][self.LOC2]
+                exp_rev_local[cars1][self.LOC1] + exp_rev_local[cars2][self.LOC2]
             )
 
             for cars1_after, cars2_after in self.state_space:
                 self._transition_prob[cars1, cars2, cars1_after, cars2_after] = (
-                    transition_probs[cars1][cars1_after][self.LOC1]
-                    * transition_probs[cars2][cars2_after][self.LOC2]
+                    trans_prob_local[cars1][cars1_after][self.LOC1]
+                    * trans_prob_local[cars2][cars2_after][self.LOC2]
                 )
+
+        self.trans_prob_local = trans_prob_local
 
     def _build_action_model(self):
         """
@@ -176,7 +178,7 @@ class JacksCarRental:
                 elif a < 0:
                     move_cost = -config.move_cost * move_amount
                     actual_move = min(move_amount, cars2, max_cars - cars1)
-                    after_state = (cars1 + move_amount, cars2 - move_amount)
+                    after_state = (cars1 + actual_move, cars2 - actual_move)
                 else:
                     after_state = s
 

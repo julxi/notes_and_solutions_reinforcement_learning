@@ -72,6 +72,16 @@ def test_move_clipping():
     assert cost == -1 * 10
 
 
+def test_move_clipping_negative_action():
+    config = JacksCarRentalConfig(max_cars=10, max_move=10, move_cost=1)
+    env = JacksCarRental(config)
+    state = (5, 5)
+    action = -10
+    new_state, cost = env.move(state, action)
+    assert new_state == (10, 0)
+    assert cost == -1 * 10
+
+
 def test_parking_cost():
     config = JacksCarRentalConfig(max_cars=10, max_free_parking=5, extra_parking_cost=3)
     env = JacksCarRental(config)
@@ -182,18 +192,11 @@ def test_transition_probability_zero_state():
     s1_after, s2_after = (0, 0)
     prob = env.get_transition_probability((s1, s2), (s1_after, s2_after))
 
-    λ1_rent = config.λ1_rent
-    λ2_rent = config.λ2_rent
-    λ1_return = config.λ1_return
-    λ2_return = config.λ2_return
+    p_return1 = poisson.pmf(0, config.λ1_return)
+    p_return2 = poisson.pmf(0, config.λ2_return)
 
-    p_rent1 = poisson.pmf(0, λ1_rent)
-    p_return1 = poisson.pmf(0, λ1_return)
-    p_rent2 = poisson.pmf(0, λ2_rent)
-    p_return2 = poisson.pmf(0, λ2_return)
-
-    expected = (p_rent1 * p_return1) * (p_rent2 * p_return2)
-    assert prob == approx(expected, rel=1e-3)
+    expected = p_return1 * p_return2  # no condition on the rents
+    assert prob == approx(expected)
 
 
 def test_transition_probability_deterministic():
@@ -222,14 +225,13 @@ def test_per_location_transition_prob():
     λ_return = config.λ1_return
 
     p_rent_0 = poisson.pmf(0, λ_rent)
-    p_return_0 = 1.0  # TAIL for returns >= 0
 
-    p_rent_1 = poisson.sf(0, λ_rent)  # TAIL for rentals >=1
-    p_return_1 = poisson.sf(0, λ_return)  # TAIL for returns >=1
+    p_rent_any = 1 - p_rent_0
+    p_return_any = 1 - poisson.pmf(0, λ_return)
 
-    expected = p_rent_0 * p_return_0 + p_rent_1 * p_return_1
+    expected = p_rent_0 + p_rent_any * p_return_any
 
-    actual = env.transition_probs[cars_before][cars_after][env.LOC1]
+    actual = env.get_transition_probability((cars_before, 0), (cars_after, 0))
     assert actual == approx(expected, rel=1e-3)
 
 
