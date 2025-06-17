@@ -15,3 +15,13 @@
     border-right: 2px solid currentColor;
     border-bottom: 2px solid currentColor;
 }
+
+
+.listing-block {
+    color: #dddddd;
+    background-color: #2b2b2b;
+    font-family: monospace;
+    border: 1px solid #dddddd;
+    padding: 10px;
+    border-radius: 3px;
+}

@@ -93,12 +93,15 @@ div.csl-indent {
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="../site_libs/quarto-html/anchor.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-0815c480559380816a4d1ea211a47e91.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-748b535e376f14d4692bf2b2e5fd6380.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-6fc64a0c1cda8d1c841de64652c337fd.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-6fc64a0c1cda8d1c841de64652c337fd.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="../site_libs/bootstrap/bootstrap-dfb05bd87ea801e4a210933986ba4cd7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-52a7591eaea193f2c233ac4011432d2f.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-fb02f3c877dd64dca3cf6a6e57462b95.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-febd3d0b452fc20adeeab4d20a8c1a88.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script src="../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -345,6 +348,7 @@ window.Quarto = {
     <div class="sidebar-title mb-0 py-0">
       <a href="../">Notes on Sutton &amp; Barto</a> 
         <div class="sidebar-tools-main">
+    <a href="https://github.com/julxi/notes_and_solutions_reinforcement_learning" title="Source Code" class="quarto-navigation-tool px-1" aria-label="Source Code"><i class="bi bi-github"></i></a>
   <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
 </div>
     </div>
@@ -737,7 +741,7 @@ q_*(a) = \sum_{r \in \mathcal{R}} r \; \frac{\mathrm{Pr}(R_t = r, A_t = a)}{\mat
 <div id="fig-bandit-comparison-greediness-1" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-subfloat-fig figure">
 <div aria-describedby="fig-bandit-comparison-greediness-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-greediness-output-1.png" class="img-fluid figure-img" data-ref-parent="fig-bandit-comparison-greediness">
+<a href="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-greediness-output-1.png" class="lightbox" data-gallery="fig-bandit-comparison-greediness" title="Figure&nbsp;2.1&nbsp;(a): The average reward."><img src="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-greediness-output-1.png" class="img-fluid figure-img" data-ref-parent="fig-bandit-comparison-greediness"></a>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-bandit-comparison-greediness-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 (a) The average reward.
@@ -749,7 +753,7 @@ q_*(a) = \sum_{r \in \mathcal{R}} r \; \frac{\mathrm{Pr}(R_t = r, A_t = a)}{\mat
 <div id="fig-bandit-comparison-greediness-2" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-subfloat-fig figure">
 <div aria-describedby="fig-bandit-comparison-greediness-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-greediness-output-2.png" class="img-fluid figure-img" data-ref-parent="fig-bandit-comparison-greediness">
+<a href="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-greediness-output-2.png" class="lightbox" data-gallery="fig-bandit-comparison-greediness" title="Figure&nbsp;2.1&nbsp;(b): The percentage of optimal step selection"><img src="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-greediness-output-2.png" class="img-fluid figure-img" data-ref-parent="fig-bandit-comparison-greediness"></a>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-bandit-comparison-greediness-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 (b) The percentage of optimal step selection
@@ -787,7 +791,7 @@ Figure&nbsp;2.1: This is like Figure 2.2 <span class="citation" data-cites="sutt
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02-multi-armed-bandits_files/figure-html/cell-7-output-1.png" class="img-fluid figure-img"></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-7-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="02-multi-armed-bandits_files/figure-html/cell-7-output-1.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
@@ -856,14 +860,14 @@ Q_5(a) = \begin{cases}
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02-multi-armed-bandits_files/figure-html/cell-8-output-1.png" class="img-fluid figure-img"></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-8-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4"><img src="02-multi-armed-bandits_files/figure-html/cell-8-output-1.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02-multi-armed-bandits_files/figure-html/cell-8-output-2.png" class="img-fluid figure-img"></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-8-output-2.png" class="lightbox" data-gallery="quarto-lightbox-gallery-5"><img src="02-multi-armed-bandits_files/figure-html/cell-8-output-2.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
@@ -1037,14 +1041,14 @@ Q_{n+1} &amp;= Q_n + \alpha_n \Big[ R_n - Q_n \Big] \\
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02-multi-armed-bandits_files/figure-html/cell-11-output-1.png" class="img-fluid figure-img"></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-11-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-6"><img src="02-multi-armed-bandits_files/figure-html/cell-11-output-1.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02-multi-armed-bandits_files/figure-html/cell-11-output-2.png" class="img-fluid figure-img"></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-11-output-2.png" class="lightbox" data-gallery="quarto-lightbox-gallery-7"><img src="02-multi-armed-bandits_files/figure-html/cell-11-output-2.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
@@ -1089,7 +1093,7 @@ Q_{n+1} &amp;= Q_n + \alpha_n \Big[ R_n - Q_n \Big] \\
 <div id="fig-bandit-comparison-optimism" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-bandit-comparison-optimism-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-optimism-output-1.png" class="img-fluid figure-img">
+<a href="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-optimism-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-8" title="Figure&nbsp;2.2: This is like Figure 2.3 [@sutton2018]: the effect of optimistic initial action-value estimates."><img src="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-optimism-output-1.png" class="img-fluid figure-img"></a>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-bandit-comparison-optimism-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Figure&nbsp;2.2: This is like Figure 2.3 <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>)</span>: the effect of optimistic initial action-value estimates.
@@ -1135,7 +1139,7 @@ Figure&nbsp;2.2: This is like Figure 2.3 <span class="citation" data-cites="sutt
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="02-multi-armed-bandits_files/figure-html/cell-13-output-1.png" class="img-fluid figure-img"></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-13-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-9"><img src="02-multi-armed-bandits_files/figure-html/cell-13-output-1.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
@@ -1259,7 +1263,7 @@ A_t := \mathrm{argmax}_a \left[ Q_t(a) + c \sqrt{ \frac{\ln t}{N_t(a)} }\right]
 <div id="fig-bandit-ucb-performance" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-bandit-ucb-performance-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="02-multi-armed-bandits_files/figure-html/fig-bandit-ucb-performance-output-1.png" class="img-fluid figure-img">
+<a href="02-multi-armed-bandits_files/figure-html/fig-bandit-ucb-performance-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-10" title="Figure&nbsp;2.3: This is like Figure 2.4 [@sutton2018]: average performance of UCB action selection."><img src="02-multi-armed-bandits_files/figure-html/fig-bandit-ucb-performance-output-1.png" class="img-fluid figure-img"></a>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-bandit-ucb-performance-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Figure&nbsp;2.3: This is like Figure 2.4 <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>)</span>: average performance of UCB action selection.
@@ -1363,7 +1367,7 @@ H_{t+1}(a) &amp;:= H_t(a) + \alpha (R_t - \bar{R}_t) (\mathbb{I}_{a = A_t} - \pi
 <div id="fig-gradient-bandit-performance" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-float-fig figure">
 <div aria-describedby="fig-gradient-bandit-performance-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<img src="02-multi-armed-bandits_files/figure-html/fig-gradient-bandit-performance-output-1.png" class="img-fluid figure-img">
+<a href="02-multi-armed-bandits_files/figure-html/fig-gradient-bandit-performance-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-11" title="Figure&nbsp;2.4: This is like Figure 2.5 [@sutton2018]: average performance of the gradient bandit algorithm with and without a reward baseline on the 10-armed testbed when the q_*(a) are chosen to be near +4 rather than near zero. (we averaged over 50 runs because it gives this cool jaggedy looking graph)"><img src="02-multi-armed-bandits_files/figure-html/fig-gradient-bandit-performance-output-1.png" class="img-fluid figure-img"></a>
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-gradient-bandit-performance-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Figure&nbsp;2.4: This is like Figure 2.5 <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>)</span>: average performance of the gradient bandit algorithm with and without a reward baseline on the 10-armed testbed when the <span class="math inline">\(q_*(a)\)</span> are chosen to be near <span class="math inline">\(+4\)</span> rather than near zero. (we averaged over 50 runs because it gives this cool jaggedy looking graph)
@@ -1622,7 +1626,7 @@ H_{t+1}(a) = H_t(a) + \alpha  (R_t - B_t) (\mathbb{I}_{a = A_t} - \pi_{H_t(a)})
 <div class="cell-output cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="02-multi-armed-bandits_files/figure-html/cell-18-output-1.png" class="img-fluid figure-img"></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-18-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-12" title="Parameter sweep for a non-stationary bandit, similar to Figure 2.6 [@sutton2018]. The plot displays the average reward of the last 50,000 steps of a 300,000-step episode, averaged over 200 runs. The bandit was initialized with action-value means set to 10, which drifted according to a normal distribution with a standard deviation of 0.1 at each step. The standard deviation of the reward noise was 1."><img src="02-multi-armed-bandits_files/figure-html/cell-18-output-1.png" class="img-fluid figure-img" alt="Parameter sweep for a non-stationary bandit, similar to Figure 2.6 (Sutton and Barto 2018). The plot displays the average reward of the last 50,000 steps of a 300,000-step episode, averaged over 200 runs. The bandit was initialized with action-value means set to 10, which drifted according to a normal distribution with a standard deviation of 0.1 at each step. The standard deviation of the reward noise was 1."></a></p>
 <figcaption>Parameter sweep for a non-stationary bandit, similar to Figure 2.6 <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>)</span>. The plot displays the average reward of the last 50,000 steps of a 300,000-step episode, averaged over 200 runs. The bandit was initialized with action-value means set to 10, which drifted according to a normal distribution with a standard deviation of 0.1 at each step. The standard deviation of the reward noise was 1.</figcaption>
 </figure>
 </div>
@@ -2384,6 +2388,38 @@ Sutton, Richard S., and Andrew G. Barto. 2018. <em>Reinforcement Learning: An In
   </div>
 </nav>
 </div> <!-- /content -->
+<script>var lightboxQuarto = GLightbox({"closeEffect":"zoom","descPosition":"bottom","loop":false,"openEffect":"zoom","selector":".lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script>
 
 
 
