@@ -4,6 +4,8 @@ project:
   execute-dir: project
 book:
   title: "Notes on Sutton & Barto"
+  author: "Julian Bitterlich"
+  repo-url: https://github.com/julxi/notes_and_solutions_reinforcement_learning
   chapters:
     - index.qmd
     - chapters/01-intro.qmd
@@ -13,14 +15,15 @@ book:
 bibliography: references.bib
 format:
   html:
+    page-layout: article
     theme:
       dark: darkly
       light: flatly
+    highlight-style: oblivion
     css: styles.css
     number-sections: true
-    sidebar:
-      style: floating
     code-fold: true
+    lightbox: true
 execute: 
   cache: true
 

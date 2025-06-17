@@ -1,5 +1,7 @@
 ---
+date: 2025-06-17
 code-annotations: select
+lightbox: true
 ---
 
 # Dynamic Programming
@@ -17,7 +19,7 @@ $${#eq-bellman-update-action-value}
 These equations form the basis for iterative policy evaluation. The algorithm below demonstrates how to approximate $v_\pi$, where updates are performed in "sweeps" rather than "chunk updates".
 This constitutes the policy evaluations step,$\pi \overset{\mathrm{Eval}}{\to} v_{\pi}$, in the policy iteration algorithm (@sec-policy-iteration).
 
-::: {.callout-note appearance="simple" icon=false title="Iterative Policy Evaluation, for estimating $V \approx v_\pi$"}
+::: {#lst-policy-evaluation .listing-block} 
 | **Input**: $\pi$, the policy to be evaluated
 | **Parameters**: $\theta > 0$, determining accuracy of estimation
 | **Initialisation**: $V(s)$, for all $s \in \mathcal{S}$ arbitrarily, and $V(\mathrm{terminal}) = 0$
@@ -28,11 +30,13 @@ This constitutes the policy evaluations step,$\pi \overset{\mathrm{Eval}}{\to} v
 |        $V(s) \gets \sum_a \pi(a|s) \sum_{s',r}p(s',r|s,a)[r + \gamma V(s')]$
 |        $\Delta \gets \max(\Delta, |v - V(s))$
 | until $\Delta < \theta$
+
+Iterative Policy Evaluation, for estimating $V \approx v_\pi$
 :::
 
 
 :::{#exm-4.1}
-This is [@sutton2018, Example 4.1]
+Here we explore Example 4.1 from @sutton2018
 
 Here is the quick summary:
 
@@ -294,23 +298,23 @@ $$
 
 And here is the pseudo code.
 
-::: {.callout-note icon=false title="Policy Iteration (using iterative policy evaluation) for estimating $\pi \approx \pi_*$"}
+::: {#lst-policy-iteration .listing-block} 
 | **Parameter**:
 | $\theta$: a small positive number determining the accuracy of estimation
 |
-| **Initialisation**:
+| **1. Initialisation**:
 | $V(s) \in \mathbb{R}$, $\pi(s) \in \mathcal{A}(s)$ arbitrarily, $V(\mathrm{terminal}) = 0$
 |
-| **Policy Evaluation**
+| **2. Policy Evaluation**
 | Loop:  
 |     $\Delta \gets 0$
 |     Loop for each $s \in \mathcal{S}$:
 |         $v \gets V(s)$
 |         $V(s) \gets  \sum_{s',r}p(s',r|s,\pi(s))[r + \gamma V(s')]$
-|         $\Delta \gets \max(\Delta, |v - V(s))$
+|         $\Delta \gets \max(\Delta, |v - V(s)|)$
 | until $\Delta < \theta$
 |
-| **Policy Improvement**
+| **3. Policy Improvement**
 | $\text{policy-stable} \gets \mathrm{true}$
 | For each $s \in \mathcal{S}$:
 |     $\text{old-action} \gets \pi(s)$
@@ -320,6 +324,8 @@ And here is the pseudo code.
 |     return $V \approx v_*$ and $\pi \approx \pi_*$
 | else:
 |     go to **Policy Evaluation**
+
+Policy Iteration (using iterative policy evaluation) for estimating $\pi \approx \pi_*$
 :::
 
 Note that the final policy improvement step does not change the policy and is basically just checking that the current policy is optimal. So this is basically an extra step to see that this chain is done:
@@ -328,7 +334,7 @@ $\pi_0 \overset{\mathrm{Eval}}{\to} v_{\pi_0} \overset{\mathrm{Imp}}{\to}
 \overset{\mathrm{Imp}}{\to} \pi_* \overset{\mathrm{Eval}}{\to} v_{*} \overset{\mathrm{Imp}}{\to} \text{Finished}$
 
 :::{#exm-4.2}
-This is [@sutton2018, Example 4.2] - Jack's car rental.
+Here we explore Example 4.2 from @sutton2018 - Jack's car rental.
 
 Here's a quick summary:
   
@@ -340,10 +346,10 @@ Here's a quick summary:
   - rentals and returns are Poisson distributed:  
    $\lambda_{1,\text{rent}} =3$, $\lambda_{1,\text{return}} =3$, $\lambda_{2,\text{rent}} =4$, $\lambda_{2,\text{return}} =2$
 
-We solve Jack’s car rental using policy iteration.
-The core computation in policy iteration is the one-step lookahead, which is used both in policy evaluation and policy improvement. This is the main performance bottleneck:
+We solve Jack's car rental using policy iteration.
+The core computation in policy iteration is getting a state-action value from the state values, the one-step lookahead, which is used both in policy evaluation and policy improvement. This is the main performance bottleneck:
 $$
-(s,a) \to \sum_{s',r} p(s',r|s,a) [ r + \gamma V(s')]
+Q(s,a) = \sum_{s',r} p(s',r|s,a) [ r + \gamma V(s')]
 $$
 
 This expression is good for theorizing about the algorithm but its direct implementation feels awkward and inefficient.
@@ -351,18 +357,18 @@ In practice, it's better to split the four-argument $p(s',r|s,a)$ into expected 
 
 $$
 \begin{split}
-\sum_{s',r}p(s',r|s,a)[r + \gamma V(s')] &= \sum_{s',r}p(s',r|s,a)r + \gamma\sum_{s',r}p(s',r|s,a)V(s') \\
+Q(s,a) &= \sum_{s',r}p(s',r|s,a)r + \gamma\sum_{s',r}p(s',r|s,a)V(s') \\
 &= r(s,a) + \gamma \sum_{s'}p(s'|s, a) V(s')
 \end{split}
 $$
 
-Furthermore, we can make the algorithm more natural for this problem by introducing afterstates [@sutton2018, Sec. 6.8]. Although we don’t use them to their full potential (we don’t learn an afterstate value function).
+Furthermore, we can make the algorithm more natural for this problem by introducing afterstates [@sutton2018, Sec. 6.8]. Although we don't use them to their full potential (we don't learn an afterstate value function).
 
-An afterstate is the environment state immediately after the agent's action, but before the environment's stochastic dynamics. This formulation is particularly effective when actions have deterministic effects. In Jack's car rental, moving cars deterministically leads to an afterstate $s \oplus a$, while the stochastic dynamics—rentals and returns—then determine the next state $s'$.
+An afterstate is the environment state immediately after the agent's action, but before the environment's stochastic dynamics. This formulation is particularly effective when actions have deterministic effects. In Jack's car rental, moving cars deterministically leads to an afterstate $s \oplus a$, while the stochastic dynamics - rentals and returns - then determine the next state $s'$.
 
 The one-step lookahead using afterstates becomes:
 $$
-(s,a) \to c(a) + r(s \oplus a) + \gamma \sum_{s'} p(s'|s\oplus a)V(s'),
+Q(s,a) = c(a) + r(s \oplus a) + \gamma \sum_{s'} p(s'|s\oplus a)V(s'),
 $$ {#eq-one-step-lookahead-with-afterstates}
 
 where $c(a)$ is the cost of the, $r(s \oplus a)$ is the expected immediate reward for the afterstate.
@@ -465,10 +471,11 @@ def policy_iteration(env, θ, γ) -> List[PolicyIterationStep]:  # <5>
 
     return history
 ```
-1. Import the environment class and type aliases (State, Action) from the Jack’s car‐rental module.
+
+1. Import the environment class and type aliases (State, Action) from the Jack's car‐rental module.
 2. Since we are dealing with deterministic policies we can define Policy as a mapping.
 3. Implements the one‐step lookahead with afterstates (see @eq-one-step-lookahead-with-afterstates).
-4. Choose the action $a\in A$ that maximises the one‐step lookahead; this is a concise way to do "$\mathrm{argmax}_a \dots$"" in Python
+4. Choose the action $a\in \mathcal{A}(s)$ that maximises the one‐step lookahead; this is a concise way to do "$\mathrm{argmax}_a \dots$"" in Python
 5. The only slight change to the pseudocode: instead of just returning the optimal policy and its state-value function we return the history of policies.
 
 Here is some more code just to be able to visualize our solution for Jack's car rental problem...
@@ -603,7 +610,7 @@ def plot_valueFn(title, config, val):
 # | fig-cap: "This is like the last two diagrmas in Figure 4.2 [@sutton2018]: the first diagrams shows the optimal policy - which looks to me identical to Sutton-Barto's optimal policy. The second diagram shows its value function (the optimal value function), which seems to have a higher maximum as Sutton-Barto's - I don't know why."
 # | fig-subcap:
 # |  - "Heatmap of the optimal policy $\\pi_∗(s)$. Each cell at coordinates $(i,j)$ shows the number of cars moved from location 1 to location 2."
-# |  - "3D surface of the optimal state‐value function $v_∗​(s)$ corresponding to the policy in (a). The maximum value here is approximately $\\max⁡_s v_∗(s)\\approx 625$; Sutton & Barto’s reported maximum is $\\approx 612$."
+# |  - "3D surface of the optimal state‐value function $v_∗​(s)$ corresponding to the policy in (a). The maximum value here is approximately $\\max⁡_s v_∗(s)\\approx 625$; Sutton & Barto's reported maximum is $\\approx 612$."
 # === Solving Jack's car rental ===
 
 # Hyperparameter for "training"
@@ -626,22 +633,22 @@ plot_valueFn(f"Value function for optimal policy", config, history[-1].values)
 
 The runtime of this policy iteration is quite reasonable - just a few seconds. But considering we're only dealing with $441$ states, it highlights how dynamic programming is limited to small MDPs.
 
-Another thought: although we now have the optimal solution, the meaning of the value function is still somewhat abstract. Mathematically it’s clear, but I couldn't, for example, directly interpret from it whether Jack can pay his monthly rent with this business.
+Another thought: although we now have the optimal solution, the meaning of the value function is still somewhat abstract. Mathematically it's clear, but I couldn't, for example, say whether Jack can pay his monthly rent with this business.
 :::
 
 :::{#exr-4.4}
-The policy iteration algorithm on page 80 [@sutton2018] (also see @sec-policy-iteration) has a subtle bug in that it may never terminate if the policy continually switches between two or more policies that are equally good. This is ok for pedagogy, but not for actual use. Modify the  seudocode so that convergence is guaranteed.
+The policy iteration algorithm @lst-policy-iteration has a subtle bug in that it may never terminate if the policy continually switches between two or more policies that are equally good. This is ok for pedagogy, but not for actual use. Modify the  seudocode so that convergence is guaranteed.
 :::
 :::{#sol-4.4}
-Assuming perfect precision in computation then the only problem could be the determination of the argmax.
+If ties in the argmax are determined randomly, this could maybe result in a soft-lock when there are enough states with ties in their evaluation. Here we should add a condition that the policy is only changed if the change results in an actual improvement. Often in application there is an order on the actions, and we could also choose the smallest. However, this might also have consequences for the exploration of the algorithms.
 
-If ties in the argmax are determined randomly, this could easily result in a soft-lock when there are enough states with possible ties. Here we should add a condition that the policy is only changed if the change results in an actual improvement.
+So maybe the best solution is to only change the policy action if a better action improves the value by more than some $\epsilon>0$:
 
-If we don't assume perfect precision then maybe calculating the value function can also result in floating point flips for "best action". In this case we should maybe only change the policy action if it improves the value by more than $\theta$.
-
-So this should be a practical fix for that bug:
-
-::: {.callout-note icon=false title="Modified Converging Policy Improvement"}
+::: {#lst-modified-policy-improvement .listing-block} 
+| **Extra Paramater:**
+| $\epsilon$: small parameter determining of policy is stable
+|
+| **Policy Improvement**
 | $\text{policy-stable} \gets \mathrm{true}$
 | 
 | for each $s \in \mathcal{S}$:
@@ -652,14 +659,815 @@ So this should be a practical fix for that bug:
 | 
 |     $\text{best-value} \gets \max_{a} Q(a)$
 | 
-|     if $Q(\text{old-action}) + \theta < \text{best-value}$:
+|     if $\text{best-value} - Q(\text{old-action}) > \epsilon$:
 |         $\pi(s) \gets a^*$ for which $Q(a_*) = \text{best-value}$
 |         $\text{policy‐stable} \gets \mathrm{false}$
 |
 | if policy‐stable:
 |     return $V \approx v_*$ and $π ≈ π_*$
 | else:
-|     go to Policy Evaluation
+|     go to **Policy Evaluation**
+
+Modified step **Policy Improvement** in Policy Iteration @lst-policy-iteration
+:::
 :::
 
+:::{#exr-4.5}
+How would policy iteration be defined for action values? Give a complete algorithm for computing $q_*$, analogous to @lst-policy-iteration for computing $v_*$.
+Please pay special attention to this exercise, because the ideas involved will be used throughout the rest of the book.
 :::
+:::{#sol-4.5}
+
+The code depends on the convention that episodic tasks have an absorbing state that transitions only to itself and that generates only rewards of zero [@sutton2018, sec. 3.4].
+
+::: {#lst-policy-iteration-for-q .listing-block} 
+| **Parameter**:
+| $\theta$: a small positive number determining the accuracy of estimation
+|
+| **Initialisation**:
+| $Q(s,a) \in \mathbb{R}$, $\pi(s) \in \mathcal{A}(s)$ arbitrarily, but $Q(\mathrm{terminal},a) = 0$
+|
+| **Policy Evaluation**
+| Loop:  
+|     $\Delta \gets 0$
+|     Loop for each $s \in \mathcal{S}$ and $a \in \mathcal{A}(s)$:
+|         $q \gets Q(s,a)$
+|         $Q(s,a) \gets  \sum_{s',r}p(s',r|s,a)[r + \gamma Q(s',\pi(s'))]$
+|         $\Delta \gets \max(\Delta, |q - Q(s,a)|)$
+| until $\Delta < \theta$
+|
+| **Policy Improvement**
+| $\text{policy-stable} \gets \mathrm{true}$
+| For each $s \in \mathcal{S}$:
+|     $\text{old-action} \gets \pi(s)$
+|     $\pi(s) \gets \underset{a}{\mathrm{argmax}}  \; Q(s,a)$
+|     If $\text{old-action} \neq \pi(s)$, then $\text{policy-stable} \gets \text{false}$
+| If $\text{policy-stable}$:
+|     return $Q \approx q_*$ and $\pi \approx \pi_*$
+| else:
+|     go to **Policy Evaluation**
+
+Policy Iteration (using iterative policy evaluation) for estimating $\pi \approx \pi_*$
+:::
+:::
+
+:::{#exr-4.6}
+Suppose you are restricted to considering only policies that are $\varepsilon$-soft,
+meaning that the probability of selecting each action in each state, $s$, is at least
+$\varepsilon/|\mathcal{A}(s)|$.
+Describe qualitatively the changes that would be required in each of the steps 3, 2, and 1,
+in that order, of the policy iteration algorithm @lst-policy-iteration for $v_*$.
+:::
+:::{#sol-4.6}
+First of all, we are now dealing with a policy $\pi(a|s)$ that assigns probabilities to actions instead of $\pi(s)$ that choses an action.
+
+For step 3, policy improvement, we assign to every possible action $a$ a propability $\varepsilon$, then the remainining propability $1 - \varepsilon|\mathbfcal{A}(s)|$ to the actions that maximize the expression under the argmax.
+
+For step 2, policy evaluation, we have to change the assignment to $V(s) \gets \sum_{a} \pi(a|s) \sum_{s',r} p(s',r|s,a) [r + \gamma V(s')]$
+
+For step 1, initialisation, we have to make sure that each action gets a probability of at least $\varepsilon$.
+:::
+
+:::{#exr-4.7}
+Write a program for policy iteration and re-solve Jack's car rental problem with the following changes. One of Jack's employees at the first location rides a bus home each night and lives near the second location. She is happy to shuttle one car to the second location for free. Each additional car still costs $2, as do all cars moved in the other direction. In addition, Jack has limited parking space at each location. If more than 10 cars are kept overnight at a location (after any moving of cars), then an additional cost of $4 must be incurred to use a second parking lot (independent of how many cars are kept there). These sorts of nonlinearities and arbitrary dynamics often occur in real problems and cannot easily be handled by optimization methods other than dynamic programming. To check your program, first replicate the results given for the original problem.
+:::
+:::{#sol-4.7}
+We have already set up everyting in @exm-4.2. I made sure in the implementation for the environment to include parameters for these changes.
+
+```{python}
+# | code-fold: false
+# === solving Jack's car rental again ===
+# Hyperparameter for "training"
+γ = 0.9
+θ = 1e-5
+
+# config and environment
+config = JacksCarRentalConfig(
+    max_cars=20, free_moves_from_1_to_2=1, max_free_parking=10, extra_parking_cost=4
+)
+env = JacksCarRental(config)
+
+# do policy iteration
+history = policy_iteration(env, θ, γ)
+
+# print last optimal policy
+plot_policy(
+    f"Optimal Policy after {len(history)-1} iterations", config, history[-1].policy
+)
+```
+
+Interestingly this somewhat more complex problem, does need 1 less iteration than the original.
+:::
+
+
+## Value Iteration
+
+Value iteration is policy iteration with a single sweep of policy evaluation per iteration.
+
+In policy iteration, policy improvement is given by:
+$$
+\pi_k(s) = \mathrm{argmax}_{a} \sum_{s',r} p(s',r|s,a)[r + \gamma v_k(s')]
+$$
+
+This picks an action $\hat{a}$ that gives the best one-step lookahead from the current value function.
+
+Then, policy evaluation, uses the one-step lookahead for the updates:
+$$
+v_{k+1}(s) = \sum_{s',r}p(s',r|s,\pi_k(s)) [r + \gamma v_k(s')]
+$$
+
+But if we're only doing one sweep, we may as well just plug in $\hat{a}$ directly from the lookahead, which gives the maximum of this expression:
+$$
+v_{k+1}(s) = \max_a \sum_{s',} p(s',r|s,a)[r + \gamma v_k(s')]
+$$ {#eq-value-iteration-update}
+
+So, value iteration performs both greedy action selection and value backup in one go.
+
+And here is the respective pseudocode:
+
+::: {#lst-value-iteration .listing-block} 
+| **Parameter**:
+| $\theta$: a small positive number determining the accuracy of estimation
+|
+| **Initialisation**:
+| $V(s)$ arbitrarily for $s \in \mathcal{S}$, when episodic $V(\mathrm{terminal}) = 0$
+|
+| **Value Iteration**
+| Loop:  
+|     $\Delta \gets 0$
+|     Loop for each $s \in \mathcal{S}$:
+|         $v \gets V(s)$
+|         $V(s) \gets  \max_a \sum_{s',r} p(s',p|s,a) [r + \gamma V(s')]$
+|         $\Delta \gets \max(\Delta, |v - V(s)|)$
+| until $\Delta < \theta$
+|
+| **Greedy Policy Extraction**
+| Output a deterministic policy $\pi \approx \pi_*$, such that
+| $\pi(s) = \mathrm{argmax}_a \sum_{s',r} p(s',p|s,a) [r + \gamma V(s')]$
+
+Value Iteration, for estimating $\pi \approx \pi_*$
+:::
+
+### gambler's problem
+Let's talk about Example 4.3 from @sutton2018 - the Gambler's Problem.
+It gets its own little subsection because there's actually quite a bit to say about it.
+
+First, a quick summary of the MPD:
+
+ - the idea is to win a target amount $N$ of chips by betting on coin flips
+ - non-terminal states are the current amount of chips (captial): $\mathcal{S} = \{0,1,\dots,N\}$, and the terminal states are $0$ and $N$.
+ - actions are how mamny chips you wager (the stake): $\mathcal{A}(s) = \{1,\dots, \min(s, N-s)\}$ for $s \in \mathcal{S}$
+ - the environment dynamics are
+   $$
+   p(s' \mid a,s) = \begin{cases}p_{\mathrm{win}} &\text{if }s' = s+a\\1-p_{\mathrm{win}} &\text{if }s' = s-a \end{cases}
+   $$
+ - rewards are 0 except for reaching the goal state $N$, which gives a rewards of +1
+ - the task is episodic and undiscounted ($\gamma = 1$)
+
+The reward structure is set up so that the state-value function gives the probability of eventually reaching the goal from a given state:
+$$
+v_\pi(s) = \mathbb{E}_\pi[G_t \mid S_t = s] = 1 \cdot \mathrm{Pr}_{\pi}(S_T = N \mid S_t = s)
+$$
+
+So under any policy $\pi$, the value of a state is just the probability of hitting $N$ before hitting $0$.
+
+#### general remarks
+
+There's a lot of content about this problem floating around online.
+Maybe that's because it appears quite early in the book,
+or because it's so simple to implement.
+Or maybe it's because the problem hides a few trip wires. For one thing, if you implement it yourself without really understanding what's going on, your correct solution might look completely wrong (see @fig-gamblers-problem-optimal-policy).
+
+A lot of the articles I've come across either lack substance or seem a bit confused -
+which is totally fair, but I personally prefer reading something more insightful when digging into a problem.
+
+So here, I'm trying to give this a bit of extra depth.
+
+#### no 0 stakes
+
+Another issue you might stumble across is that the original example allows wagers of size 0.
+Which seems innocuous, but it actually complicates things when thinking about deterministic policies.
+
+Since the problem is undiscounted, we have:
+$$
+q_*(s,0) = v_*(s) = \max_a q_*(s,a)
+$$
+
+So technically, wagering nothing could be considered an optimal action.
+However, any deterministic policy following such an action
+will not complete an episode.
+
+Furthermore, zero stakes can also mess with value iteration.
+If we initialise the non-terminal states with a value greater than their optimal value, the algorithm will not update them, because it will just set $v(s) = q(s,0)$.
+
+It mostly leads to problems, so let's leave them just out here.
+
+#### one-step lookahead and environment
+
+We'll follow the design proposed by @sutton2018: no rewards, and two terminal states:
+
+ - ruin: 0 capital, with value $0$
+ - win: 100 captial, with value $1$
+ 
+The terminal states are not updated during value iteration, of course.
+ 
+Given that, the one-step lookahead for stake $s$ and wager $a$ is especially simple to compute:
+$$
+Q(s,a) = p_\mathrm{win} \cdot V(s+a) + (1-p_\mathrm{win}) \cdot V(s-a).
+$$
+
+In code, it's the environment's responsibility to calculate the one-step lookaheads for a given state-value function (`one_step_lookaheads`), as well as to initialise the value function (`make_initial_values`). This gives us some nice encapsulation.
+```{python}
+# | code-fold: false
+from typing import List
+
+ValueFn = List[float]
+State = int
+
+
+class EnvGamblersProblem:
+    def __init__(self, p_win: float, goal: int):
+        self.p = p_win
+        self.goal = goal
+        self.non_terminal_states = list(range(1, goal))
+
+    def make_initial_values(self, non_terminal_value: float) -> ValueFn:
+        v = [0.0]  # terminal: ruin
+        v.extend([non_terminal_value] * (self.goal - 1))  # non-terminals
+        v.append(1.0)  # terminal: win
+        return v
+
+    def one_step_lookaheads(self, s: State, v: ValueFn):
+        """returns a list of the q-values for state s.
+        q[i] contains the value of betting an amount of i+1"""
+        p = self.p
+        goal = self.goal
+        return [
+            p * v[s + a] + (1 - p) * v[s - a] for a in range(1, min(s, goal - s) + 1)
+        ]
+```
+
+#### solving the problem
+
+Now we can implement value iteration, as described in @lst-value-iteration.
+We split the process into the two parts: **value iteration** and **policy extraction**.
+
+I've modified the value iteration function so that it returns all intermediate value functions - the final one is the optimal state-value function.
+```{python}
+# | code-fold: false
+def value_iteration_gamblers_problem(
+    env: EnvGamblersProblem, θ: float, init_value=0.0
+) -> List[ValueFn]:
+    # **Init**
+    v = env.make_initial_values(init_value)
+
+    # **Value iteration**
+    value_functions = []
+    while True:
+        value_functions.append(v.copy())
+        Δ = 0.0
+        for s in env.non_terminal_states:
+            v_old = v[s]
+            v_new = max(env.one_step_lookaheads(s, v))
+            v[s] = v_new
+            Δ = max(Δ, abs(v_old - v_new))
+        if Δ < θ:
+            break
+
+    return value_functions
+
+
+def get_greedy_policy(v: ValueFn, env: EnvGamblersProblem):
+    # ** Greedy Policy Extraction **
+    policy = {}
+    for s in env.non_terminal_states:
+        action_values = env.one_step_lookaheads(s, v)
+        greedy_action_idx = action_values.index(max(action_values))  # <1>
+        policy[s] = greedy_action_idx + 1  # convert idx -> stake
+    return policy
+```
+
+1. this isn't the most efficient way to compute the argmax of a list, but it's fine for a simple problem like this.
+
+Now, using the code below, we can solve the gambler's problem for $N = 100$ and $p_\mathrm{win} = 0.4$.
+```{python}
+#| code-fold: false
+
+# set up environment
+env = EnvGamblersProblem(p_win=0.4, goal=100)
+
+# run value_iteration
+value_functions = value_iteration_gamblers_problem(env, 1e-12)
+
+# optain optimal value function (result of last sweep)
+v_star = value_functions[-1]
+
+# optain optimal policy (greedy w.r.t to v_star)
+policy_star = get_greedy_policy(v_star, env)
+```
+
+We plot the value function sweeps and a (somewhat strangely shaped) optimal policy below in @fig-gamblers-problem-solution.
+
+We're not going to go into the mathematical analysis of the exact solution here,
+but if you're curious about exact formulas for the value function, check out the section about 'Bold Strategy' for the game 'Red and Black' - which is apparently the mathematicans way of calling the gambler's problem - in @randomservices. ^[They use a continuous version of the gambler's problem, but the continous value function $F$ can be translated by $v_\ast(s) = F(\frac{x}{N})$. That's because the optimal strategy, 'bold play', can also be used in the discrete caes.]
+
+:::: {#fig-gamblers-problem-solution layout="[ 1, 1 ]"}
+
+::: {#fig-gamblers-problem-value-iteration}
+
+```{python}
+import matplotlib.pyplot as plt
+from typing import List, Tuple
+
+
+def plot_value_function(
+    value_functions: List[Tuple[str, ValueFn]],
+    title: str = "Value Function Sweeps",
+):
+    plt.figure(figsize=(10, 6))
+
+    for label, value_function in value_functions:
+        plt.plot(range(0, len(value_function)), value_function, label=label)
+
+    plt.xlabel("State (Capital)")
+    plt.ylabel("Value")
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+
+# sweeps to plot
+sweeps = (1, 2, 3, len(value_functions) - 1)
+value_functions_with_labels = [
+    (
+        f"{"final " if i == len(value_functions) -1 else "" }sweep {i}",
+        value_functions[i],
+    )
+    for i in sweeps
+]
+plot_value_function(
+    value_functions_with_labels,
+    title=r"Value Function Sweeps for $N=100$ and $p_\mathrm{win}=0.4$",
+)
+```
+
+
+This shows the value function over several sweeps of value iteration.
+The final sweep is the optimal value function.
+The first few sweeps (1-3) look very similar to what @sutton2018 show.
+Interestingly, though, in their plot it seems to take more sweeps, even sweep 32 still noticeably differs from the final result.
+:::
+
+::: {#fig-gamblers-problem-optimal-policy}
+
+```{python}
+import matplotlib.pyplot as plt
+from typing import List, Tuple, Dict
+
+
+def plot_policy(policy: Dict[int, int], title: str = "Policy"):
+    plt.figure(figsize=(10, 6))
+
+    states = sorted(policy.keys())
+    actions = [policy[s] for s in states]
+    plt.scatter(states, actions)
+
+    plt.xlabel("State (Capital)")
+    plt.ylabel("Action")
+    plt.title(title)
+    plt.grid(True)
+    plt.show()
+
+
+plot_policy(policy_star, title=r"An optimal policy for $N=100$ and p_\mathrm{win$ = 0.4$")
+```
+
+
+This shows **one** optimal policy. It looks quite different to the one shown by @sutton2018.
+That's because many states have multiple optimal actions. The greedy action selection just picks one, and the result is ultimatively decided by floating-point imprecisions.
+:::
+
+This is the analogue of Figure 4.3 from @sutton2018.
+It shows the solution to the gambler's problem for $N=100$ and $p_\mathrm{win} = 0.4$.
+::::
+
+#### optimal actions {#sec-gamblers-problem-optimal-actions}
+
+So, @fig-gamblers-problem-optimal-policy looks jagged because, in some states, there are multiple optimal actions. The choice of which one is used isn't governed by any particular logic in the implementation - it's effectively decided by floating-point imprecision.
+
+Here we want to answer this somewhat understated question from @sutton2018 [p. 84]:
+
+> This policy [shown in Figure 4.3] is optimal, but not unique. In fact, there is a whole family of optimal policies, all corresponding to ties for the argmax action selection with respect to the optimal value function. Can you guess what the entire family looks like?
+
+The short answer is: no, I can't. It's not something that's easy to guess, in my view.
+
+However, @randomservices gives an account of some well-developed theory addressing this question in. The section about bold play in the game Red and Black proves the existence of optimal strategies.
+
+One such optimal strategy pattern applicable for all $p_\mathrm{win} < 0.5$ and $N$ is bold play, where you always bet the maximum amount possible:
+$$
+B(s) := \max \mathcal{A}(s) =  \min(\{s, N-s\})
+$$
+
+Actually, for any $p_\mathrm{win} < 0.5$, all optimal actions are the same - only the underlying value functions change. The shape of $B(s)$ is triangular, and if $N$ is odd, it is the unique optimal policy, as seen in @fig-gamblers-problem-optimal-odd.
+
+If $N$ is even, then there exists a second-order bold strategy $B_2$, which effectively applies divide and conquer to the problem (although I don't have a really good intuition why it works). Create two subproblems, one from $0$ to $N/2$, and another from $N/2$ to $N$, each treated with their own bold strategy. It looks a bit like this (where $\left\lfloor \frac{N}{4} \right\rfloor$ means $N/4$ rounded down):
+```{python}
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Define the x values
+x = np.linspace(0, 1, 1000)
+
+
+# Define the B_2(x)
+def B2(x):
+    return np.where(
+        x < 0.25, x, np.where(x < 0.5, 0.5 - x, np.where(x < 0.75, -0.5 + x, 1 - x))
+    )
+
+
+# Create the plot
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.plot(x, B2(x), color="blue")
+
+# Highlight key points
+ax.plot([0.5], [0.5], "o", color="blue")
+ax.plot(
+    [0.5], [0], "o", mfc="white", mec="blue", zorder=5, clip_on=False
+)  # Draw over axis
+
+# Add dashed grid lines for key points
+ax.axhline(0.25, color="gray", linestyle="--", linewidth=0.5)
+ax.axhline(0.5, color="gray", linestyle="--", linewidth=0.5)
+ax.axvline(0.5, color="gray", linestyle="--", linewidth=0.5)
+ax.plot([0.25, 0.5], [0.25, 0.5], "gray", linestyle="--", linewidth=0.5)
+ax.plot([0.75, 0.5], [0.25, 0.5], "gray", linestyle="--", linewidth=0.5)
+
+# Add axis labels and ticks
+ax.set_xticks([0, 0.5, 1])
+ax.set_xticklabels(["0", r"$\frac{N}{2}$", r"$N$"])
+ax.set_yticks([0.25, 0.5])
+ax.set_yticklabels([r"$\left\lfloor \frac{N}{4} \right\rfloor$", r"$\frac{N}{2}$"])
+
+ax.set_xlabel(r"$s$")
+ax.set_ylabel(r"$B_2(s)$", rotation=0, labelpad=15)
+
+# Style the plot
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+ax.spines["left"].set_position("zero")
+ax.spines["bottom"].set_position("zero")
+ax.set_xlim(0, 1)
+ax.set_ylim(0, 0.55)
+
+plt.grid(False)
+plt.tight_layout()
+plt.show()
+```
+
+If $N$ is divisible by $4$, we can dividive and conquer again to get $B_3$. This is exactly what we see in the original problem for $N = 100$ (see @fig-gamblers-problem-optimal-sutton).
+
+Basically, if $N$ is divisible by $2^\ell$ then $B_\ell$ is an optimal stategy. In the limit, this family gives rise to a kind of fractal pattern of stacked diamonds (see @fig-gamblers-problem-optimal-fractal) - although these diamonds are missing their bottom tips, which would correspond to wagering 0.
+
+So my finally answer to the inital question is. The family of optimal policies consists of any selection of actions from the bold-strategy hierarchy: $B$ (one big triangle), $B_2$ (two triangles), and $B_3$ (four triangles).
+
+:::: {#fig-gamblers-problem-optimal-actions layout="[ 1, 1, 1 ]"}
+::: {#fig-gamblers-problem-optimal-sutton}
+```{python}
+from dataclasses import dataclass
+from typing import Dict, List
+
+
+def get_greedy_actions(v, env, ε):
+    optimal_actions = {}
+    for s in env.non_terminal_states:
+        q_values = env.one_step_lookaheads(s, v)
+        max_value = max(q_values)
+        bests = []
+        for a, q in enumerate(q_values):
+            if max_value - q < ε:
+                bests.append(a + 1)
+        optimal_actions[s] = bests
+
+    return optimal_actions
+
+
+@dataclass
+class MultiPolicy:
+    actions: Dict[int, List[int]]  # state -> list of stakes
+    name: str = None
+    marker: str = "o"
+    size: int = None
+
+
+def plot_multi_policy(multi_policies: List[MultiPolicy], title: str):
+    plt.figure(figsize=(10, 6))
+
+    draw_legend = False
+
+    for pol in multi_policies:
+        pts = [(s, a) for s, al in pol.actions.items() for a in al]
+        states, acts = zip(*pts)
+        if pol.name:
+            draw_legend = True
+        plt.scatter(
+            states,
+            acts,
+            marker=pol.marker,
+            s=pol.size,
+            label=pol.name,
+        )
+
+    plt.xlabel("State (Capital)")
+    plt.ylabel("Action (Stake)")
+    if draw_legend:
+        plt.legend()
+    plt.title(title)
+    plt.grid(True)
+    plt.show()
+
+
+best_actions = get_greedy_actions(v_star, env, 1e-8)
+
+best_minimal_actions = {}
+for s in best_actions:
+    best_min = min(best_actions[s])
+    best_minimal_actions[s] = [best_min]
+
+optimals = [
+    MultiPolicy(best_actions, name="optimal actions"),
+    MultiPolicy(best_minimal_actions, name="third-order bold strategy", marker="x", size=30),
+]
+plot_multi_policy(optimals, title="Optimal Actions for N=100")
+```
+
+The optimal actions for the gambler's problem of example 4.3 of @sutton2018 for $p_\mathrm{win} = 0.4$ and $N = 100$. The actions chosen by 'third-order bold strategy' is the optimal policy shown by @sutton2018.
+:::
+::: {#fig-gamblers-problem-optimal-fractal}
+```{python}
+goal = 5 * 32
+env = EnvGamblersProblem(p_win=0.4, goal=goal)
+value_functions = value_iteration_gamblers_problem(env, 1e-14)
+v_star = value_functions[-1]
+best_actions = get_greedy_actions(v_star, env, 1e-8)
+plot_multi_policy([MultiPolicy(best_actions, size=12)], title=f"Optimal actions for N={goal}")
+```
+
+The optimal actions for the gambler's problem for $N = 5\cdot 32$ and $p_\mathrm{win} < 0.5$. It consists of the bold strategies up to order $6$.
+:::
+::: {#fig-gamblers-problem-optimal-odd}
+```{python}
+goal = 101
+env = EnvGamblersProblem(p_win=0.4, goal=goal)
+value_functions = value_iteration_gamblers_problem(env, 1e-12)
+v_star = value_functions[-1]
+best_actions = get_greedy_actions(v_star, env, 1e-8)
+plot_multi_policy([MultiPolicy(best_actions)], title=f"Optimal actions for N={goal}")
+```
+
+For $N = 101$ only bold play is optimal. The same is true for all odd $N$ and $p_\mathrm{win} < 0.5$.
+:::
+
+Showcase of all optimal actions for $p < 0.5$ for various $N$.
+::::
+
+#### gambler's ruin
+
+Check out the value function in @fig-gamblers-problem-value-iteration.
+It looks like, even though a single coin flip is stacked against the gambler with $p_\mathrm{win} = 0.4$, if they start with a large capital, say 80 chips, they still reach the goal of $N = 100$ about 70% of the time. Doesn't sound too bad. But of course, if they succeed, they only win 20 chips. If they lose, they lose 80 chips.
+
+One general result that captures this asymmetry is gambler's ruin, which states essentially that when the odds are stacked against the gambler, there is no strategy to turn the odds in their favour.
+
+We can make this concrete by calculating the expected monetary return when following the optimal strategy, starting with $s$ chips:
+$$
+\mathbb{E}_{\pi_*}[S_T - S_0 \mid S_0 = s] = p_{\mathrm{goal}}(N-s) + (1-p_{\mathrm{goal}})(-s),
+$$
+
+where 
+$$
+p_{\mathrm{goal}}(s) = \mathrm{Pr}_{\pi_*}(S_T = N \mid S_0 = s) = v_*(s).
+$$
+
+Let's compute and plot it for $p = 0.4$ and $N = 100$:
+```{python}
+goal = 100
+p_win = 0.4
+env = EnvGamblersProblem(p_win=p_win, goal=goal)
+value_functions = value_iteration_gamblers_problem(env, 1e-12)
+v_star = value_functions[-1]
+expected_profit = [
+    value * (env.goal - s) - (1 - value) * s for s, value in enumerate(v_star)
+]
+
+
+plt.figure(figsize=(10, 6))
+
+plt.plot(range(0, len(expected_profit)), expected_profit)
+plt.xlabel("Startign Capital")
+plt.ylabel("Expected profit")
+plt.title(
+    r"Profit when following an optimal strategy for $N = 100$ and $p_\mathrm{win} = 0.4$"
+)
+plt.grid(True)
+plt.show()
+```
+
+Even though the plot shows a nice (fractal-looking) w shape, you're expected to lose chips, no matter what your initial capital is.
+
+If you have to play, then the best is to start with either very low or very high capital - this is not financial advice though 🥸.
+
+As a risk-averse person, my actual advice is: start with $0$ or $100$ chips - i.e., don't play at all.
+
+#### gambler's fortune
+
+When we stack the game in favour of the gambler $p_{\mathrm{win}} > 0.5$
+everything becomes somewhat easier.
+
+There is just one optimal strategy, timid play, that is, always bet exactly one coin
+$$
+\pi_*(s) = 1.
+$$
+
+The value function in this case has a clean analytical form:
+$$
+v(s) = \frac{1 - \left(\frac{1-p}{p}\right)^s}{1 - \left(\frac{1-p}{p}\right)^N}
+$$
+
+And... well, that's basically it. Winnig all the time doesn't require any creative policies.
+
+#### floating point imprecissions {#sec-gamblers-problem-floating-points}
+
+There's one interesting thing about the gambler's fortune case.
+The high win probabilities can lead to floating point imprecisions.
+
+When we run value iteration with $N = 100$ and $p_\mathrm{win} = 0.6$,
+these imprecisions can bleed into the computed optimal policy.
+
+:::: {layout="[ 50, 50 ]"}
+
+::: {#first-column}
+
+```{python}
+env = EnvGamblersProblem(p_win=0.6, goal=100)
+value_functions = value_iteration_gamblers_problem(env, 1e-12)
+v_star = value_functions[-1]
+plot_value_function([("optimal value function", v_star)])
+```
+
+The value function approaches $1$ very quickly.
+That means from a certain point onward, the $q(s, a)$ values are
+all indistinguishably close to $1$...
+:::
+
+::: {#second-column}
+```{python}
+best_actions = get_greedy_actions(v_star, env, 1e-10)
+plot_multi_policy([MultiPolicy(best_actions)], title="bla")
+```
+
+...which leads to floating point imprecisions during optimal action selection.
+The code ends up including some sub-optimal actions.
+:::
+::::
+
+Two thoughts on this:
+
+1. Practically speaking, this isn't really a problem.
+When all candidate actions yield a value practically indistinguishable from the max, it doesn't matter which one we take. They're all effectively optimal.
+2. Theoretically, it's a useful reminder:
+a computation is not a proof. It can return wrong answers.
+Our algorithms produce approximations of the optimal policy,
+and here it's harmless, but we should keep it in mind.
+
+This kind of issue always arises when the $q$-values are close together.
+You can also see it with very low win probabilities:
+
+```{python}
+env = EnvGamblersProblem(p_win=0.01, goal=128)
+value_functions = value_iteration_gamblers_problem(env, 1e-12)
+v_star = value_functions[-1]
+best_actions = get_greedy_actions(v_star, env, 1e-8)
+plot_multi_policy([MultiPolicy(best_actions)], title=r"$p_\mathrm{win} = 0.01$ and $N=100$")
+```
+
+Note:
+For illustration, I've deliberately used 'large' $\varepsilon$ values
+($10^{-10}$ for $p_\mathrm{win} = 0.6$ and $10^{-8}$ for $p_\mathrm{win} = 0.01$)
+when deciding which actions to treat as equally good, that is,
+if $|q(s,a) - q(s,a')| < \varepsilon$, we consider both actions equally good.
+
+
+
+
+::: {#exr-4.8}
+Why does the optimal policy for the gambler's problem have such a curious form? In particular, for capital of 50 it bets it all on one flip, but for capital of 51 it does not. Why is this a good policy?
+:::
+::: {#sol-4.8}
+As discussed in @sec-gamblers-problem-optimal-actions,
+there is no single optimal policy.
+
+For capital 50, there's only one optimal action - bet it all.
+This reflects the general strategy of bold play,
+which intuitively limits the number of steps
+(and thus the compounding risk) needed to reach the goal.
+
+For capital 51, though, there are two optimal actions:
+continue being bold (bet 49), or - as shown in the policy from @sutton2018 - just bet 1.
+
+That both are equally good and optimal follows from the maths.
+But in my opinion, any simple intuitive explanation
+is just a posteriori justification of the mathematical facts.
+:::
+
+::: {#exr-4.9}
+Implement value iteration for the gambler's problem and solve it for $p_\mathrm{win} = 0.25$ and $p_{\mathrm{win}} = 0.55$. In programming, you may find it convenient to introduce two dummy states corresponding to termination with capital of $0$ and $100$, giving them values of $0$ and $1$ respectively. Show your results graphically, as in @fig-gamblers-problem-solution. Are your results stable as $\theta \to 0$?
+:::
+::: {#sol-4.9}
+Here are the computed solutions - both the state-value functions and the optimal policies.
+For the policies, we show all optimal actions.
+
+There are no surprises here; everything behaves as previously discussed.
+
+```{python}
+# | fig-cap: "All used $\\theta = 10^{-10}$"
+# | fig-subcap:
+# |   - "State value function for $p_\\mathrm{win} = 0.25$ and $N = 100$"
+# |   - "Optimal actions for $p_\\mathrm{win} = 0.25$ and $N = 100$"
+# |   - "State value function for $p_\\mathrm{win} = 0.55$ and $N = 100$"
+# |   - "Optimal actions for $p_\\mathrm{win} = 0.55$ and $N = 100$"
+# | layout-ncol: 2
+env = EnvGamblersProblem(p_win=0.25, goal=100)
+value_functions = value_iteration_gamblers_problem(env, 1e-12)
+v_star = value_functions[-1]
+best_actions = get_greedy_actions(v_star, env, 1e-10)
+plot_value_function([("optimal value function", v_star)], title=r"optimal value function for $p_\mathrm{win} = 0.25$ and $N=100$")
+plot_multi_policy(
+    [MultiPolicy(best_actions)], title=r"Optimal actions for $p_\mathrm{win} = 0.25$"
+)
+
+env = EnvGamblersProblem(p_win=0.55, goal=100)
+value_functions = value_iteration_gamblers_problem(env, 1e-12)
+v_star = value_functions[-1]
+best_actions = get_greedy_actions(v_star, env, 1e-10)
+plot_value_function([("optimal value function", v_star)], title=r"optimal value function for $p_\mathrm{win} = 0.55$ and $N=100$")
+plot_multi_policy(
+    [MultiPolicy(best_actions)], title=r"$Optimal actions for p_\mathrm{win} = 0.55$"
+)
+```
+
+These solutions are not stable as $\theta \to 0$
+(pushing $\theta < 10^{-18}$ seems to be numerically fragile).
+
+If we go that low, we get residual differences in the values,
+which can make some optimal actions appear non-optimal:
+
+```{python}
+env = EnvGamblersProblem(p_win=0.25, goal=100)
+value_functions = value_iteration_gamblers_problem(env, 1e-18)
+v_star = value_functions[-1]
+best_actions = get_greedy_actions(v_star, env, 1e-16)
+plot_multi_policy(
+    [MultiPolicy(best_actions)], title=r"$p_\mathrm{win} = 0.25$ and $N=100$ with $\theta = 10^{-18}"
+)
+```
+
+That said, unlike the issues in @sec-gamblers-problem-floating-points,
+this doesn't lead to wrong policies - they still contain only optimal actions.
+:::
+
+:::{#exr-4.10}
+What is the analog of the value iteration update @eq-value-iteration-update for action values,
+$q_{k+1}(s, a)$?
+:::
+:::{#solt-4.10}
+From the greedy policy update:
+$$
+\pi_k(s) = \mathrm{argmax}_a q_k(s,a)
+$$
+and the action-value Bellman update:
+$$
+q_{k+1}(s,a) = \sum_{s',r}p(s',r|s,a) [r + \gamma Q(s', \pi_k(s'))]
+$$
+we get the action-value version of the value iteration update:
+$$
+q_{k+1}(s, a) = \sum_{s',r} p(s',r|s,a)[r + \gamma \max_{a'} Q(s',a')]
+$$
+:::
+ 
+
+## Asynchronous Dynamic Programming
+
+Nothing to add here,
+
+## Generalized Policy Iteration
+
+nor here,
+
+## Efficiency of Dynamic Programming
+
+or here,
+
+## Summary
+
+and not even here.
