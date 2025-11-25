@@ -44,3 +44,56 @@ Can you think of other ways to improve the reinforcement learning player? Can yo
 ::: {#sol-1.5}
 Surely there are many ways. And I think this book will discuss many of them. Just to give one example we could use $n$-step temporal difference (update a state's value only after $n$ moves).
 :::
+
+
+
+```{python}
+import scripts.environment.race_track as rt
+import random
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+
+
+def plot():
+    fig, ax = plt.subplots(figsize=(4, 4))
+
+    grid = np.array(
+        [[0, 1, 2, 3], [1, 2, 3, 0], [0, 0, 0, 0], [3, 2, 1, 0], [3, 2, 1, 0]]
+    )
+    width, height = grid.shape
+    img = grid.T
+
+    cmap = ListedColormap(["#444444", "#e68a8a", "#f2f2f2", "#8fd18f"])
+
+    ax.imshow(img, cmap=cmap, origin="lower", interpolation="nearest")
+
+    ax.set_xticks(np.arange(width))
+    ax.set_yticks(np.arange(height))
+    ax.set_xlim(-0.5, width - 0.5)
+    ax.set_ylim(-0.5, height - 0.5)
+    ax.set_aspect("equal")
+
+    # Rotate x-tick labels
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+
+    # grid lines
+    for x in range(width):
+        for y in range(height):
+            rect = plt.Rectangle(
+                (x - 0.5, y - 0.5),
+                1,
+                1,
+                fill=False,
+                edgecolor="#444444",
+                linewidth=0.1,
+            )
+            ax.add_patch(rect)
+
+    return fig, ax
+
+
+fig, ax = plot()
+fig.set_size_inches(1, 20)    
+```

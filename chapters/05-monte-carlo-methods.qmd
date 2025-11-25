@@ -1,0 +1,2384 @@
+---
+date: 2025-06-25
+
+diagram:
+    cache: true
+    engine:
+        tikz:
+            header-includes:
+                - '\usetikzlibrary{arrows.meta,calc, positioning, backgrounds}'
+---
+
+# Monte Carlo Methods
+
+Here, Monte Carlo means sampling complete episodes.
+The Monte Carlo method does:
+
+- estimates value functions by experience
+- is only applicable for episodic tasks
+- theoretically, we assume that all episodes terminate no matter which actions are taken. I think practically this is less important, as we can't deal with finite but very long episodes either. So there's always some limit on the episode length.
+- updates only after an episode
+
+## Monte Carlo Prediction
+
+For prediction, we have two variants of Monte Carlo methods:
+
+- every-visit MC (states are dependent): maybe more intuitive but theoretical properties are worse as the returns are dependent.
+- first-visit MC (states are independent): seems a bit wasteful at first but returns are independent. I also think it can be beneficial to count a state only once, otherwise a lot of loops in a single episode can have a big impact on the value estimate.
+
+Both converge to $v_\pi(s)$ if every $s$ is visited infinitely often. The algorithm is stochastic, that's why we loop forever in the pseudocode to get asymptotic guarantee. In real code, we have to have some stop condition. For example, the simple "high number of iterations and then fingers crossed".
+
+::: {#lst-mc-prediction-first-visit .listing-block} 
+| **Input**: $\pi$, the policy to be evaluated
+| **Initialisation**: $V(s)$, for all $s \in \mathcal{S}$ arbitrarily
+|     $\mathrm{Returns}(S_t) \gets$ empty list, for all $s \in \mathcal{S}$
+|
+| Loop forever:
+|     Generate an episode following $\pi$: $S_0,A_0, R_1, S_1, A_1, \dots, R_T, S_T$
+|     $G \gets 0$
+|     Loop for each step of episode, $t = T-1, T-2, \dots, 0$:
+|         $G \gets \gamma G + R_{t+1}$
+|         If $S_t$ is not in $\{S_0,S_1, \dots, S_{t-1}\}$:
+|             Append $G$ to $\mathrm{Returns}(S_t)$
+|             $V(S_t) \gets \mathrm{average}(\mathrm{Returns}(S_t))$
+
+
+First-visit MC prediction, for estimating $V \approx v_\pi$
+:::
+
+:::{#exm-5.1-blackjack}
+This is Example 5.1: **Blackjack** from @sutton2018.
+
+Get your inifite deck ready, we're heading to the casinos.
+
+Here is a not so short summary of the Blackjack variant used in the source. I tried to keep it concise but also precise, the devil lives in the details here.
+
+- Player competes against the dealer
+- Both parties collect cards and if ones hand value exceeds 21 they automatically loose the game (go bust).
+- the deck is "infinite", i.e., the chances for any card is always like in a freshly shuffled deck.
+- the numbered cards go from 1 to 10, the value of face cards is 10 except ace which is valued 1 or 11 if that doesn't result in a bust. 
+- Game begins with two cards dealt to the player and dealer each. The player can see the first card of the dealer but not the second.
+- Right after the hands have been dealt, if the player or the dealer have 21 they have a natural and immediately win, or it's a draw if both have 21.
+- If there are no naturals the player can hit (request a new card) until he sticks (stop and let the dealer collect cards) or goes bust.
+- The dealer plays to this fixed strategy, they will hit when they have less then 17, and stick otherwise.
+- If the dealer does not go bust during their turn, the party with the highest total wins, or it's a draw.
+
+The rule about naturals stated here seems to be different from what's stated in @sutton2018: the dealers second card is only checked if the player has a natural. I took the rule that is more in line with the general black jack rules. However, I don't know what they used in their implementation though. This is actually an important point for the distribution of the cards. If the game has properly started (no party has a natural) and the dealer's showing card is an ace, it is guaranteed that the dealer's second card (the card face down) will not be a 10.
+
+This is how we setup Blackjack as an MDP:
+
+- Each game is an episode with reward: +1 (win), -1 (loss), 0 (draw).
+- the state is represented as
+$$
+(\text{player's total}, \text{player has usable ace}, \text{dealer's showing card}),
+$$
+where a usable ace means that the hand has one ace that counts as 11 (soft hand).
+- W.l.o.g. we can assume that the player's total is at least 12 as for any value below, there is no chance to go bust and we disregard any incredibly stupid policies that would stick in these kind of situations.
+- all that stuff about naturals are not part of the non-terminal states of the MDP, the game basically ends before it has properly started. They influence the starting states though. In the first non-terminal state of an episode we are guaranteed that the player's total is less than 21 and when it's the dealer's turn his second card will not give them a 21.
+
+The strategy we want to evaluate using MC prediction is a quite greedy one. The agent only sticks on a 20 or 21 otherwise hits. I implemented the BlackJack environment separately and just use it here.
+
+```{python}
+# | code-fold: false
+# === a quite greedy Blackjack policy ===
+from scripts.environment.black_jack import BlackJack, Action, State
+
+env = BlackJack()
+
+π_at_least_20 = {}
+for state in env.state_space:
+    if state.player_total < 20:
+        π_at_least_20[state] = Action.HIT
+    else:
+        π_at_least_20[state] = Action.STICK
+```
+
+Now let's set up the code for @lst-mc-prediction-first-visit. We need to do a couple of changes:
+
+- include stop condition: counter
+- calculate state-value approximation once at the end
+- for first visit we start with a count of all the episodes. Then for each $S_t$ we decrease the counter until it's one and then we know this is the first visit.
+- I added a R_0 which corresponds to naturals (episode starts in a terminal state). However, we ignore these as we only calculate rewards for non-terminal states.
+- that means a fraction of the generated episodes won't give any information
+
+```{python}
+# | code-fold: false
+# === MC prediction for Blackjack
+from collections import Counter, defaultdict
+import statistics
+import random
+from dataclasses import dataclass
+
+from scripts.environment.black_jack import BlackJack, Action, State, Reward
+
+
+def generate_episode(env, π) -> tuple[list[State, Reward, Action]]:
+    states = []  # S_0, ..., S_T
+    rewards = []  # R_0, ..., R_T
+    actions = []  # A_0, ..., A_{T-1}
+
+    state, reward, terminated = env.reset()
+
+    states.append(state)
+    rewards.append(reward)
+
+    while not terminated:
+        action = π[state]
+        actions.append(action)
+
+        state, reward, terminated = env.step(action)
+
+        states.append(state)
+        rewards.append(reward)
+
+    return states, rewards, actions
+
+
+def mc_prediction(env, π, n_episodes):
+    returns = defaultdict(list)
+
+    for _ in range(n_episodes):
+        states, rewards, actions = generate_episode(env, π)
+
+        G = 0.0
+        visit_counter = Counter(states)
+        for i in reversed(range(len(actions))):
+            G += rewards[i + 1]
+            state = states[i]
+
+            if visit_counter[state] == 1:
+                returns[state].append(G)
+            else:
+                visit_counter[state] += -1
+
+    V = {}
+    for state in env.state_space:
+        if len(returns[state]) != 0:
+            V[state] = statistics.mean(returns[state])
+
+    return V
+
+
+iterations = 1  # todo: this should be 5_000_000
+value = mc_prediction(env, π_at_least_20, iterations)
+```
+
+Here we can see the state-value function as heatmap.
+
+::: {#fig-blackjack-state-value-function-greedy-policy}
+```{python}
+## plotting
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+# def plt_grid_for_blackjack
+# Prepare axes
+player_sums = np.arange(12, 22)  # 12–21
+dealer_cards = np.arange(2, 12)  # 2–11 (11==Ace)
+
+
+# Helper to build a matrix for usable_ace = True/False
+def build_grid(value_dict, usable_ace_flag):
+    grid = np.zeros((len(player_sums), len(dealer_cards)))
+    for i, ps in enumerate(player_sums):
+        for j, dc in enumerate(dealer_cards):
+            # Create a State object with the current parameters
+            state = State(
+                player_total=ps,
+                is_soft=usable_ace_flag,
+                dealer_revealed=dc,
+            )
+            # Look up the value using the State object
+            grid[i, j] = value_dict.get(state, np.nan)
+    return grid
+
+
+# Create the two grids
+grid_no_ace = build_grid(value, False)
+grid_with_ace = build_grid(value, True)
+
+# Plot with usable ace
+plt.figure()
+plt.imshow(
+    grid_with_ace, origin="lower", aspect="auto", vmin=-1, vmax=1, cmap="coolwarm"
+)
+
+for i in range(grid_no_ace.shape[0]):
+    for j in range(grid_no_ace.shape[1]):
+        plt.text(
+            j,
+            i,
+            f"{grid_with_ace[i, j]:.2f}",
+            ha="center",
+            va="center",
+            color="black",
+            fontsize=6,
+        )
+
+
+plt.colorbar()
+plt.xticks(ticks=np.arange(len(dealer_cards)), labels=dealer_cards)
+plt.yticks(ticks=np.arange(len(player_sums)), labels=player_sums)
+plt.xlabel("Dealer's Showing Card")
+plt.ylabel("Player's Total")
+plt.title(f"MC Value Function (With Usable Ace), {iterations} Iterations")
+
+plt.tight_layout()
+plt.show()
+
+# Plot 1: no usable ace
+plt.figure()
+plt.imshow(grid_no_ace, origin="lower", aspect="auto", vmin=-1, vmax=1, cmap="coolwarm")
+
+for i in range(grid_no_ace.shape[0]):
+    for j in range(grid_no_ace.shape[1]):
+        plt.text(
+            j,
+            i,
+            f"{grid_no_ace[i, j]:.2f}",
+            ha="center",
+            va="center",
+            color="black",
+            fontsize=6,
+        )
+
+plt.colorbar()
+plt.xticks(ticks=np.arange(len(dealer_cards)), labels=dealer_cards)
+plt.yticks(ticks=np.arange(len(player_sums)), labels=player_sums)
+plt.xlabel("Dealer's Showing Card")
+plt.ylabel("Player's Total")
+plt.title(f"MC Value Function (No Usable Ace), {iterations} Iterations")
+```
+
+This is like Figure 5.1 from @sutton2018. It shows the approximate state-value function for the Blackjack policy that sticks only for 20 or 21, computed by MC policy evaluation.
+:::
+
+:::
+:::{#exr-5.1}
+Consider the diagrams in @fig-blackjack-state-value-function-greedy-policy. Why does the estimated value function jump up for the last two rows at the top? Why does it drop off for the whole last row on the right (not visible here)? Why are the lower values higher in the upper diagram than in the lower?
+:::
+:::{#sol-5.1}
+Let's answer each question separately:
+
+- the jump at the top: this come from the fact that for 20 or 21 the player sticks and for those values the odds of beating the dealer are quite high. The lower values are all negative meaning, that the player is likely to loose because – I think – with this strategy the agent is quite likely to go bust
+- The drop off that is not visible in my diagram: first of all it is to say that my diagram has ace as the right most column whereas the original had it on the left, next to 2. But even then there is no drop off visible. I have the theory that their code does not check for dealer naturals which makes a dealer showing ace more dangerous than in my implementation. However, a dealer's showing 10 looks quite worse for the agent in my implementation. A 10 seems to be a good card to have as there is a decent chance for the next card to be a 10 as well $\frac{4}{14} \approx 0.29$
+- All cell values in the upper diagram are higher for player's total less than 20 as the agent has a better chance to reach 20 or 21 without going bust with an ace up its hand. The rows for player's total of 20 and 21 should return the same values as the agent chooses to stick in both cases.
+:::
+:::{#exr-5.2}
+Suppose every-visit MC was used instead of first-visit MC on the blackjack task. Would you expect the results to be very different? Why or why not?
+:::
+:::{#sol-5.2}
+The results would be exactly the same as in blackjack as there are no state-loops in a blackjack episode (player's total goes up or usable ace flag becomes false).
+:::
+
+:::{#exm-soap-bubble}
+This is example 5.2: Soap Bubble from @sutton2018.
+
+Take a closed wire frame and dip it into soapy water. We do not want to blow any bubbles here; we only want to predict the shape the soap film spans over the frame. If the wire frame is not too wild we can represent it by prescribing a height function $h$ on the boundary of some planar region. The plot below shows how this can look.
+
+::: {#fig-soap-film}
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import cm
+
+# --- Parameters and calculations ---
+# Parameters
+radius = 2
+offset = 6
+n = 12  # resolution
+# mesh
+x = np.linspace(-radius, radius, n)
+y = np.linspace(-radius, radius, n)
+x, y = np.meshgrid(x, y)
+# disk
+mask = np.sqrt(x**2 + y**2) <= radius
+# circle
+theta = np.linspace(0, 2 * np.pi, 400)
+x_circle = radius * np.cos(theta)
+y_circle = radius * np.sin(theta)
+# outline and film height
+z_circle = x_circle**2 - y_circle**2
+z = np.where(mask, x**2 - y**2, np.nan)
+
+
+# --- Create figure ---
+fig = plt.figure(figsize=(10, 10))
+ax = fig.add_subplot(111, projection="3d")
+
+# outline shadow
+ax.contourf(
+    x,
+    y,
+    np.where(mask, 0, np.nan),
+    zdir="z",
+    alpha=0.3,
+)
+# wire
+ax.plot(
+    x_circle,
+    y_circle,
+    z_circle + offset,
+    color="black",
+    linewidth=2.5,
+)
+# soap film
+surf = ax.plot_surface(
+    x,
+    y,
+    z + offset,
+    cmap="prism",
+    linewidth=0,
+    alpha=0.75,
+    antialiased=True,
+    shade=False,
+    rcount=2,  # reduce the number of rendered rows (controls patching)
+    ccount=2,
+)
+
+
+# no tick marks
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+ax.set_zticklabels([])
+ax.set_xlabel("")
+ax.set_ylabel("")
+ax.set_zlabel("")
+
+ax.view_init(elev=20, azim=110)
+ax.set_title("A soapy Pringle", pad=20)
+
+
+plt.show()
+```
+
+This shows a Pringle-shaped soap film. The black outline is the wire frame; the rainbow surface is the film itself. The figure is modelled by a height function on the grey disk in the $xy$-plane. The underlying physics in @sutton2018, which I used for this plot, is not quite right, so this is only an approximation.
+:::
+
+The question is: given the height on the boundary, what is the height $h$ at interior points? @sutton2018 set up the problem like this:
+
+> Suppose a wire frame forming a closed loop is dunked in soapy water to form a soap surface or bubble conforming at its edges to the wire frame. If the geometry of the wire frame is irregular but known, how can you compute the shape of the surface? The shape has the property that the total force on each point exerted by neighboring points is zero (or else the shape would change). This means that the surface’s height at any point is the average of its heights at points in a small circle around that point.
+
+That last sentence as stated is not correct for soap films.
+It is true for elastic sheets like rubber, for which the restoring force is (to first order) proportional to local displacement. In that case the height function $h$ satisfies the mean-value property: its value at a point equals the average of values on any circle around that point. Equivalently $h$ is [harmonic](https://en.wikipedia.org/wiki/Harmonic_function)
+$$
+\Delta h = \frac{\partial^2 h}{\partial x^2} + \frac{\partial^2 h}{\partial y^2} = 0.
+$$ {#eq-harmonic}
+
+Soap films are different. Their molecules don't "stretch out". What contracts then is surface tenison which makes them shrink into minimal surfaces. For more information about the physics behind this, I can recommend @oprea2000. Here I will just state the relevant result: for a surface given as the graph 
+$z=h(x,y)$ they satisfy the nonlinear [minimal-surface equation](https://en.wikipedia.org/wiki/Minimal_surface) (see [@oprea2000, Proposition 3.2.3])
+$$
+h_{xx}(1+h_y^2) - 2h_xh_yh_{xy} + h_{yy}(1 + h_x^2) = 0,
+$$ {#eq-minimal-surface}
+
+where $h_x, h_{xy}, \dots$ are the partial derivatives $\frac{\partial h}{\partial x}, \frac{\partial^2 h}{\partial x\partial y}$, etc.
+
+This is generally not the same as being harmonic, so the mean-value property does not hold for a soap film in general. However, there is an approximation: when higher powers of the partial derivatives are small (see [@oprea2000, Exercise 4.4.9] for details), a soap film is well approximated by a harmonic function. This is why the picture in @fig-soap-film — which simply plots the harmonic function $x^2−y^2$ inside a circle — is only an approximation and not an exact minimal surface: $x^2−y^2$ does not satisfy the minimal-surface equation @eq-minimal-surface.
+
+Because of this distinction, I replace “soap film problem” with the rubber sheet problem in these notes. We discretise the equation for harmonic functions and solve that. On a rectangular grid we enforce the discrete mean-value property at interior nodes: for each interior node 
+$(x,y)$
+$$
+h(x,y)=\frac{1}{4} \sum_{(x',y') \in B(x,y)} h(x',y')
+$$
+with $B(x,y) = \{(x',y'): |x-x'|+|y-y'| = 1\}$.
+
+Equivalently, $h$ at an interior site equals the expected boundary value reached by a simple (nearest-neighbour) random walk started at that site. Thus we can use  Monte-Carlo methods for solving the rubber sheet problem: run many independent random walks from $(x,y)$ until they first hit the boundary, record the boundary value where each walk exits, and average those values to estimate $h(x,y)$
+
+Take the $7\times7$ grid with radius $3$ and boundary values:
+```{python}
+# | code-fold: false
+# === the rubber sheet boundary ===
+# -3 -2 -1  0  1  2  3
+# -3                 3
+# -3                 3
+# -3        x        3
+# -3                 3
+# -3                 3
+# -3 -2 -1  0  1  2  3
+radius = 3
+boundary = np.zeros((2 * radius + 1, 2 * radius + 1))
+boundary_horizontal = np.arange(-radius, radius + 1)
+boundary[0, :] = boundary_horizontal  # top edge
+boundary[-1, :] = boundary_horizontal  # bottom edge
+boundary[:, 0] = -radius  # left edge
+boundary[:, -1] = radius  # right edge
+center = (3, 3)
+
+boundary
+```
+
+By symmetry the true centre value is $0$. 
+Let’s see how close a short Monte-Carlo simulation gets to the true value. 
+First we set up the random-walk sampler:
+```{python}
+# | code-fold: false
+import random
+from enum import Enum, auto
+
+
+class Direction(Enum):
+    UP = auto()
+    DOWN = auto()
+    LEFT = auto()
+    RIGHT = auto()
+
+
+MOVE_VECTORS = {
+    Direction.UP: (-1, 0),
+    Direction.DOWN: (1, 0),
+    Direction.LEFT: (0, -1),
+    Direction.RIGHT: (0, 1),
+}
+
+
+def not_on_boundary(i, j, n_rows, n_cols):
+    return i > 0 and i < n_rows - 1 and j > 0 and j < n_cols - 1
+
+
+def single_walk(grid, start_point, rng):
+    directions = list(Direction)
+
+    i, j = start_point
+    n_rows, n_cols = grid.shape
+
+    while not_on_boundary(i, j, n_rows, n_cols):
+        direction = rng.choice(directions)
+        di, dj = MOVE_VECTORS[direction]
+        i += di
+        j += dj
+
+    return grid[i, j]
+
+
+def monte_carlo_rubber_sheet(grid, point, n_samples, rng):
+    return [single_walk(grid, point, rng) for _ in range(n_samples)]
+```
+
+And now run and average the samples:
+```{python}
+# | code-fold: false
+rng = np.random.default_rng(0)
+
+n_samples = 1000
+samples = monte_carlo_rubber_sheet(boundary, center, n_samples, rng)
+print(f"MC estimate after {n_samples} samples: {sum(samples)/n_samples}")
+```
+
+This is an okeish approximation. Note that for Monte Carlo 1000 runs is not much. Monte Carlo is inherintly slow. One measure of it's accuracy is the *standard error*, which is the standard deviation of the estimator itself (all for a fixed sample size $n$).
+
+We can see the variance of the estimator in action if we run upper experiment a couple of times:
+```{python}
+for i in range(5):
+    samples = monte_carlo_rubber_sheet(boundary, center, n_samples, rng)
+    print(f"MC estimate after {n_samples} samples: {sum(samples)/n_samples}")
+```
+
+What I mean by slow now is that the standard error typically scales with $1/\sqrt{n}$. That is, if we want to cut the standard error in half, we have to run 4 times more experiments. More about this in @sec-accuracy-of-estimators.
+
+There are two more remarks:
+
+1. A single value without error bounds is usually not really usable. A simple way to get a priori assurances is using confidence intervals. (see @sec-confidence-intervals)
+2. A clever way to decrease the standard error is by importance sampling which will be discussed and used for off-policy learning in @sec-off-policy-prediction-via-importance-sampling
+:::
+
+
+## Monte Carlo Estimation of Action Values
+
+:::{#exr-5.3}
+What is the backup diagram for Monte Carlo estimation of $q_\pi$?
+:::
+:::{#sol-5.3}
+I'm not 100% sure about this one. I think it's just the backup diagram for $v_\pi$ but starting at an action node. The unsure part for me is that $q_\pi$ depends on an action and a state, so the state must be understood implicitly in the backup diagram.
+
+::: {.text-center}
+```{.tikz}
+\begin{tikzpicture}[
+  node distance=10mm,
+  state/.style={draw, circle, minimum size=8pt, inner sep=0pt},
+  action/.style={circle, minimum size=4pt, inner sep=0pt, fill=black},
+  terminal/.style={rectangle, minimum width=8pt, minimum height=8pt, inner sep=0pt, fill=gray, draw=black},
+  >={Latex[length=3mm]}
+]
+
+
+\node[action] (n0) {};
+\node[state, below=of n0] (n1) {};
+\node[action, below=of n1] (n2) {};
+\node[below=of n2] (n3) {$\vdots$}
+\node[action, below=of n3] (n4) {};
+\node[terminal, below=of n4] (end) {};
+
+% draw arrows between nodes
+\draw[->] (n0) -- (n1);
+\draw[->] (n1) -- (n2);
+\draw[->] (n2) -- (n3);
+\draw[->] (n3) -- (n4);
+\draw[->] (n4) -- (end);
+
+% Background
+\begin{scope}[on background layer]
+    \fill[gray!10] 
+    ([shift={(-10pt,-10pt)}]current bounding box.south west) 
+    rectangle 
+    ([shift={(10pt,10pt)}]current bounding box.north east);
+\end{scope}
+
+\end{tikzpicture}
+```
+:::
+:::
+
+## Monte Carlo Control
+
+So here is the code for Monte Carlo Control.
+
+::: {#lst-mc-control-exploring-starts-first-visit .listing-block} 
+| **Initialisation**:
+|     $\pi(s) \in \mathcal{A}(s)$, for all $s \in \mathcal{S}$ arbitrarily
+|     $Q(s,a) \in \mathbb{R}$, for all $s \in \mathcal{S}, a \in \mathcal{A}(s)$ arbitrarily
+|     $\mathrm{Returns}(s,a) \gets \mathrm{empty list}$, for all $s \in \mathcal{S}, a \in \mathcal{A}(s)$
+|
+| Loop forever:
+|     Choose $S_0 \in \mathcal{S}, A_0 \in \mathcal{A}(S_0)$ randomly such that all pairs have probability $> 0$
+|     Generate an episode following $\pi$: $S_0,A_0, R_1, S_1, A_1, \dots, R_T, S_T$
+|     $G \gets 0$
+|     Loop for each step of episode, $t = T-1, T-2, \dots, 0$:
+|         $G \gets \gamma G + R_{t+1}$
+|         If $(S_t, A_t) \not\in \{(S_0,A_0), \dots, (S_{t-1},A_{t-1})\}$:
+|             Append $G$ to $\mathrm{Returns}(S_t,A_t)$
+|             $Q(S_t,A_t) \gets \mathrm{average}(\mathrm{Returns}(S_t,A_t))$
+|             $\pi(S_t) \gets \arg \max_a Q(S_t,a)$
+
+
+Monte Carlo ES (Exploring Starts), for estimating $\pi \approx \pi_\ast$
+:::
+
+It's actually quite genious how it circumvents the problem that MC @lst-mc-prediction-first-visit does not terminate by letting the approximative $Q$ be a blend of all returns from all policies the algorithm has gone through yet.
+This results also in a quite flip-floppy behaviour in @exm-5.3-solving-black-jack as we will see. When two $Q$ values are close together, then the algorithm will switch often between $\pi(s,a_1)$ and $\pi(s,a_2)$, until it will eventually in the limit – whenever that will be – it sticks to the correct one. But that's actually not such a big problem, when the $q$ values are close then it's quite unimportant which of the two we choose. But it is a problem when we want to use the result as a definitive answer to the optimal solution.
+
+It also suffers from the problem that come with MC methods. How much should we sample? And is that really the result or did we just get unlucky with our data (so that it's quite biased)?
+
+:::{#exr-5.4}
+The pseudocode for Monte Carlo ES is inefficient because, for each state-action pair, it maintains a list of all returns and repeatedly calculates their mean. It would be more efficient to use techniques similar to those explained in Section 2.4 to maintain just the mean and a count (for each state–action pair) and update them incrementally. Describe how the pseudocode would be altered to achieve this.
+:::
+:::{#sol-5.4}
+In the initialsation we don't need $\mathrm{Returns}$ any more and setup
+
+:::{ .listing-block }
+|     $\mathrm{Count}(s,a) \gets 0$
+|     $\mathrm{Avg}(s,a) \gets 0.0$
+:::
+
+and in the last lines instead of appending $G$ to $\mathrm{Returns}$ and calculate the average we do this
+
+:::{ .listing-block }
+|     $\mathrm{Count}(S_t,A_t) \gets \mathrm{Counts}(S_t,A_t) + 1$
+|     $\mathrm{Avg}(S_t,A_t) \gets \mathrm{Avg}(S_t,A_t) + \frac{G - \mathrm{Avg}(S_t,A_t)}{\mathrm{Counts}(S_t,A_t)}$
+:::
+:::
+ 
+:::{#exm-5.3-solving-black-jack}
+This is example 5.3: Solving Blackjack from @sutton2018.
+
+Now we try to find the optimal policy for Blackjack @exm-5.1-blackjack. Spoiler alert, we won't find it here. There are two main obstacles, MC needs a lot of runs, and we also have no assurance how likely it is that we have found the optimal policy.
+
+The latter problem could be solved with clever statistical analyses, but I'm actually myself not too sure what the right approach is here and it's also beyond the scope of this chapter. Anyway, we won't even run into this problem as I'm also not willing to turn up the number to such a degree that we will very likely get the optimal solution.
+
+So let's implement @lst-mc-control-exploring-starts-first-visit. The code is nearly a verbatim copy of the pseudocode so it's easy to compare. I made two changes though:
+
+- It uses @exr-5.4 for updating the averages of the $Q$-values
+- The code itself is every visit MC not like the pseudocode which is first visit MC. But it doesn't matter here as in Blackjack all trajectories are acyclic
+
+```{python}
+# | code-fold: false
+import random
+from collections import Counter
+import scripts.environment.black_jack as black_jack
+
+
+def generate_episode_es(env, π, start_state, start_action):
+    """Generate an episode starting from start_state and start_action following policy π."""
+    states = [start_state]  # S_0, ..., S_T
+    rewards = [env.set_state(start_state)]  # R_0, ..., R_T
+    actions = [start_action]  # A_0, ..., A_{T-1}
+
+    # take start action
+    state, reward, terminated = env.step(start_action)
+    states.append(state)
+    rewards.append(reward)
+
+    # follow policy
+    while not terminated:
+        action = π[state]
+        actions.append(action)
+
+        state, reward, terminated = env.step(action)
+
+        states.append(state)
+        rewards.append(reward)
+
+    return states, rewards, actions
+
+
+def mc_es(env, n_episodes, rng):
+    """Monte Carlo control with Exploring Starts.
+
+    Returns:
+        π: The learned policy.
+        q: The learned action-value function.
+    """
+    env.rng = rng
+
+    q = {
+        (state, action): rng.random()
+        for state in env.state_space
+        for action in env.action_space
+    }
+    π = {
+        state: max(env.action_space, key=lambda action: q[(state, action)])
+        for state in env.state_space
+    }  # this essentially chooses π randomly
+    c = {(state, action): 0 for state in env.state_space for action in env.action_space}
+
+    for _ in range(n_episodes):
+        # make an episode
+        start_state = rng.choice(env.state_space)
+        start_action = rng.choice(env.action_space)
+
+        states, rewards, actions = generate_episode_es(
+            env, π, start_state, start_action
+        )
+
+        # every visit
+        G = 0
+        state_actions = [(states[i], actions[i]) for i in range(len(actions))]
+        for i in reversed(range(len(actions))):
+            G += rewards[i + 1]
+            sa = state_actions[i]
+
+            # update q
+            c[sa] += 1
+            q[sa] += (G - q[sa]) / c[sa]
+
+            # update π
+            state = sa[0]
+            π[state] = max(env.action_space, key=lambda a: q[(state, a)])
+
+    return π, q
+```
+
+The only thing that's left to do now is run it and plot the found strategy
+
+::: {#fig-mc-control-blackjack}
+```{python}
+import random
+import matplotlib.pyplot as plt
+import numpy as np
+
+iterations = 10
+rng = random.Random(0)
+env = black_jack.BlackJack()
+π, q = mc_es(env, iterations, rng)
+
+# --- Plotting ---
+# Generate data
+player_totals = list(range(21, 11, -1))
+dealer_showing = list(range(2, 12))
+
+# Cell text
+action_to_string = {black_jack.Action.HIT: "H", black_jack.Action.STICK: "S"}
+cell_text_ace, cell_text_no_ace = [], []
+for pt in player_totals:
+    row = [action_to_string[π[black_jack.State(pt, True, dc)]] for dc in dealer_showing]
+    cell_text_ace.append(row)
+    row = [
+        action_to_string[π[black_jack.State(pt, False, dc)]] for dc in dealer_showing
+    ]
+    cell_text_no_ace.append(row)
+
+# Cell colours
+action_to_facecolor = {"S": "#c6dbef", "H": "#fdd0a2"}
+cell_colours_ace = [
+    [action_to_facecolor[element] for element in row] for row in cell_text_ace
+]
+cell_colours_no_ace = [
+    [action_to_facecolor[element] for element in row] for row in cell_text_no_ace
+]
+
+# Plot
+colWidths = [1 / 25] * 10
+scale = 1.5
+
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8))
+fig.suptitle(f"MC control Blackjack strategy ({iterations:.0e} iterations)")
+
+# With Ace
+ax1.set_axis_off()
+tbl1 = ax1.table(
+    cellText=cell_text_ace,
+    cellColours=cell_colours_ace,
+    colWidths=colWidths,
+    rowLabels=player_totals,
+    colLabels=dealer_showing,
+    loc="center",
+    cellLoc="center",
+)
+tbl1.scale(scale, scale)
+ax1.set_title("Usable Ace")
+
+# Without Ace
+ax2.set_axis_off()
+tbl2 = ax2.table(
+    cellText=cell_text_no_ace,
+    cellColours=cell_colours_no_ace,
+    colWidths=colWidths,
+    rowLabels=player_totals,
+    colLabels=dealer_showing,
+    loc="center",
+    cellLoc="center",
+)
+tbl2.scale(scale, scale)
+ax2.set_title("No usable Ace")
+
+plt.tight_layout()
+plt.show()
+```
+
+This shows the policy found by MC control for Blackjack. The row labels show the player sum, the column label the dealer's showing card, and the cells if the policy's action is H(it) or S(tick).
+:::
+
+After 1 million iteration we get a pretty good approximation of the optimal policy shown in Figure 5.2 from @sutton2018, but it's not quite right.
+
+This illustrates one problem with MC. If we want to know the true answer, here the best policy, then we often can't know if the answer from our MC method provides the correct answer. Of course one way out is to use MC prediction on the final policy to check if $q_\pi$ fullfils @eq-optimal-policy, but here we also have to make sure statistically that the approximation to $q_\pi$ can tell close values apart if they are possible contenders for the greedy action.
+That's often what I find misleading about MC methods. First they look very easy but once you want to get some assurance on your claims you fall down a rabbit hole. This is just unavoidable when dealing with chance, it's always tricky to hedge against being just lucky/unlucky.
+
+Another problem that is exemplified here again is the slowness of MC. So after 1 million iterations we are pretty near to the optimal solution. How many more do we need to get to the optimal solution. I tried some and I only got lucky after 100 million iterations ...(this question always depends on the seed of course and is also kind of wrong, because if we're unlucky one of the optimal actions can underperform and be replaced by a suboptimal action again).
+:::
+
+## Monte Carlo Control without Exploring Starts
+
+Two general ways to get explorative behaviour are:
+
+- use soft policies
+- use off-policy prediction
+
+Off-policy prediction is explained later after this one in @sec-off-policy-prediction-via-importance-sampling.
+
+
+A policy is $\varepsilon$-soft if $\pi(a|s) \geq \frac{\varepsilon}{\mathcal{A}(s)}$ for all $s \in \mathcal{S}$ and $a \in \mathcal{A}(s)$.
+The role of the deterministic policies in this class is taken by the $\epsilon$-greedy policies, policies that are as deterministic as $\varepsilon$-soft policies are allowed. We can think of it as with probability $\varepsilon$ the action gets randomly chosen and with probability $1-\varepsilon$ the greedy action is taken. This gives every action a probability of $\frac{\varepsilon}{|\mathcal{A}(s)|}$ except the greedy action a which has a probability of $1 - \varepsilon + \frac{\varepsilon}{|\mathcal{A}(s)|}$.
+
+So what we can do now, is we estimate an optimal $\varepsilon$-soft policy $\pi_{\varepsilon,\ast}$ and then just get rid of the $\varepsilon$-softness to use this to obtain a greedy hopefully quite good policy $\pi$. One qualitative behaviour we can  keep in mind over such a found $\pi$ is that it will play it safe. Imagine if the goal is to navigate through a mace and the best path is to balance across a narrow long bridge. Pretty surely $\pi_{\varepsilon,\ast}$ and subsequently $\pi$ will avoid such a path. So to express this behaviour more abstractly, an $\varepsilon$-soft optimal policy will play it safe and avoid situations in which wrong decisions can have catastrophical outcomes.
+
+::: {#lst-mc-control-on-policy-first-visit .listing-block} 
+| **Input**: small $\varepsilon > 0$
+| **Initialisation**: $\pi \gets$ an arbitrary $\varepsilon$-soft policy
+|     $Q(s,a) \in \mathbb{R}$ (arbitrarily), for all $s \in \mathcal{S}$, $a \in \mathcal{A}(s)$
+|     $\mathrm{Returns}(s,a) \gets$ empty list, for all $s \in \mathcal{S}$, $a \in \mathcal{A}(s)$
+|
+| Loop forever:
+|     Generate an episode following $\pi$: $S_0,A_0, R_1, S_1, A_1, \dots, R_T, S_T$
+|     $G \gets 0$
+|     Loop for each step of episode, $t = T-1, T-2, \dots, 0$:
+|         $G \gets \gamma G + R_{t+1}$
+|         If $(S_t,A_t)$ is not in $\{(S_0,A_0), \dots, (S_{t-1},A_{t-1})\}$:
+|             Append $G$ to $\mathrm{Returns}(S_t)$
+|             $Q(S_t, A_t) \gets \mathrm{average}(\mathrm{Returns}(S_t,A_t))$
+|             $A^* \gets \arg\max_{a} Q(S_t,a)$
+|             For all $a \in \mathcal{A}(S_t)$:
+|                 $\pi(a|S_t) \gets \begin{cases} 1 - \varepsilon + \varepsilon/|\mathcal{A}(S_t)| \\ \varepsilon/|\mathcal{A}(S_t)| \end{cases}$
+
+
+On-policy first-visit MC control (for $\epsilon$-soft policies), estimates $\pi \approx \pi_*$.
+:::
+
+## Off-policy Prediction via Importance Sampling {#sec-off-policy-prediction-via-importance-sampling}
+
+Let's try to motivate importance sampling and also see where the word "importance" comes from through a simpler example, going back to the soap film analogy.
+
+### importance sampling for the rubber sheet problem
+
+Let's revisit @exm-soap-bubble where we introduced the rubber sheet problem. This time, we’ll solve it for the following $3 \times 15$ grid. The task is to find the height value of the centre point (marked with an $x$) using Monte Carlo (MC) estimation.
+```{python}
+# | code-fold: false
+# === the long rubber sheet problem ===
+# 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+# 1                 x                 1
+# 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+radius_lanky = 7
+boundary_lanky = np.zeros((3, 2 * radius_lanky + 1))
+boundary_lanky[1, 0] = 1
+boundary_lanky[1, 2 * radius_lanky] = 1
+center_lanky = (1, radius_lanky)
+```
+
+For comparison later, I calculate the exact height at the center (for a derivation, see @sec-strip-problem in the appendix):
+```{python}
+# code-fold: true
+def g(i):
+    if i == 0:
+        return 1
+    elif i == 1:
+        return 2
+    else:
+        return 4 * g(i - 1) - g(i - 2)
+
+
+print(f"The exact value at the center is {1/g(radius_lanky)}")
+```
+
+MC struggles on this long, narrow grid: random walks will most likely hit the top or bottom boundaries and only rarely the left or right. When we do $1000$ simple MC trials, the best sample averages we can hope for are either a flat $0$ (if all walks hit the top/bottom) or $\frac{1}{1000} = 0.001$ (if one walk happens to hit the left or right). Compared to the true value of roughly $0.0002$, these have errors of about $0.0002$ or $0.0008$. So the following run gives us the best possible approximation we can hope for in this setup:
+```{python}
+rng = np.random.default_rng(0)
+n_samples = 1000
+samples = monte_carlo_rubber_sheet(boundary_lanky, center_lanky, n_samples, rng)
+f"MC estimate after {n_samples} samples: {sum(samples)/n_samples}"
+```
+
+Essentially, what’s happening here is that our method is (if you excuse the anthropomorphism) saying, “Well... it’s so unlikely that we’ll hit the side walls that I’ll just ignore them and keep bouncing between the top and bottom.” But this could lead to large errors if, for example, the left and right boundaries weren’t $1$ but instead $10{,}000$.
+
+In this sense, the left and right sides hold important information, while repeatedly sampling the top and bottom gives little new information. We can say that the left and right boundaries are important, and therefore it’s important to sample them more often.
+
+This is the basic idea behind importance sampling:
+we know that some outcomes (or behaviours) should be sampled more frequently because they contribute more to the expectation we care about. However, if we do sample more frequently from these outcomes, we must correct for this bias in our final calculation — otherwise, we no longer estimate the true expectation under the original (target) distribution.
+
+Let’s formalise this for the rubber sheet problem above and bring it into the language of machine learning. We can see random walks on a grid as trajectories of an MDP with a deterministic environment.
+An instance of a random walk is a trajectory $\tau = s_0,a_0,\dots,s_{T-1},a_{T-1},s_T$ (we are ignoring rewards for now), where the $s_i$ are the positions in the grid and the directions $a_i$ the chosen actions $U,D,L,R$. $s_0$ is the center position and $T$ is the time of first exist and thus $s_T$ is the first boundary state.
+
+We get equidirectional random walks from the uniform random policy $\pi_t$ that assigns equal probability to all directions $\pi_t(U) = \pi_t(D) = \pi_t(L) = \pi_t(R) = 0.25$ independent of the position (so it's stationary). The probability of a particular trajectory $\tau$ under $\pi_t$ is independent of the $s_i$ as the environment is deterministic and the policy is also independent of the state
+$$
+\pi_t(\tau) = \pi_t(a_0) \cdot \dots \cdot \pi_t(a_{T-1}).
+$$
+
+The expected exit height is therefore
+$$
+\mathbb{E}_{\tau \sim \pi_t}[h(\tau)] = \sum_{\tau} h(\tau) \cdot \pi_t(\tau)
+$$
+where $h(\tau) = h(s_T)$.
+
+Now, instead of the target policy $\pi_t$, suppose we sample using a behaviour policy $\pi_b$ which prefers left and right (and is also independent of the states):
+$$
+\pi_b(R) = \pi_b(L) = 0.45, \quad \pi_b(U) = \pi_b(D) = 0.05.
+$$
+
+Clearly, mean samples according $\pi_b$ is not a valid estimator for $\mathbb{E}_{\tau \sim \pi_t}[h(\tau)]$, which is what we actually want.
+
+But we can use a clever trick here:
+$$
+\begin{split}
+\mathbb{E}_{\tau \sim \pi_t}[h(\tau)] &= \sum_{\tau} h(\tau) \pi_t(\tau) \\
+&= \sum_{\tau} h(\tau) \frac{\pi_t(\tau)}{\pi_b(\tau)} \cdot \pi_b(\tau) \\
+&= \mathbb{E}_{\tau \sim p_b}\left[h(\tau) \frac{\pi_t(\tau)}{\pi_b(\tau)}\right]
+\end{split}
+$$
+
+Thus any estimator for $\mathbb{E}_{\tau \sim p_b}\left[h(\tau) \frac{\pi_t(\tau)}{\pi_b(\tau)}\right]$ is also an estimator for $\mathbb{E}_{\tau \sim \pi_t}[h(\tau)]$.
+
+A simple unbiased estimator for this expectation is
+$$
+\frac{1}{n}\sum h(\tau_i)w(\tau_i) \quad \text{where } w(\tau_i) = \frac{\pi_t(\tau_)}{\pi_b(\tau_i)}, \tau_i \sim \pi_b
+$$
+where the $w(\tau)$ is called the importance weight.
+
+
+Now, let's implement importance sampling. First we define a function that returns one $h(\tau)w(\tau)$ that is sampled according to a given $\pi_b$:
+```{python}
+# | code-fold: false
+# === importance sampling for rubber sheet problem ===
+def single_walk_importance_sampling(
+    grid,
+    start_point,
+    π_b: dict[Direction, float],
+    rng,
+):
+    """Sample τ under `π_b` and return h(τ)·w(τ)
+    for uniform target π_t(a)=0.25.
+    """
+    # Keep a deterministic order of directions and their sampling probabilities
+    directions = list(π_b.keys())
+    probs = list(π_b.values())
+
+    # Per-action ratios π_t(a) / π_b(a); here π_t(a)=0.25
+    direction_ratio = {k: 0.25 / v for k, v in π_b.items()}
+
+    i, j = start_point
+    n_rows, n_cols = grid.shape
+    importance_weight = 1
+
+    # Walk until a boundary cell is reached
+    while not_on_boundary(i, j, n_rows, n_cols):
+        # sample an action according to π_b
+        direction = rng.choice(directions, p=probs)
+
+        # Move on grid
+        di, dj = MOVE_VECTORS[direction]
+        i += di
+        j += dj
+
+        importance_weight *= direction_ratio[direction]
+
+    # On exit, grid[i, j] is the boundary height h(s_T)
+    return importance_weight * grid[i, j]
+```
+
+Now we can sample some values and take the average to get an estimate:
+```{python}
+# | code-fold: false
+# === importance sampling on the long rubber sheet ===
+n_samples = 1000
+rng = np.random.default_rng(0)
+
+π_b = {
+    Direction.RIGHT: 0.45,
+    Direction.LEFT: 0.45,
+    Direction.UP: 0.05,
+    Direction.DOWN: 0.05,
+}
+samples = [
+    single_walk_importance_sampling(boundary_lanky, center_lanky, π_b, rng)
+    for _ in range(n_samples)
+]
+print(f"importance sampling after {n_samples} iterations:")
+print(np.average(samples))
+```
+
+This has an error of about $0.00006$ compared to the $0.0002$ from the crude MC before. In general in this problem this gives us more accurate results.
+
+We can quantify this statistically. The error of MC techniques depends only on two factors the standard deviation $\sigma$ and $1/\sqrt{n}$ (under the normal approximation that holds for big sample numbers). So importance sampling is a variance reduction technique, that gives us an improvement. We can compare the two variances of crude MC and importance sampling for our example:
+
+```{python}
+seed = 0
+n_samples = 2
+
+# crude
+rng = np.random.default_rng(seed)
+samples_crude = monte_carlo_rubber_sheet(boundary_lanky, center_lanky, n_samples, rng)
+variance_crude = np.var(samples_crude)
+
+# importance sampling
+rng = np.random.default_rng(seed)
+samples_is = [
+    single_walk_importance_sampling(boundary_lanky, center_lanky, π_b, rng)
+    for _ in range(n_samples)
+]
+variance_is = np.var(samples_is)
+
+σ_crude = np.sqrt(variance_crude)
+σ_is = np.sqrt(variance_is)
+print(f"Estimates for σ after {n_samples} iterations")
+print(f"crude Monte Carlo σ: {σ_crude}")
+print(f"importance sampling σ: {σ_is}")
+```
+
+So we basically get an extra 10x better accuracy (in the long run), just by sampling more the important directions.
+
+### importance sampling in ML
+
+After this rather lengthy introduction to importance sampling, let's talk about it's use in off-policy prediction. In this use case the goal is not variance reduction, but to ensure exploration, in fact the variance might even go up.
+
+We have a behaviour policy $b$ that we will use for sampling episodes and a target policy $\pi$ for which we want to know the expected return $v_\pi(s)$.
+Let's use the importance-sampling ratio trick,
+$$
+\begin{split}
+v_\pi(s) &= \mathbb{E}_{\tau \sim \pi}[G_0(\tau)| S_0 = s] \\
+&= \sum_{\tau} G_0(\tau) p_{\pi}(\tau|S_0 = s) \\
+&= \sum_{\tau} G_t(\tau) \frac{p_\pi(\tau_|S_0 = s)}{p_b(\tau|S_0 = s)} p_b(\tau|S_0 = s) \\
+&= \mathbb{E}_{\tau \sim b}\left[G_0(\tau) \frac{p_\pi(\tau|S_0 = s)}{p_b(\tau|S_0 = s)}\Big| S_0 = s\right]
+\end{split}
+$$
+
+We call the fraction in the expectation the importance weight and its equal to (I give the reason below)
+$$
+w(\tau) = \frac{p_\pi(\tau)}{p_b(\tau)}.
+$$
+
+For a given $\tau = S_0, A_0, \dots, A_{T-1}, R_T, S_T$ we can compute them. First note that
+$$
+p_\pi(\tau) = p(S_0)\prod_{t=0}^{T-1} \pi(A_t|S_t) p(S_{t+1}| S_t, A_t)
+$$
+and equally for $p_b(\tau)$.
+Now the importance weight is
+$$
+\begin{split}
+w(\tau) &= \frac{p_\pi(\tau|S_t = s)}{p_b(\tau|S_t = s)} \\
+&= \frac{p(S_0)}{p(S_0)}\frac{\prod_{k = t}^{T-1}\pi(A_k|S_k) p(S_{k+1}| S_k, A_k)}{\prod_{k = t}^{T-1}b(A_k|S_k) p(S_{k+1}| S_k, A_k)}\\
+&= \prod_{k = t}^{T-1}\frac{\pi(A_k|S_k)}{b(A_k|S_k)}
+\end{split}
+$$
+All the MDP's dynamics cancels out. That's also why we could drop the condition on $S_0 = s$ above.
+
+If we collect everything together and generalise it a bit
+$$
+v_\pi(s) = \mathbb{E}_{\tau \sim b}[w_{t:}(\tau)G_t(\tau) | S_t = s]
+$$ {#eq-importance-sampling-expectation}
+
+with 
+$$
+w_{t:}(\tau) = \prod_{k = t}^{T-1}\frac{\pi(A_k|S_k)}{b(A_k|S_k)}
+$$
+
+
+We have deviated a bit of the notation of @sutton2018 and I will keep it this way for now, as for me their notation is more confusing than helpful.
+
+Now it’s time to meet the importance sampling estimators, that is expressions for exstimating @eq.
+We have $n$ episodes $\tau^{(1)},\dots,\tau^{(n)} \sim b$, sampled under the behaviour policy $b$:
+
+- Ordinary importance sampling (OIS):
+$$
+V^{\mathrm{OIS}}(s) = \frac{\sum_{(i,t) \in \mathcal{T}(s)} w_t(\tau^{(i)}) G_t(\tau^{(i)})}{|\mathcal{T}(s)|},
+$${#eq-ordinary-importance-sampling}
+
+where $\mathcal{T}(s)$ is either:
+
+- the set of all tuples of $(i,t)$ such that $S^{(i)}_t = s$ for the first time in episode $\tau^{(i)}$ (the first-visit case), or
+- the set of all tuples $(i, t)$ such that $S^{(i)}_t = s$ (the every-visit case).
+
+- Weighted importance sampling (WIS):
+$$
+V^{\mathrm{WIS}}(s) = \frac{\sum_{(i,t) \in \mathcal{T}(s)} w_t(\tau^{(i)}) G_t(\tau^{(i)})}{\sum_{(i,t) \in \mathcal{T}(s)} w_t(\tau^{(i)})}.
+$${#eq-weighted-importance-sampling}
+
+### Bias, MSE, and All That
+
+Now it’s time to properly talk about estimators.
+An *estimator* is a rule for computing an estimate of some unknown quantity from data.
+We can also just see them as random variables defined using the data random variables.
+
+In our case, the unknown quantity is $v_\pi$, the true value function under the target policy $\pi$; the data are our episodes $\tau^{(1)},\dots,\tau^{(n)}$ generated under $b$; and the estimators are the various flavours of importance sampling: ordinary vs. weighted, and first visit-visit vs. every-visit.
+
+#### First-Visit Ordinary importance Sampling {.unnumbered}
+
+The first-visit ordinary importance sampling estimator, $V^{\mathrm{OIS}}_{\mathrm{fv}}$, is probably the most straightforward of the bunch.
+For a state $s$, it estimates $v_\pi(s)$. Let us write the first-visit OIS estimator using the $m$ first-visit samples (drop the complicated indexing and think of i.i.d. samples of importance weights and returns $(w_j,G_j)$ that come from visits to $s$):
+$$
+V^{\mathrm{OIS}}_\text{fv}(s) = \frac{\sum_{j=1}^m w_j G_j}{m}
+$$
+
+as the mean of independent samples it is *unbiased*, meaning
+$$
+\mathrm{E}[V^{\mathrm{OIS}}_\text{fv}(s)] = v_\pi(s)
+$$
+basically by definition of the importance weights, as
+$$
+\mathbb{E}[w_jG_j] = v_\pi(s)
+$$
+
+The *mean squared error* (MSE) is a standard measure of estimator quality:
+$$
+\mathrm{MSE}(V^{\mathrm{OIS}}_\text{fv}(s)) = \mathbb{E}[(\mathrm{V}^{OIS}_\text{fv}(s) - v_\pi(s))^2].
+$$
+
+The smaller the MSE, the closer the estimator tends to be to the true value on average.
+For an unbiased estimator like $V^{\mathrm{OIS}}_\text{fv}(s)$, the MSE equals its variance,
+so it scales like the variance with $1/m$.
+What we then can really feel in the accuracy of an estimator is actually the root mean squared error (RMSE):
+$$
+\text{RMSE} = \sqrt{\text{MSE}}
+$$
+So this one scales with the for MC methods typical $1/\sqrt{m}$.
+
+The catch? Ordinary importance sampling can have infinite variance if the importance weights have infinite variance for first-visit or every-visit (see @exm-5.5-infinite-variance and the solution to @exr-5.8). In this situations we don't get any $MSE = O(1/\sqrt{m})$ guarantees obviously. And the convergence will be even slower and unstable.
+
+#### First-Visit Weighted importance Sampling {.unnumbered}
+
+Now let’s turn to the first-visit weighted importance sampling estimator, 
+$$
+V_{\text{ev}}^{\mathrm{WIS}} = \frac{\sum_{j=1}^m w_j G_j}{\sum_{j=1} w_j},
+$$
+again for i.i.d. samples of $(w_j,G_j)$.
+This one trades a bit of *bias*, which is defined like this
+$$
+B(V_{ev}^{\mathrm{WIS}}) = \mathbb{E}[V_{\mathrm{ev}}^{\mathrm{WIS}}] - v_\pi(s),
+$$
+for much lower variance.
+
+To see that it's generally biased we can write it like this
+$$
+V_{\text{ev}}^{\mathrm{WIS}} = \frac{\left(\sum_{j=1}^m w_j G_j\right)/m}{\left(\sum_{j=1} w_j\right)/m},
+$$
+as the quotient of two random variables. The upper one is just $V^{\mathrm{OIS}}_{\text{ev}}$ whose expectation is $v_\pi(s)$ and the lower one has expectation $1$, which we show later. Of course the two random variables are dependent and so in general the expectation of the quotient is not the quotient of their expectations, that means in general
+$$
+\mathbb{E}[V_{\text{ev}}^{\mathrm{WIS}}] = \mathbb{E}\left[\frac{V_{\text{ev}}^{\mathrm{OIS}}}{(\sum_j w_j)/m}\right] 
+\not= \frac{\mathbb{E}[V_{\text{ev}}^{\mathrm{OIS}}]}{\mathbb{E}[(\sum_j w_j)/m]} 
+= \frac{v_\pi(s)}{1}
+$$
+The last thing to show is that $\mathbb{E}[w] =1$ for a importance weight:
+$$
+\begin{split}
+\mathbb{E}_{\tau \sim b}[w] &= \sum_{\tau} \frac{p_\pi(\tau|S_0=s)}{p_b(\tau)|S_0=s} p_b(\tau|S_0=s) \\
+&= \sum_{\tau} p_\pi(\tau|S_0=s) \\
+&= 1
+\end{split}
+$$
+
+Nonetheless this bias is not too bad as it scales with $1/m$ [@agapiou2017Importance, Theorem 2.1], which makes it not that bad, and it's MSE scales with $1/m$, like ordinary importance sampling. So the bias can't be that bad after all.
+
+Crucially weighted importance sampling has finite variance provided the returns are bounded by $a$.
+We can write it as a weighted sum:
+$$
+V^\mathrm{WIS}_\text{ev} = \sum_{j=1}^m \alpha_j G_j \quad \text{with } \alpha_j = \frac{w_j}{\sum_{k=1}^m w_k}
+$$
+
+So $\mathbb{E}[(V^\mathrm{WIS}_\text{ev})^2] \leq \mathbb{E}[a^2] =  a^2$.
+
+#### Every-Visit Importance Sampling {.unnumbered}
+
+The every-visit versions of importance sampling estimators look similar to their first-visit counterparts, but the underlying data are quite different.
+Now, the pairs $(w_j, G_j)$ are not independent: several of them may come from the same episode. For example, if $(w_k, G_k)$ corresponds to an early state visit and $(w_\ell, G_\ell)$ to a later one in the same trajectory, then $G_k \ge G_\ell$ whenever rewards are non-negative.
+This introduces correlation between samples and complicates the variance analysis.
+
+The estimators are still consistent, that is
+$$
+V^\mathrm{OIS}_\text{ev} \to v_\pi(s), V^\mathrm{WIS}_\text{ev} \to v_\pi(s) \quad \text{for } m \to \infty,
+$$
+but they are no longer unbiased for finite data — even for ordinary importance sampling. The bias is usually small and disappears asymptotically, but it’s worth noting that the i.i.d. assumption used in the first-visit case no longer holds.
+
+Practically, the every-visit estimators make fuller use of data: they reuse later parts of each trajectory instead of discarding everything after the first occurrence of a state. This typically reduces variance per episode compared to the first-visit versions, especially when visits to the same state are frequent. However, the reduction is not guaranteed, since correlation can sometimes have the opposite effect if the episode structure or the weighting magnifies noise.
+
+
+:::{#exr-5.5}
+Consider an MDP with a single nonterminal state and a single action that transitions back to the nonterminal state with probability $p$ and transitions to the terminal state with probability $1-p$. Let the reward be $+1$ on all transitions, and let $\gamma = 1$. Suppose you observe one episode that lasts 10 steps, with a return of 10. What are the first-visit and every-visit estimators of the value of the nonterminal state?
+:::
+:::{#sol-5.5}
+The basic exercise is easy:
+
+- The first visit estimate is just $10$, the length of the episode
+- The every visit estimator is $\frac{10 + 9 + \dots + 1}{10} = \frac{10\cdot 11}{2 \cdot 10} = 5.5$
+
+In the rest of this I want to go a bit beyond and use the setup of this exercise to show that the every-visit estimator $V_\text{ev}(s)$ is biased.
+
+The length $L$ of an episode is geometrically distributed with $\mathrm{Pr}(L = \ell) = p^{\ell-1}(1-p)$. Thus the true value of the non-terminal state is:
+$$
+\begin{split}
+v(s) &= \sum_{\ell = 1}^\infty \ell \cdot p^{\ell -1}(1-p) \\
+&= (1-p) \left(\sum_{\ell = 1}^\infty p^\ell \right)' \\
+&= (1-p) \left( \frac{1}{1-p} \right)' \\
+&= \frac{1}{1-p}
+\end{split}
+$$
+
+The every visit estiator for a single episode is $V_\text{ev} = \frac{1+\dots+ L}{L} = \frac{L+1}{2}$. So we get *for a single episode*
+$$
+\mathbb{E}(V_\text{ev}) = \sum_{\ell = 1}^\infty \frac{\ell + 1}{2} p^{\ell-1}(1-p) = \frac{2-p}{2(1-p)}
+$$
+So here we can already see that it has bias
+$$
+B(V_\text{ev}) = \mathbb{E}(V_\text{ev}) - v = - \frac{1}{2} \frac{p}{1-p}
+$$
+
+Now I want to go even abover and beyonder by going through some lengthy computations to find an explicit formula for the bias. This is just to showcase how tricky it is to work with data that is not i.i.d.
+
+In general we can write
+$$
+\begin{split}
+V_\text{ev} &= \frac{\sum_{i=1}^m \sum_{t=1}^{L_i} G_{i,t}}{\sum_{i=1}^m L_i} \\
+&= \frac{\sum_{i=1}^m \frac{L_i(L_i+1)}{2}}{\sum_{i=1}^m L_i} \\
+&= \frac{1}{2} \left( 1 + \frac{\sum_{i=1}^m L_i^2}{\sum_{i=1}^m L_i}\right),
+\end{split}
+$$
+for $m$ episodes of lengths $L_i$.
+
+Now let's tackle the complicated looking fraction. Let $S_m = \sum_{i=1}^m L_i$ then using these unproven facts (they need quite a bit of work to be proven themselves):
+
+- $\mathbb{E}[L_1^2|S_m = s] = \frac{s(2s-m+1)}{m(m+1)}$
+- $\mathbb{E}[S_m] = \frac{m}{1-p}$.
+
+we get 
+$$
+\begin{split}
+\mathbb{E}\left[ \frac{\sum_{i=1}^m L_i^2}{\sum_{i=1}^m L_i} \right] &= \sum_{s = m}^\infty \mathbb{E}\left[ \frac{\sum_{i=1}^m L_i^2}{s} | S_m = s \right] \mathrm{Pr}(S_m = s) \\
+&= \sum_{s = m}^\infty \frac{m}{s}\mathbb{E}\left[ L_1^2 | S_m = s \right] \mathrm{Pr}(S_m = s) \\
+&= m\sum_{s = m}^\infty \frac{1}{s} \frac{s(2s-m+1)}{m(m+1)} \mathrm{Pr}(S_m = s) \\
+&= \frac{1}{m+1} \sum_{s=m}^\infty (2s-m+1) \mathrm{Pr}(S_m = s) \\
+&= \frac{1}{m+1}\mathbb{E}[2S_m - m + 1] \\
+&= \frac{1}{m+1}\left(\frac{2m}{1-p} - m + 1\right).
+\end{split}
+$$
+
+Using the expression above for $V_\text{ev}$ and the derived expectation we get after some simplifying
+$$
+\mathbb{E}[V_\text{ev}] = \frac{m + 1 - p}{(m+1)(1-p)}
+$$
+and for the bias
+$$
+B[V_\text{ev}] = -\frac{1}{m+1}\frac{p}{1-p}.
+$$
+Which is a surprinsingly straightforward generalisation of the case $m=1$ from above.
+It is also $B \in O(\frac{1}{m})$.
+:::
+
+:::{#exm-5.4-off-policy-evaluation-black-jack}
+
+This is example 5.4: **Off-policy Estimation of a Blackjack State Value** from @sutton2018.
+
+The setup we want to use for estimating $v_\pi(s)$ using importance sampling is:
+
+- MDP = blackjack
+- $\pi =$ greedy policy from @exm-5.1-blackjack 
+- $b =$ uniform random policy
+- $s =$ (player's total = 13, hand is soft = yes, dealer showing = 2)
+
+First let's re-check the true estimate $v_\pi(s) = -0.27726$ from @sutton2018:
+```{python}
+# | code-fold: false
+def generate_episode_from_state(env, π, start_state):
+    """Generate an episode starting from start_state following policy π."""
+    env.set_state(start_state)
+
+    state, terminated = start_state, False
+    while not terminated:
+        action = π[state]
+        state, reward, terminated = env.step(action)
+
+    return reward
+
+
+env = BlackJack()
+start_state = State(13, True, 2)
+n_samples = 1  # 100_000
+
+sum(
+    [
+        generate_episode_from_state(env, π_at_least_20, start_state)
+        for _ in range(n_samples)
+    ]
+) / n_samples
+```
+
+
+This is pretty close to the $-0.27726$, so we take theirs.
+
+Now let's set up importance sampling. I don't want to show the full code here, because it's a bit bookkeapy. However, how we compute the importance weights is interesting, as the target policy is deterministic.
+This results in a *compliance* version of importance sampling: as soon as the behaviour policy deviates from the target policy the resulting importance-weight is $0$. That means in our case – where we have two actions and the behaviour policy is uniformly random – the importance-weight is either $0$ if $b$ does something $\pi$ wouldn't or $2^\ell$ where $\ell$ is the number of compliant actions.
+
+```{python}
+# | code-fold: false
+# === Single importance sampling trajectory for Black Jack ===
+
+EpisodeWG = tuple[float, float]  # (weight, return)
+
+
+def bj_importance_weight_compliance(env, π, start_state, rng) -> EpisodeWG:
+    """Run one episode returning (importance-weight, return).
+    Behaviour is uniformly random.
+    Returns (0, 0) if behaviour non-compliant."""
+    env.rng = rng
+    env.set_state(start_state)
+
+    episode_length = 0
+    state, terminated = start_state, False
+    while not terminated:
+        episode_length += 1
+        action = rng.choice(env.action_space)
+
+        if action != π[state]:
+            return 0, 0 #<1>
+
+        state, reward, terminated = env.step(action)
+
+    return 2**episode_length, reward
+```
+
+1. It's ok to return $(w,G) = (0,0)$ here as $G$ only occurs in $wG$. So $G$ doesn't matter if $w = 0$.
+
+Just to get a feel for it we can see the returns for 10 episodes
+```{python}
+rng = random.Random(0)
+start_state = State(13, True, 2)
+for i in range(10):
+    w, r = bj_importance_weight_compliance(env, π_at_least_20, start_state, rng)
+
+    print(f"episode {i+1:2d} – Weight {w}, return {r}")
+```
+
+So usually the weight is 0 except sometimes it can get quite big.
+This exemplifies how ordinary importance sampling  in ML can have such big variance.
+
+Now let's plot the performance of ordinary and weighted importance sampling.
+
+::: {#fig-5.3-off-policy-evaluation-black-jack}
+```{python}
+import random
+import seaborn as sns
+
+
+def mse_vs_m(
+    env, policy, start_state, max_m: int, iterations_per_m: int, true_value: float, rng
+):
+    """Estimate MSE of ordinary and weighted importance sampling
+    as a function of the number of episodes m.
+    """
+
+    def compute_estimators_from_array(
+        ep_arr: np.ndarray,
+    ) -> tuple[np.float64, np.float64]:
+        """
+        Given an array of shape (m, 2) where:
+            col 0 = importance weights (w)
+            col 1 = returns (G)
+        compute:
+            ordinary IS = mean(w * G)
+            weighted IS = sum(w * G) / sum(w)
+        """
+        w = ep_arr[:, 0]
+        g = ep_arr[:, 1]
+
+        ordinary_IS = np.mean(w * g)
+
+        denom = w.sum()
+        weighted_IS = (w * g).sum() / denom if denom != 0.0 else np.nan
+
+        return ordinary_IS, weighted_IS
+
+    # --- Prepare arrays to record MSEs for different m values ---
+    m_values = np.arange(1, max_m + 1)
+    ordinary_mses = np.empty_like(m_values, dtype=float)
+    weighted_mses = np.empty_like(m_values, dtype=float)
+
+    # --- For each m (sample size), estimate MSE over many independent runs ---
+    for idx, m in enumerate(m_values):
+        ord_estimates = np.empty(iterations_per_m, dtype=float)
+        wgt_estimates = np.empty(iterations_per_m, dtype=float)
+
+        for it in range(iterations_per_m):
+            # --- Collect m independent (weight, return) samples ---
+            episodes = [
+                bj_importance_weight_compliance(env, policy, start_state, rng)
+                for _ in range(m)
+            ]
+            ep_arr = np.array(episodes, dtype=float)  # shape (m, 2)
+            ord_estimates[it], wgt_estimates[it] = compute_estimators_from_array(ep_arr)
+
+        # --- Compute mean squared error relative to the known true value ---
+        ordinary_mses[idx] = np.nanmean((ord_estimates - true_value) ** 2)
+        weighted_mses[idx] = np.nanmean((wgt_estimates - true_value) ** 2)
+
+    return m_values, ordinary_mses, weighted_mses
+
+
+def plot_ordinary_vs_weighted_IS(max_episodes, iterations_per_episode, rng):
+    bj_env = BlackJack()
+    start_state = State(13, True, 2)
+    true_value = -0.27726  # precomputed
+
+    m_vals, o_mses, w_mses = mse_vs_m(
+        bj_env,
+        π_at_least_20,
+        start_state,
+        max_episodes,
+        iterations_per_episode,
+        true_value,
+        rng,
+    )
+
+    # --- Plot ---
+    sns.lineplot(x=m_vals, y=o_mses, label="Ordinary IS MSE", alpha=0.9)
+    sns.lineplot(x=m_vals, y=w_mses, label="Weighted IS MSE", alpha=0.9)
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.ylim(top=10)
+    plt.xlabel("Saple size (episodes)")
+    plt.ylabel(f"Mean squarred error (over {iterations_per_episode} runs)")
+    plt.title("Ordinary vs Weighted Importance Sampling")
+    plt.show()
+
+
+# Example seed that gives nice illustrative curves # 21, 23, 38, 9112
+rng = random.Random(0)
+# max_episodes = 100
+# iterations_per_episode = 100
+max_episodes = 1
+iterations_per_episode = 1
+
+plot_ordinary_vs_weighted_IS(max_episodes, iterations_per_episode, rng)
+```
+
+This is like figure 5.3 from @sutton2018. Weighted importance sapling produces lower error estimates for small sample sizes. Both curves are based on the same data.
+:::
+
+We can see in @fig-5.3-off-policy-evaluation-black-jack that the variance of ordinary importance sampling is higher (it produces higher spikes). For samples of size around 100 and bigger the difference is neglibale.
+:::
+
+:::{#exm-5.5-infinite-variance}
+**Infinite Variance** [@sutton2018, Example 5.5].
+
+I never thought about what infinite variance means in terms of statistics until this example.
+
+Consider the tiny MDP in @fig-5.4-infinite-variance-mdp.
+
+The optimal policy is $\pi(s) = \mathrm{left}$ and $v_\pi(s) = +1$.
+Let's see what importance sampling does with uniform random behaviour policy $b$.
+
+Weighted importance sampling does a pretty good job here. As soon as it's defined, i.e., there is one compliant episode in the samples, it estimates exactly $+1$.
+
+Ordinary importance sampling, does a much worse job.
+
+:::: {#fig-5.4-infinite-variance}
+
+::: {#fig-5.4-infinite-variance-mdp width=10%}
+::: {.text-center}
+```{.tikz}
+\begin{tikzpicture}[
+  node distance=10mm,
+  state/.style={draw, thick, circle, minimum size=8pt, inner sep=4pt},
+  action/.style={circle, minimum size=4pt, inner sep=0pt, fill=black},
+  terminal/.style={rectangle, draw, thick, minimum width=12pt, minimum height=12pt, inner sep=0pt, fill=gray!60},
+  >={Latex[length=3mm]}
+]
+
+
+\node[state] (s) {s};
+\node[action, left=of s, label=left:left] (a_left) {};
+\node[action, right=of s, label=above:right] (a_right) {};
+\node[terminal, right=of a_right] (terminal) {};
+
+\draw (s) -- (a_left);
+\draw[->] (a_left) to[out=90, in=90, looseness=1.25] node[above] {$R=+1$} node[above right, pos=0.005] {\small$0.1$} (terminal);
+\draw[->] (a_left) to[out=-90, in=-90, looseness=1.5] node[below right, pos=0.01] {\small$0.9$} node[below] {$R=0$} (s);
+
+\draw (s) -- (a_right);
+\draw[->] (a_right) to node[below] {$R=0$} (terminal);
+
+% Background
+\begin{scope}[on background layer]
+    \fill[blue!20] 
+    ([shift={(-10pt,-10pt)}]current bounding box.south west) 
+    rectangle 
+    ([shift={(10pt,10pt)}]current bounding box.north east);
+\end{scope}
+
+\end{tikzpicture}
+```
+:::
+
+A MDP with only one non-terminal state $s$ and two actions $\mathrm{left}$ and $\mathrm{right}$.
+The action $\mathrm{right}$ deterministically terminates the MDP with $0$ reward. The action $\mathrm{left}$ terminates with probability $0.1$ with a reward of $+1$, in the other case it loops back to $s$ with reward $0$.
+:::
+:::{#fig-5.4-infinite-variance-Ordinary-IS}
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+import gc
+
+# --- Sampling function ---
+_rng = np.random.default_rng()
+
+
+# This simulates one run on the MDP given above (but much faster)
+def sample_powers_of_two(size, rng=_rng):
+    nonzero_mask = rng.random(size) > 10 / 11
+    samples = np.zeros(size, dtype=np.int64)
+    k = nonzero_mask.sum()
+    if k:
+        n = rng.geometric(0.55, size=k).astype(np.int64)
+        samples[nonzero_mask] = 1 << n
+    return samples
+
+
+# --- Parameters ---
+# N = 100_000_000
+N = 10_000_000
+num_runs = 3
+
+# --- Generate and plot ---
+plt.figure(figsize=(10, 5))
+plot_points = 2000
+
+for i in range(num_runs):
+    samples = sample_powers_of_two(N)
+    running_avg = np.cumsum(samples) / np.arange(1, N + 1)
+
+    raw = np.logspace(0, np.log10(N), num=plot_points)
+    # indices as 1-based positions, then convert to zero-based for indexing
+    idxs = np.unique(np.minimum(N, np.maximum(1, np.round(raw).astype(np.int64)))) - 1
+    xs = idxs + 1
+    ys = running_avg[idxs]
+
+    plt.plot(xs, ys, lw=1.0, alpha=0.7)
+
+    del running_avg
+    del samples
+    gc.collect()
+
+plt.title(
+    rf"MC estimate of $v_\pi(s)$ with ordinary importance sampling ({num_runs} runs)"
+)
+plt.xlabel("Sample size (Episodes)")
+plt.xscale("log")
+plt.ylabel("V(s)")
+plt.ylim(top=2)
+plt.grid(True, alpha=0.3)
+plt.show()
+
+```
+
+MC estimates for $v_\pi(s)$ using ordinary importance sampling for the MDP shown above. The target policy $\pi$ is the optimal policy and the behaviour policy is the uniform random policy.
+
+:::
+
+[@sutton2018, Figure 5.4].  Ordinary importance sampling produces surprisingly unstable estimates on the one-state MDP shown above. The correct estimate here is 1 ($\gamma = 1$), and, even though this is the expected value of a sample return (after importance sampling), the variance of the samples is infinite. These results are for off-policy first-visit MC.
+::::
+
+The problem for ordinary importance sampling is that the importance-weights have infinite variance. For the variance it's a battle between very fast growing importance-weights and very fast falling probabilities, which in this case is won by the importance-weights. We look at this in a bit more detail.
+
+A bit of calculating shows that the result of an episode can be described by two independent random variables:
+
+- $C$: weather the episode is compliant 
+$$
+\mathrm{Pr}(C = F) = 11/10, \quad \mathrm{Pr}(C = T) = 1/11
+$$
+- $L$: the length of the episode
+$$
+\mathrm{Pr}(L = \ell) = 0.55 \cdot 0.45^{\ell - 1}.
+$$
+
+So for one episode with reward $G$ and importance-weight $w$:
+$$
+\begin{split}
+\mathbb{E}[(wG)^2] &= \mathbb{E}[(2^L \cdot [C = T])^2] \\
+&= \mathbb{E}[C=T] \cdot \mathbb{E}[4^L] \\
+&= \frac{1}{11} \sum_{\ell = 1}^\infty 4^\ell \cdot 0.55 \cdot 0.45^{\ell-1} \\
+&= \frac{2.2}{11} \sum_{\ell = 1}^\infty 1.8^{\ell-1} \\
+&= \infty
+\end{split}
+$$
+
+Thus $\mathrm{var}(wG) = \infty$ and no amount of averaging can make this finite for the sample mean used by ordinary importance sampling. Thus ordinary importance sampling for this problem has infinite variance.
+
+That doesn't mean we couldn't use it. The law of large numbers still applies and says that $V^\mathrm{OIS}_\text{fv}(s) \to v_\pi(s)$ for sample size going to infinity. But we can't use the central limit theorem and thus the standard error does not decreases with $1/\sqrt{n}$.
+However, there are other error metrics that can be used. For example the [mean absolute deviation](https://en.wikipedia.org/wiki/Average_absolute_deviation) which is finite for $V^\mathrm{OIS}$. But the problem is that it scales even slower then $1/\sqrt{n}$, so, it's eaven less usefull.
+
+:::
+
+
+:::{#exr-5.6}
+What is the equation analogous to @eq-weighted-importance-sampling for action values $Q(s, a)$ instead of
+state values $V(s)$, again given returns generated using $b$?
+:::
+:::{#sol-5.6}
+Let's go through all the important steps.
+Importance sampling trick:
+$$
+\begin{split}
+q_\pi(s,a) &= \mathbb{E}_{\tau \sim \pi}[G_t(\tau)| S_t = s, A_t = a] \\
+&= \sum_{\tau} G_t(\tau) p_\pi(\tau | S_t = s, A_t = a) \\
+&= \sum_{\tau} G_t(\tau) \frac{p_\pi(\tau | S_t = s, A_t = a)}{p_b(\tau | S_t = s, A_t = a)}p_b(\tau | S_t = s, A_t = a) \\
+&= \mathbb{E}_{\tau\sim b} [w_{t+1}(\tau)G_t(\tau) | S_t = s, A_t = a]
+\end{split}
+$$
+
+The last line follows from:
+$$
+\begin{split}
+\frac{p_\pi(\tau | S_t = s, A_t = a)}{p_b(\tau | S_t = s, A_t = a)}
+&= \frac{\pi(A_{t+1}|S_{t+1})\dots \pi(A_{T-1}|S_{T-1})}{b(A_{t+1}|S_{t+1})\dots b(A_{T-1}|S_{T-1})} \\
+&= w_{t+1}(\tau)
+\end{split}
+$$
+
+So we get for ordinary importance sampling
+$$
+Q^{\mathrm{OIS}}(s,a) = \frac{\sum_{(i,t) \in \mathcal{T}(s,a)} w_{t+1}(\tau_i) G_t(\tau_i)}{|\mathcal{T}(s,a)|}
+$$
+
+and for weighted importance sampling
+$$
+Q^{\mathrm{WIS}}(s,a) = \frac{\sum_{(i,t) \in \mathcal{T}(s,a)} w_{t+1}(\tau_i) G_t(\tau_i)}{\sum_{(i,t) \in \mathcal{T}(s,a)} w_{t+1}(\tau_i)}
+$$
+:::
+
+:::{#exr-5.7}
+In learning curves such as those shown in @fig-5.3-off-policy-evaluation-black-jack error generally decreases
+with training, as indeed happened for the ordinary importance-sampling method. But for the weighted importance-sampling method error first increased and then decreased. Why do you think this happened?
+:::
+:::{#sol-5.7}
+The increasing/decreasing behaviour is not that visible in my plot. It looks it is visible but it's rather an effect of the variance. When we increase the number of runs we can see that the curve curve goes down but slower than ordinary importance sampling at first:
+
+```{python}
+# Example seed that gives nice illustrative curves # 21, 23, 38, 9112
+rng = random.Random(0)
+max_episodes = 10
+iterations_per_episode = 10000
+# max_m = 1
+# iterations_per_m = 1
+
+plot_ordinary_vs_weighted_IS(max_episodes, iterations_per_episode, rng)
+```
+
+Nonetheless this is most likely duo to the bias of weighted importance sampling. Note that for an estimator we have
+$$
+\text{MSE} = \text{Var} + \text{Bias}^2
+$$
+
+The Bias term goes away pretty quickly but for small samples it still skews the estimator away from the true value.
+:::
+
+
+:::{#exr-5.8}
+The results with @exm-5.5-infinite-variance and shown in @fig-5.4-infinite-variance used a first-visit MC method. Suppose that instead an every-visit MC method was used on the same problem. Would the variance of the estimator still be infinite? Why or why not?
+:::
+:::{#sol-5.8}
+To show that the variance of the every-visit ordinary importance sapmling estimator $V^\mathrm{OIS}_\text{ev}$ is infinite we will show that $\mathbb{E}[(V^\mathrm{OIS}_\text{ev})^2]$.
+
+As said in @exm-5.5-infinite-variance we can describe a single episode as a random vector $(C,L)$ with $C$ flaging if the episode is compliant and $L$ the length of the episode.
+The sum $\sum w_tG_t$ for this episode is then 
+$$
+\sum w_tG_t = [C = T] \sum 2^t = [C = T] 2^{L+1} - 2
+$$
+
+Now we can describe the general case with $m$ episodes which can be modeled by $m$
+i.i.d. random vectors $(C_1,L_1),\dots,(C_m,L_m)$ and
+$$
+V^\mathrm{OIS}_\text{ev} = \frac{\sum_{i=1}^m [C = T] (2^{L_i+1}-2)}{\sum_{i=1}^m L_i}
+$$
+
+Now we can provide an estimate
+$$
+\begin{split}
+\mathbb{E}[(V^\mathrm{OIS}_\text{ev})^2] &\geq \sum_{\ell = 1}^\infty \left(\frac{(2^{\ell+1}-2) + \sum_{i=2}^m (2^{1+1}-2)}{\ell + \sum_{i=1}^m 1}\right)^2 \\
+&\quad\cdot \mathrm{Pr}(L_1 = \ell, L_2,\dots,L_m = 1) \\
+&\quad\cdot \mathrm{Pr}(C_1, \dots, C_m = 1) \\
+&= \sum_{\ell = 1}^\infty \left(\frac{2^{\ell+1}+2(m-2)}{\ell+m-1}\right)^2 \cdot  0.55^m \cdot 0.45^{\ell-1} \cdot (1/11)^m \\
+&\approx \sum_{\ell = 1}^\infty 4^\ell 0.45^\ell\\
+&= \infty
+\end{split}
+$$
+
+So since the second moment is infinite the variance is too.
+:::
+
+## Incremental Implementation
+
+We have returns $G_1,\dots,G_{n-1}$ and random weights $W_1,\dots,W_{n-1}$. The weighted average is
+$$
+V_n = \frac{\sum_{k=1}^{n-1}W_kG_k}{\sum_{k=1}^{n-1}W_k}
+$$
+
+:::{#exr-5.9}
+Modify the algorithm for first-visit MC policy evaluation (@lst-mc-prediction-first-visit) to
+use the incremental implementation for sample averages described in Section 2.4.
+:::
+:::{#sol-5.9}
+::: {.listing-block} 
+| **Input**: $\pi$, the policy to be evaluated
+| **Initialisation**: $V(s) \gets 0$, for all $s \in \mathcal{S}$
+|     $N(s) \gets 0$, for all $s \in \mathcal{S}$
+|
+| Loop forever:
+|     Generate an episode following $\pi$: $S_0,A_0, R_1, S_1, A_1, \dots, R_T, S_T$
+|     $G \gets 0$
+|     Loop for each step of episode, $t = T-1, T-2, \dots, 0$:
+|         $G \gets \gamma G + R_{t+1}$
+|         If $S_t$ is not in $\{S_0,S_1, \dots, S_{t-1}\}$:
+|             $N(S_t) \gets N(S_t) + 1$
+|             $V(S_t) \gets V(S_t) + \frac{1}{N(S_t)}[G - V(S_t)]$
+:::
+:::
+ 
+:::{#exr-5.10}
+Derive the weighted-average update rule (5.8) from (5.7). Follow the
+pattern of the derivation of the unweighted rule (2.3).
+:::
+:::{#sol-5.10}
+TBD
+:::
+
+## Off-policy Monte Carlo Control
+
+::: {#exr-5.11}
+In the boxed algorithm for off-policy MC control, you may have been expecting the $W$ update to have involved the importance-sampling ratio \frac{\pi(A_t|S_t)}{b(A_t|S_t)}$, but instead it involves \frac{1}{b(A_t|S_t)}$. Why is this nevertheless correct?
+:::
+::: {#sol-5.11}
+The whole thing about proceeding to the next episode and updating $W$ how it is in there is just compliance.
+:::
+::: {#exr-5.12}
+Consider driving a race car around a turn like those shown in Figure 5.5. You want to go as fast as possible, but not so fast as to run off the track. In our simplified racetrack, the car is at one of a discrete set of grid positions, the cells in the diagram. The velocity is also discrete, a number of grid cells moved horizontally and vertically per time step. The actions are increments to the velocity components. Each may be changed by $+1$, $-1$, or $0$ in each step, for a total of nine ($3 \times 3$) actions. Both velocity components are restricted to be nonnegative and less than $5$, and they cannot both be zero except at the starting line. Each episode begins in one of the randomly selected start states with both velocity components zero and ends when the car crosses the finish line. The rewards are 1 for each step until the car crosses the finish line. If the car hits the track boundary, it is moved back to a random position on the starting line, both velocity components are reduced to zero, and the episode continues. Before updating the car’s location at each time step, check to see if the projected path of the car intersects the track boundary. If it intersects the finish line, the episode ends; if it intersects anywhere else, the car is considered to have hit the track boundary and is sent back to the starting line. To make the task more challenging, with
+probability $0.1$ at each time step the velocity increments are both zero, independently of the intended increments. Apply a Monte Carlo control method to this task to compute the optimal policy from each starting state. Exhibit several trajectories following the optimal policy (but turn the noise off for these trajectories).
+:::
+::: {#sol-5.12}
+This is a substantial exercise. Setting up the environment, the training code, debugging everyting. That's quite a lot of work. Also training on the full-size tracks is too much to do inside these notes. So I use a smaller track for exposition (@fig-track-choice) and for the bigger problems I use pretrained models. On all problem I use on-policy $\varepsilon$-soft first-visit sample-average Monte-Carlo control for training. That's quite a mouthfull but I will discuss each of these modifiers somewhere in this solution. At the very end I will also say some thoughts about Monte-Carlo exploring-starts and off-policy Monte-Carlo.
+
+#### The track environment {.unnumbered}
+I externalised the racetrack environment into `scripts.environment.race_track`. It's only required argument is the layout represented as an ASCII string. There are some other knobs, among them the size of the maximal velocity components `max_velocity` or if the velocity components can be negative `only_positive_velocity`^[Maybe `negative_velocity_components` would have been a better name.]. How I read the exercise, they want `only_positive_velocity=True` but I think that's a bit strange, especially since then some parts of the provided exmaple tracks would be unreachable. So I will use `only_posititve_velocity=False` in all of the environments. The `prob_steering_failure=0.1` by default, as required in the exercise.
+
+In the next code I define the small example `track_tight`. This environment only allows has `max_velocity=2`, this makes optimal episodes taking the left route shorter than taking the right route.
+
+```{python}
+# | code-fold: false
+import scripts.environment.race_track as rt
+
+track_tight = """ 
+##FFF
+##---
+F#---
+-#---
+-#---
+-#---
+-#---
+-#---
+-#---
+-S---
+"""
+
+env_tight = rt.RaceTrack(
+    track_tight,
+    only_positive_velocity=False,
+    max_velocity=2,
+)
+```
+
+The figure explains the track a bit more in detail
+
+::: {#fig-track-choice}
+```{python}
+import scripts.environment.race_track as rt
+import random
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+
+
+def plot_episode(env, states, title=None, radius=0.3, figsize=(8,8)):
+    """
+    Annotate every visit (timestep) but jitter repeated visits around the cell.
+    radius: radial offset (in cell units) for jitter ring; increase if labels collide.
+    """
+    fig, ax = plt.subplots(figsize=figsize)
+
+    img = env.grid._track.T
+    cmap = ListedColormap(["#444444", "#e68a8a", "#f2f2f2", "#8fd18f"])
+    ax.imshow(img, cmap=cmap, origin="lower", interpolation="nearest")
+    ax.set_xticks(np.arange(env.grid.width))
+    ax.set_yticks(np.arange(env.grid.height))
+    ax.set_xlim(-0.5, env.grid.width - 0.5)
+    ax.set_ylim(-0.5, env.grid.height - 0.5)
+    ax.set_aspect("equal")
+
+    # Rotate x-tick labels
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+
+    # grid lines
+    for x in range(env.grid.width):
+        for y in range(env.grid.height):
+            rect = plt.Rectangle(
+                (x - 0.5, y - 0.5),
+                1,
+                1,
+                fill=False,
+                edgecolor="#444444",
+                linewidth=0.1,
+            )
+            ax.add_patch(rect)
+
+    if len(states) > 0:
+        positions = [s.position for s in states]
+        xs = [p[0] for p in positions]
+        ys = [p[1] for p in positions]
+
+        ax.plot(xs, ys, marker="o")
+
+        # Build map from position -> list of visit indices
+        visits = {}
+        for t, pos in enumerate(positions):
+            visits.setdefault(pos, []).append(t)
+
+        # Annotate each visit with radial offsets to avoid overlap
+        for pos, idx_list in visits.items():
+            x0, y0 = pos
+            n = len(idx_list)
+            for k, t in enumerate(idx_list):
+                if n == 1:
+                    dx, dy = (0.08, 0.18)
+                else:
+                    angle = 2 * math.pi * k / n
+                    dx = math.cos(angle) * radius
+                    dy = math.sin(angle) * radius
+                ax.text(
+                    x0 + dx,
+                    y0 + dy,
+                    str(t),
+                    fontsize=9,
+                    va="center",
+                    ha="center",
+                    bbox=dict(boxstyle="round,pad=0.1", alpha=0.9),
+                )
+
+    if title:
+        ax.set_title(title)
+
+    return fig, ax
+
+
+fig, ax = plot_episode(
+    env_tight,
+    [],
+)
+fig.set_size_inches(2.5, 10)
+```
+
+A plot of the layout of `env_tight`. In the plots the starting cells are red, green squares the finish cells, the squares are the normal track pieces, and the dark squares the walls.
+The best route is going left and has a length of 5. Going the right path requires one more step.
+:::
+
+### On-policy first-visit MC control (for ε-soft policies) {.unnumbered}
+
+We need to implement @lst-mc-control-on-policy-first-visit.
+The algorithm lends itself to the following implementation. We the policies objects deterministic, but in the episode generation we soften these to $\varepsilon$-soft policies, this is basically an implementation of the idea that $\varepsilon$-soft policies can be thought of hard policies on the a changed environment that randomices the choosen action with probablity $\varepsilon$  [@sutton2018, Chapter 5.4].
+
+This is what `generate_episode_soft` does, it takes an envirnment, a deterministic policy, an $\varepsilon$ and produces an episode following $\pi$ where each step the action gets randomply choosen with probablity $\varepsilon$. With that the implementation of @lst-mc-control-on-policy-first-visit in `on_policy_mc_control_soft` is actually quite similar to the code used @exm-5.3-solving-black-jack for MC exploring starts. In a sense on-policy $\varepsilon$-soft MC control could be thought of as Monte Carlo exploring episodes.
+
+```{python}
+# | code-fold: false
+from collections import Counter
+
+
+def generate_episode_soft(
+    env: rt.RaceTrack,
+    π: dict[rt.State, rt.Action],
+    ε: float,
+    rng: random.Random,
+    start_pos=None,
+    max_lenght=None,
+):
+    states = []  # S_0, ..., S_T
+    rewards = []  # R_0, ..., R_T
+    actions = []  # A_0, ..., A_{T-1}
+
+    if start_pos:
+        state, reward, terminated = env.set_state(rt.State(start_pos, (0, 0)))
+    else:
+        state, reward, terminated = env.reset()
+
+    states.append(state)
+    rewards.append(reward)
+
+    ep_length = 0
+    while not terminated:
+        if (not max_lenght is None) and ep_length >= max_lenght:
+            raise RuntimeError("episode seems to be too long")
+
+        ep_length += 1
+
+        greedy_action = π[state]
+        # ε-greedy behaviour policy
+        if rng.random() < ε:
+            action = rng.choice(env.action_space)
+        else:
+            action = greedy_action
+
+        actions.append(action)
+
+        state, reward, terminated = env.step(action)
+
+        states.append(state)
+        rewards.append(reward)
+
+    return states, rewards, actions
+
+
+def on_policy_mc_control_soft(env: rt.RaceTrack, n_episodes, ε, rng: random.Random):
+    q = {
+        (state, action): rng.random()
+        for state in env.state_space
+        for action in env.action_space
+    }
+    π = {
+        state: max(env.action_space, key=lambda action: q[(state, action)])
+        for state in env.state_space
+    }
+    c = {(state, action): 0 for state in env.state_space for action in env.action_space}
+
+    # record loss for diagnostic
+    loss = []
+
+    for _ in range(n_episodes):
+        # make an episode
+        states, rewards, actions = generate_episode_soft(env, π, ε, rng)
+
+        # first visit
+        G = 0
+        state_actions = [(states[i], actions[i]) for i in range(len(actions))]
+        visit_counter = Counter(state_actions)
+        for i in reversed(range(len(actions))):
+            G += rewards[i + 1]
+            sa = state_actions[i]
+
+            if visit_counter[sa] > 1:
+                visit_counter[sa] += -1
+            else:
+                # update q
+                c[sa] += 1
+                q[sa] += (G - q[sa]) / c[sa]
+
+                # update π
+                state = sa[0]
+                π[state] = max(env.action_space, key=lambda a: q[(state, a)])
+
+        loss.append(-G)
+
+    return π, q, loss
+```
+
+
+
+### Training the small example {.unnumbered}
+
+So let's train an $\varepsilon$-soft agent for `env_tight` with $\varepsilon = 0.1$ and plot the _loss_ that occured during the training. The term loss is generally used in gradient descent methods and is the thing which is tried to be minimized. I thought it would be a good fit here. In our case the loss is just the length of the episode. The shorter the episode, the better.
+
+```{python}
+# preparation
+rng = random.Random(10)
+env_tight.rng = rng
+env_tight.prob_steering_failure = 0.1
+
+# training
+ε = 0.1
+n_episodes = 500
+π_tight, q_tight, loss_tight = on_policy_mc_control_soft(
+    env_tight,
+    n_episodes,
+    ε,
+    rng,
+)
+
+
+# plotting
+window = 20
+
+loss_avg = np.convolve(loss_tight, np.ones(window) / window, mode="valid")
+plt.plot(
+    range(1, n_episodes + 1),
+    loss_tight,
+    label="Loss (episode length)",
+    alpha=0.3,
+)
+plt.plot(
+    range(1, n_episodes + 1)[window - 1 :],
+    loss_avg,
+    label=f"Average over {window} episodes",
+)
+plt.plot(
+    range(1, n_episodes + 1),
+    [4] * n_episodes,
+    linestyle="--",
+    label=f"Length optimal episode",
+)
+plt.yscale("log")
+plt.title("Loss during training on `env_tight`")
+plt.legend()
+```
+
+Overall, the loss doesn't go up, and also has some significant drops, which is good. We can also see that in this training run there is only a single episode that reaches the optimal running length of 5 and in the later episodes it regularily gets to 6.
+Also note that the first couple of episodes had enourmus lengts for the of over 10_000. This is the problem balancing explotaition and exploration again. If I had choosen a higher $\varepsilon$ then the first couple of episodes would be smaller but the agent had less possibilities to improve as more often it's actions are out of its control.
+
+These very long intial episodes are also a reason why it's a bad idea to use every-visit MC for this problem. In every-visit MC these long episodes give lots of unhelpful rewards, I'm pretty sure that some episodes have more every-visits in the first 10 episodes than first-visit in the total run of the training. Also, in this problem good policies usually produce episodes that visit every state once anyways.
+
+Now, let's see what the trained policy 
+```{python}
+env_tight.prob_steering_failure = 0.0
+states, _, _ = generate_episode_soft(
+    env_tight,
+    π_tight,
+    0.0,
+    rng,
+    max_lenght=200,
+)
+
+plot_episode(env_tight, states)
+```
+
+As seen in the loss, the policy prefers taking the right path. Mostl likely, going right is optimal for $\varepsilon$-soft policies with $\varepsilon=0.1$. So this was just to show that $\varepsilon$-soft policies tend to avoid tight situations that require precise control and or only give a small reward.
+
+#### The big problems {.unnumbered}
+
+Now let's turn our attention to the original problems [@sutton2018, Figure 5.5]. The code that we have used so far is too slow for these problems and also for the approach I have chosen learning requires hundreds of millions of episodes on these problems.
+So I have used a script in `scripts/solving_race_track/train_left_track.py` and `scripts/solving_race_track/train_right_track.py` to train policies for a couple of hours. Although, if you want really fast code you don't use python, but that would be too much for these problems.
+
+We start with the right track, because for some reasons it's easier to solve. Well.. actually it's an interesting observation. The right track has a bigger space statet but is easier for our MC method, since the space of _relevant_ states, states that actually matter for a typical run is smaller. This is because optimised episodes for the right track are actually shorter, as the finishing line has a lower y-corrdinate, and thus can be reached in fewer steps.
+
+This code loads the trained policy, the environment and also the loss during training.
+```{python}
+import pickle
+
+with open("results/race_track_right.pkl", "rb") as file_in:
+    result = pickle.load(file_in)
+
+n_episodes_right = result["num_episodes"]
+π_right = result["policy"]
+ε_max_right = result["epsilon_max"]
+ε_min_right = result["epsilon_min"]
+env_right = result["env"]
+env_right.prob_steering_failure = 0.0
+loss_means_right = result["loss_means"]
+loss_means_starts_right = result["loss_means_starts"]
+loss_means_window_right = result["loss_means_window"]
+
+
+print(f"The policy was trained for {n_episodes_right:,} episodes.")
+print(f"The ε decreased exponentially from {ε_max_right} to {ε_min_right}")
+```
+
+The loss is for some time approximately $\frac{1}{\sqrt[5]{n}}$. I don't know why, but it shows how slow the learning is, but it could have also come from the slow $\varepsilon$ decay used in the training.
+```{python}
+plt.plot(loss_means_starts_right, loss_means_right, label="loss")
+
+start = 600
+end = 1200
+k = 460
+exp = -0.22
+anin = k * loss_means_starts_right[start:end] ** (exp)
+
+plt.plot(loss_means_starts_right[start:end], anin, label="anin")
+
+plt.xscale("log")
+plt.yscale("log")
+plt.legend()
+plt.title(f"Log-Log loss averaged over {loss_means_window_right:,} episodes")
+
+
+
+```
+
+
+Note that the plot has only a limited number of data points and the inital straight line is just two datapoints. Also even though it looks that for a good portion the loss scales as described above, this is a log-log plot, so the improvement tampers off for a good 3/4 of the whole episodes.
+
+Now let's see how the trajectories look like that are found by the policy. 
+
+::::{#fig-track-right layout="[1,1,1]"}
+
+:::{#fig-track-right-a}
+```{python}
+states, _, _ = generate_episode_soft(
+    env_right,
+    π_right,
+    0.0,
+    rng,
+    max_lenght=200,
+    start_pos=(0, 0),
+)
+
+plot_episode(env_right, states)
+```
+
+The policy finds a good trajectory from all the left.
+:::
+:::{#fig-track-right-b}
+```{python}
+states, _, _ = generate_episode_soft(
+    env_right,
+    π_right,
+    0.0,
+    rng,
+    max_lenght=200,
+    start_pos=(20, 0),
+)
+
+plot_episode(env_right, states)
+```
+
+The policy also finds a good trajector from the penultimate rightmost starting point.
+:::
+:::{#fig-track-right-c}
+```{python}
+rng = random.Random(8735)
+env_right.rng = rng
+
+states, _, _ = generate_episode_soft(
+    env_right,
+    π_right,
+    0.0,
+    rng,
+    max_lenght=200,
+    start_pos=(1, 0),
+)
+
+plot_episode(env_right, states)
+```
+
+For some other starting positions the policy just prefers to crash the car and gamble for anoter staring spot
+:::
+
+The policy has found pretty good strategies for some positions, as shown in (a) and (b). Other positions like the one shown in the last picture have a policy of crashing. , which rerols the starting position. In this example here, there are a couple of crashes until the car gets set to a position for which the policy knows how to finish the race.
+::::
+
+
+
+```{python}
+import pickle
+
+with open("results/race_track_left.pkl", "rb") as file_in:
+    result = pickle.load(file_in)
+
+loss_left = result["loss_means"]
+n_episodes_left = result["num_episodes"]
+π_left = result["policy"]
+ε_max_left = result["epsilon_max"]
+ε_min_left = result["epsilon_min"]
+env_left = result["env"]
+env_left.prob_steering_failure = 0.0
+
+print(f"The policy was trained for {n_episodes_left:,} episodes.")
+print(f"The ε decreased exponentially from {ε_max_left} to {ε_min_left}")
+```
+
+Good pos: 4,5,8
+Bad pos: 3,6,7
+
+::::{#fig-track-leftlayout="[1,1]"}
+
+:::{#fig-track-left-a}
+```{python}
+states, _, _ = generate_episode_soft(
+    env_left,
+    π_left,
+    0.0,
+    rng,
+    max_lenght=200,
+    start_pos=(4, 0),
+)
+
+plot_episode(env_right, states)
+```
+
+The policy finds a good trajectory from all the left.
+:::
+:::{#fig-track-left-b}
+```{python}
+rng = random.Random(1)
+env_left.rng = rng
+states, _, _ = generate_episode_soft(
+    env_left,
+    π_left,
+    0.0,
+    rng,
+    max_lenght=200,
+    start_pos=(7, 0),
+)
+
+plot_episode(env_right, states)
+```
+
+The policy also finds a good trajector from the penultimate rightmost starting point.
+:::
+
+The policy has found pretty good strategies for some positions, as shown in (a) and (b). Other positions like the one shown in the last picture have a policy of crashing. , which rerols the starting position. In this example here, there are a couple of crashes until the car gets set to a position for which the policy knows how to finish the race.
+::::
+
+
+
+:::
+
+
+
+
+
+
+
+
+
+
+```
+env_tricky.prob_steering_failure = 0.0
+states, _, _ = generate_episode_soft(
+    env_tricky,
+    π_tricky,
+    0.0,
+    rng,
+    max_lenght=200,
+)
+
+plot_episode(env_tricky, states)
+```
+
+
+
+
+```{python}
+import pickle
+
+print("Unpickle!")
+with open("results/race_track_left.pkl", "rb") as file_in:
+    result = pickle.load(file_in)
+
+loss_left = result["loss_means"]
+n_episodes_left = result["num_episodes"]
+π_left = result["policy"]
+env_left = result["env"]
+q_left = result["evaluation"]
+```
+
+
+
+```{python}
+env_left.prob_steering_failure = 0.0
+states, _, _ = generate_episode_soft(env_left, π_left, 0.0, rng, max_lenght=200, start_pos=(3, 0))
+
+plot_episode(env_left, states)
+```
+
+```
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+import scripts.environment.race_track as rt
+
+
+n_loss_blocks = len(loss_means)
+loss_labels = np.linspace(0, n_episodes, n_loss_blocks, dtype=int)
+
+skip = 200
+plt.plot(loss_labels[skip:], loss_means[skip:])
+plt.title(f"Loss averaged")
+plt.show()
+```
+
+```{python}
+
+```
+
+
+ndiae
+
+
+1. I've eternalised the programm for the race-track environment
+1. The first argument to a race-rack environment is the layout as an ASCII-string.
+1. In the original source it says that the velocity components
+1. I've restricted the velocity to 2 to make the track 'trickier
+
+
+
+```{python}
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Appendix
+
+### Notation
+
+Notation used in this chapter:
+
+- The future trajector $\tau_{t:} := (R_t, S_t, A_t, A_{t+1}, \dots, A_{T-1}, R_{T}, S_T)$
+
+
+### monte carlo is slow {#sec-mc-is-slow}
+The biggest problem is that MC simulation improves very slowly on average. The rate of convergence can be estimate using the central limit theorem that says that the distribution of the sample mean $\bar{X}_n$ of $n$ samples $X_1,\dots,X_n$ approximates a normal distribution center around the true mean $\mu$:
+$$
+\bar{X}_n \overset{d}{\to} \mathcal{N}(\mu, \frac{\sigma^2}{n}),
+$$
+
+where $\sigma^2$ is the true variance of the trials. We don't know $\mu$ or $\sigma$ but we can use this to understand the rate of convergence of MC simulation.
+
+As we are working with quite big $n$ in MC simulations we'll just do a leap of faith and work just say use $\mathcal{N}(\mu, \frac{\sigma^2}{n})$ for the distribution of $\bar{X}_n$ directly (in general this convergence is of the order $\frac{1}{\sqrt{n}})$, see the [Berry–Esseen theorem](https://en.wikipedia.org/wiki/Berry%E2%80%93Esseen_theorem), but we will ignore it here).
+Using the normal approximation this gives us that with a bit more than 95% probability $\bar{X}_n$ falls within the two sigma interval $[\mu - \frac{2\sigma}{\sqrt{n}}, \mu + \frac{2\sigma}{\sqrt{n}}]$. If we want to cut this interval in half, i.e., make $\frac{2\sigma}{\sqrt{n}}$ half as big, we have to quadruple the number of trials $n$, and if we want to get another decimal point in precision we need 100 times more samples. That is really slow.
+
+A saving grace for MC could be that it is very easy to scale in parallel computations but I don't know how much that helps in real live and here in the real of these notes we are not dealing with any parallelisation.
+
+### early introduction of importance sampling {#sec-introduction-importance-sampling}
+
+
+
+
+
+
+
+### Confidence intervals {#sec-confidence-intervals}
+
+We also should provide some error bars or something for the point estimate. The standard MC approach here is to basically use our estimates for the mean and standard deviations and drop them in
+$$
+\begin{split}
+\hat{\mu} &= \bar{X}_n = \frac{X_1 + \dots X_n}{n} \\
+\hat{\sigma}^2 &= \frac{1}{n-1} \sum_{i=1}^n (X_i - \bar{X}_n)^2
+\end{split}
+$$
+
+and say that $\mu \in [\hat{\mu} - \frac{2\hat{\sigma}}{\sqrt{n}}, \mu + \frac{2\hat{\sigma}}{\sqrt{n}}]$ with probability 95%. Well... not quite we can only say that before we sampled our data that the true value will be in this interval with probability around 95%. Maybe there  is a Bayesian reasoning that actually allows the former formulation, but let's not get bogged down in to much scientific philosophy here and just follow good practise.
+
+
+### The strip problem {#sec-strip-problem}
+
+Consider the following discrete harmonic problem. The grid is a 3×(2R+1) rectangle (three rows, 2R+1 columns). All boundary sites have value 0 except the two corner boundary sites on the middle row: the values at $(1,0)$ and $(1,2R)$ are set to $1$. We want to know the solution of the discrete harmonic problem for the values on the middle row, all other rows are boundary rows. So this boils down to a 1-dimensional problem. We denote the solution at $(1,i)$ by $f(i)$ on $(1,1),\dots,(1,2R-1)$. All other rows are boundary rows.
+By the boundary setup and the 4-neighbour averaging rule, the interior middle-row values satisfy
+$$
+\begin{split}
+f(0) &= f(2R) = 1, \text{and} \\
+f(i) &= \frac{1}{4}(f(i-1) + f(i+1)) \text{ for } 0 < i < 2R ,
+\end{split}
+$${#eq-strip-problem}
+because the up/down neighbours of the middle row are boundary zeros.
+
+:::{#thm-strip-problem}
+The solution $f(i)$ of the special strip problem for $R \geq 1$ is given by
+$$
+f(i) = \frac{g(|i-R|)}{g(R)} \quad \text{for }i = 0,1,\dots,2R
+$${#eq-strip-problem-solution}
+where $g \colon \mathbb{N} \to \mathbb{N}$
+$$
+g(n) = \begin{cases} 1 &\text{if }n=0\\
+2 &\text{if }n=1\\
+4g(n-1) - g(n-2) &\text{if }n>1
+\end{cases}
+$$
+:::
+:::{.proof}
+We need to show that @eq-strip-problem-solution fulfils @eq-strip-problem.
+Clearly $f(0) = f(2R) = 1$.
+Now for the values $0 < i < 2R$.
+From the definition of $g$ we can derive that
+$$
+g(n) = \frac{1}{4}(g(n-1) + g(n+1)), \text{ for }n > 0
+$$
+and
+$$
+g(0) = \frac{1}{2}g(1).
+$$
+If $i < R$ then we have
+$$
+\begin{split}
+f(i) &= \frac{g(R-i)}{g(R)}\\
+&= \frac{1}{4}\left( \frac{g(R-i-1)}{g(R)} + \frac{g(R-i+1)}{g(R)}\right) \\
+&= \frac{1}{4}(f(i-1) + f(i+1))
+\end{split}
+$$
+If $i = R$ we have
+$$
+\begin{split}
+f(R) &= \frac{g(0)}{g(R)}\\
+&= \frac{1}{2}\frac{g(1)}{g(R)} \\
+&= \frac{1}{4}(f(R-1) + f(R+1))
+\end{split}
+$$
+And $i > R$ is just like $i < R$.
+:::
+
+So in particular the height of the middle is given by $1/g(R)$.
+We can calculate this value for the problem above
+

@@ -758,7 +758,7 @@ A policy is deterministic if $\pi(a|s) = 1$ for exactly one action for each $s \
 
 A policy $\pi_*$ is optimal if $\pi_* \geq \pi$ for any other $\pi$. Here we use $\geq$, a partial order on all policies for the MDP, defiend by
 $$
-\pi \leq \pi' \quad:\Longleftrightarrow\quad v_\pi(s) \leq \pi'(s) \; \text{, for all }s \in \mathcal{S}.
+\pi \leq \pi' \quad:\Longleftrightarrow\quad v_\pi(s) \leq v_{\pi'}(s) \; \text{, for all }s \in \mathcal{S}.
 $$
 
 There might be more than one optimal policy, but they must have the same value function (otherwise, they wouldn't be optimal). We can define the optimal state-value function as

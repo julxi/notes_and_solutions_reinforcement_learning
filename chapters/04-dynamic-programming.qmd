@@ -252,7 +252,7 @@ This leads directly to a characterisation of optimality in terms of greedy actio
 A policy $\pi$ is optimal, if and only if,
 $$
 v_\pi(s) = \max_{a \in \mathcal{A}(s)} q_{\pi}(s,a),
-$${#eq-conversion-action-to-state-value-for-optimal-policy}
+$${#eq-optimal-policy}
 
 for all $s \in \mathcal{S}$.
 :::
@@ -260,7 +260,7 @@ for all $s \in \mathcal{S}$.
 If $\pi$ is optimal then $v_\pi(s) < \max_{a} q_\pi(s,a)$ would lead to a contradiction using the policy improvement theorem.
 
 For the converse we do an argument very similar to the proof of @thm-policy-improvement-theorem. So similar in fact that I'm afraid that were doing the same work twice.
-Let $\pi$ satisfy @eq-conversion-action-to-state-value-for-optimal-policy. We show that $\pi$ is optimal by showing that
+Let $\pi$ satisfy @eq-optimal-policy. We show that $\pi$ is optimal by showing that
 $$
 \Delta(s) = v_{\pi_*}(s) - v_{\pi}(s)
 $$

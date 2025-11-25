@@ -12,6 +12,7 @@ book:
     - chapters/02-multi-armed-bandits.qmd
     - chapters/03-finite-markov-decision-processes.qmd
     - chapters/04-dynamic-programming.qmd
+    - chapters/05-monte-carlo-methods.qmd
 bibliography: references.bib
 format:
   html:
@@ -26,6 +27,8 @@ format:
     lightbox: true
 execute: 
   cache: true
+filters:
+  - diagram
 
 
 
