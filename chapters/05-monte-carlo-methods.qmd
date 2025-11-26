@@ -772,7 +772,7 @@ Exploring starts has two problems:
 - not always possible
 - explores all possible states-action pairs, even though optimal behaviour might only require exploring a small subset of them.
 
-Two ways to get exploration without exploring starts are:
+And two ways to get exploration without exploring starts are:
 
 - soft policies
 - off-policy prediction
@@ -781,9 +781,9 @@ We discuss soft policies now and off-policy prediction in the next section @sec-
 
 
 A policy is $\varepsilon$-soft if $\pi(a|s) \geq \frac{\varepsilon}{\mathcal{A}(s)}$ for all $s \in \mathcal{S}$ and $a \in \mathcal{A}(s)$.
-The role of the deterministic policies in this class is taken by the $\epsilon$-greedy policies, policies that are as deterministic as $\varepsilon$-soft policies are allowed. We can think of it as with probability $\varepsilon$ the action gets randomly chosen and with probability $1-\varepsilon$ the greedy action is taken. This gives every action a probability of $\frac{\varepsilon}{|\mathcal{A}(s)|}$ except the greedy action a which has a probability of $1 - \varepsilon + \frac{\varepsilon}{|\mathcal{A}(s)|}$.
+The role of the deterministic policies in this class is taken by the $\epsilon$-greedy policies, policies that are as deterministic as $\varepsilon$-soft policies are allowed. We can think of them as deterministic policies behind a randomizer. With probability $\varepsilon$ the action gets randomly chosen and with probability $1-\varepsilon$ the deterministic action is taken. This gives every action a probability of $\frac{\varepsilon}{|\mathcal{A}(s)|}$ except the greedy action which has a probability of $1 - \varepsilon + \frac{\varepsilon}{|\mathcal{A}(s)|}$.
 
-So what we can do now, is we estimate an optimal $\varepsilon$-soft policy $\pi_{\varepsilon,\ast}$ and then just get rid of the $\varepsilon$-softness to use this to obtain a greedy hopefully quite good policy $\pi$. One qualitative behaviour we can  keep in mind over such a found $\pi$ is that it will play it safe. Imagine if the goal is to navigate through a mace and the best path is to balance across a narrow long bridge. Pretty surely $\pi_{\varepsilon,\ast}$ and subsequently $\pi$ will avoid such a path. So to express this behaviour more abstractly, an $\varepsilon$-soft optimal policy will play it safe and avoid situations in which wrong decisions can have catastrophical outcomes.
+Here is the algorithm for approximating an optimal $\varepsilon$-soft policy.
 
 ::: {#lst-mc-control-on-policy-first-visit .listing-block} 
 | **Input**: small $\varepsilon > 0$
@@ -807,13 +807,16 @@ So what we can do now, is we estimate an optimal $\varepsilon$-soft policy $\pi_
 On-policy first-visit MC control (for $\epsilon$-soft policies), estimates $\pi \approx \pi_*$.
 :::
 
+We will use this algorithm for @exr-5.12.
+
 ## Off-policy Prediction via Importance Sampling {#sec-off-policy-prediction-via-importance-sampling}
 
-Let's try to motivate importance sampling and also see where the word "importance" comes from through a simpler example, going back to the soap film analogy.
+Let's try to motivate importance sampling and also see where the word 'importance' comes from through a simpler example, going back to the rubber sheet problem.
 
-### importance sampling for the rubber sheet problem
+### Importance Sampling for the Rubber Sheet Problem {.unnumbered}
 
-Let's revisit @exm-soap-bubble where we introduced the rubber sheet problem. This time, we’ll solve it for the following $3 \times 15$ grid. The task is to find the height value of the centre point (marked with an $x$) using Monte Carlo (MC) estimation.
+Let’s return to @exm-soap-bubble, where we first introduced the rubber sheet problem. This time we solve it on the following $3\times 15$ grid. The goal is to estimate the height at the centre point
+(marked with an $x$) using Monte Carlo (MC) simulation.
 ```{python}
 # | code-fold: false
 # === the long rubber sheet problem ===
@@ -821,13 +824,14 @@ Let's revisit @exm-soap-bubble where we introduced the rubber sheet problem. Thi
 # 1                 x                 1
 # 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 radius_lanky = 7
+boundary_height = 1
 boundary_lanky = np.zeros((3, 2 * radius_lanky + 1))
-boundary_lanky[1, 0] = 1
-boundary_lanky[1, 2 * radius_lanky] = 1
+boundary_lanky[1, 0] = boundary_height
+boundary_lanky[1, 2 * radius_lanky] = boundary_height
 center_lanky = (1, radius_lanky)
 ```
 
-For comparison later, I calculate the exact height at the center (for a derivation, see @sec-strip-problem in the appendix):
+Before running MC, we compute the exact value at the centre so we can judge the estimator’s accuracy. For the analytical derivation, see @sec-strip-problem:
 ```{python}
 # code-fold: true
 def g(i):
@@ -839,10 +843,17 @@ def g(i):
         return 4 * g(i - 1) - g(i - 2)
 
 
-print(f"The exact value at the center is {1/g(radius_lanky)}")
+print(f"The exact value at the center is {boundary_height/g(radius_lanky):.6f}")
 ```
 
-MC struggles on this long, narrow grid: random walks will most likely hit the top or bottom boundaries and only rarely the left or right. When we do $1000$ simple MC trials, the best sample averages we can hope for are either a flat $0$ (if all walks hit the top/bottom) or $\frac{1}{1000} = 0.001$ (if one walk happens to hit the left or right). Compared to the true value of roughly $0.0002$, these have errors of about $0.0002$ or $0.0008$. So the following run gives us the best possible approximation we can hope for in this setup:
+MC performs poorly on this long, narrow strip. Almost every random walk hits the top or bottom boundary, and only very rarely does one reach the left or right boundary. With $1000$ simulation, the best sample means we could see are:
+
+- $0$, if all walks hit the top or bottom;
+- $1/1000=0.001$, if exactly one walk hits the left or right.
+
+The true value is about $0.0002$. So even in the luckiest case, the estimator’s error is $0.0002$.
+
+So here is such a typical run:
 ```{python}
 rng = np.random.default_rng(0)
 n_samples = 1000
@@ -850,166 +861,162 @@ samples = monte_carlo_rubber_sheet(boundary_lanky, center_lanky, n_samples, rng)
 f"MC estimate after {n_samples} samples: {sum(samples)/n_samples}"
 ```
 
-Essentially, what’s happening here is that our method is (if you excuse the anthropomorphism) saying, “Well... it’s so unlikely that we’ll hit the side walls that I’ll just ignore them and keep bouncing between the top and bottom.” But this could lead to large errors if, for example, the left and right boundaries weren’t $1$ but instead $10{,}000$.
+Informally, the method is—if you’ll excuse my anthropomorphising—behaving as if it thought: “It’s so unlikely I’ll ever reach the side boundaries that I’ll ignore them and just bounce between the top and bottom.”
 
-In this sense, the left and right sides hold important information, while repeatedly sampling the top and bottom gives little new information. We can say that the left and right boundaries are important, and therefore it’s important to sample them more often.
+But the left and right sides hold important information, while repeatedly sampling the top and bottom gives little new information. We can say that the left and right boundaries are important, and therefore it’s important to sample them more often.
 
 This is the basic idea behind importance sampling:
-we know that some outcomes (or behaviours) should be sampled more frequently because they contribute more to the expectation we care about. However, if we do sample more frequently from these outcomes, we must correct for this bias in our final calculation — otherwise, we no longer estimate the true expectation under the original (target) distribution.
+we know that some outcomes (or behaviours) should be sampled more frequently because they contribute more to the expectation we care about. However, if we do sample more frequently from these outcomes, we must correct for this bias in our final calculation.
 
-Let’s formalise this for the rubber sheet problem above and bring it into the language of machine learning. We can see random walks on a grid as trajectories of an MDP with a deterministic environment.
-An instance of a random walk is a trajectory $\tau = s_0,a_0,\dots,s_{T-1},a_{T-1},s_T$ (we are ignoring rewards for now), where the $s_i$ are the positions in the grid and the directions $a_i$ the chosen actions $U,D,L,R$. $s_0$ is the center position and $T$ is the time of first exist and thus $s_T$ is the first boundary state.
+Let’s formalise this for the rubber sheet problem above and bring it into the language of machine learning. We can see random walks on a grid as episodes of an MDP with a deterministic environment.
+An random walk is an episode $\tau = S_0,A_0,\dots,S_{T-1},A_{T-1},S_T$ (we are ignoring rewards for now), where the $S_i$ are the positions in the grid and the directions $A_i$ the chosen actions $U,D,L,R$. $S_0$ is the center position and $T$ is the time of first exist and thus $S_T$ is the first boundary state.
 
-We get equidirectional random walks from the uniform random policy $\pi_t$ that assigns equal probability to all directions $\pi_t(U) = \pi_t(D) = \pi_t(L) = \pi_t(R) = 0.25$ independent of the position (so it's stationary). The probability of a particular trajectory $\tau$ under $\pi_t$ is independent of the $s_i$ as the environment is deterministic and the policy is also independent of the state
+We get equidirectional random walks from the uniform random policy $\pi$ that assigns equal probability to all directions $\pi(U) = \pi(D) = \pi(L) = \pi(R) = 0.25$ independent of the position (so it's stationary). The probability of a particular trajectory $\tau$ under $\pi$ is independent of the $S_i$ as the environment is deterministic and the policy is also independent of the state
 $$
-\pi_t(\tau) = \pi_t(a_0) \cdot \dots \cdot \pi_t(a_{T-1}).
+\mathrm{Pr}_{\pi}(\tau) = \pi(A_0) \cdot \dots \cdot \pi(A_{T-1}).
 $$
 
 The expected exit height is therefore
 $$
-\mathbb{E}_{\tau \sim \pi_t}[h(\tau)] = \sum_{\tau} h(\tau) \cdot \pi_t(\tau)
+\mathbb{E}_{\tau \sim \pi}[h(\tau)] = \sum_{\tau} h(\tau) \cdot \mathrm{Pr}_{\pi}(\tau)
 $$
-where $h(\tau) = h(s_T)$.
+where $h(\tau) = h(S_T)$.
 
-Now, instead of the target policy $\pi_t$, suppose we sample using a behaviour policy $\pi_b$ which prefers left and right (and is also independent of the states):
+Now, instead of the target policy $\pi$, suppose we sample using a behaviour policy $b$ which prefers left and right (and is also independent of the states):
 $$
-\pi_b(R) = \pi_b(L) = 0.45, \quad \pi_b(U) = \pi_b(D) = 0.05.
+b(R) = b(L) = 0.45, \quad b(U) = b(D) = 0.05.
 $$
 
-Clearly, mean samples according $\pi_b$ is not a valid estimator for $\mathbb{E}_{\tau \sim \pi_t}[h(\tau)]$, which is what we actually want.
-
-But we can use a clever trick here:
+How can we use episodes sampled according to $b$ to estimate $\mathbb{E}_{\tau \sim \pi_t}[h(\tau)]$?
+We can use a clever trick here:
 $$
 \begin{split}
-\mathbb{E}_{\tau \sim \pi_t}[h(\tau)] &= \sum_{\tau} h(\tau) \pi_t(\tau) \\
-&= \sum_{\tau} h(\tau) \frac{\pi_t(\tau)}{\pi_b(\tau)} \cdot \pi_b(\tau) \\
-&= \mathbb{E}_{\tau \sim p_b}\left[h(\tau) \frac{\pi_t(\tau)}{\pi_b(\tau)}\right]
+\mathbb{E}_{\tau \sim \pi}[h(\tau)] &= \sum_{\tau} h(\tau) \mathrm{Pr}_{\pi}(\tau) \\
+&= \sum_{\tau} h(\tau) \frac{\mathrm{Pr}_\pi(\tau)}{\mathrm{Pr}_b(\tau)} \cdot \mathrm{Pr}_b(\tau) \\
+&= \mathbb{E}_{\tau \sim b}\left[h(\tau) \frac{\mathrm{Pr}_\pi(\tau)}{\mathrm{Pr}_b(\tau)}\right]
 \end{split}
 $$
 
-Thus any estimator for $\mathbb{E}_{\tau \sim p_b}\left[h(\tau) \frac{\pi_t(\tau)}{\pi_b(\tau)}\right]$ is also an estimator for $\mathbb{E}_{\tau \sim \pi_t}[h(\tau)]$.
-
-A simple unbiased estimator for this expectation is
+A simple unbiased estimator given $n$ samples $\tau_i \sim b$ is
 $$
-\frac{1}{n}\sum h(\tau_i)w(\tau_i) \quad \text{where } w(\tau_i) = \frac{\pi_t(\tau_)}{\pi_b(\tau_i)}, \tau_i \sim \pi_b
+\frac{1}{n}\sum h(\tau_i)w(\tau_i) \quad \text{where } w(\tau_i) = \frac{\pi_t(\tau_)}{\pi_b(\tau_i)}
 $$
 where the $w(\tau)$ is called the importance weight.
 
 
-Now, let's implement importance sampling. First we define a function that returns one $h(\tau)w(\tau)$ that is sampled according to a given $\pi_b$:
+Now, let's implement importance sampling. First we define a function that returns $h(\tau)w(\tau)$ for one episode following  $b$:
 ```{python}
 # | code-fold: false
-# === importance sampling for rubber sheet problem ===
+# === importance sampling single episode ===
 def single_walk_importance_sampling(
     grid,
     start_point,
-    π_b: dict[Direction, float],
+    b: dict[Direction, float],
     rng,
 ):
-    """Sample τ under `π_b` and return h(τ)·w(τ)
-    for uniform target π_t(a)=0.25.
+    """Sample τ under `b` and return h(τ)·w(τ)
+    for uniform target π(a)=0.25.
     """
-    # Keep a deterministic order of directions and their sampling probabilities
-    directions = list(π_b.keys())
-    probs = list(π_b.values())
+    directions = list(b.keys())
+    probs = list(b.values())
 
-    # Per-action ratios π_t(a) / π_b(a); here π_t(a)=0.25
-    direction_ratio = {k: 0.25 / v for k, v in π_b.items()}
+    # per-action ratios π(a) / b(a); here π(a) = 0.25
+    direction_ratio = {directions[i]: 0.25 / probs[i] for i in range(len(b))}
 
     i, j = start_point
     n_rows, n_cols = grid.shape
     importance_weight = 1
 
-    # Walk until a boundary cell is reached
+    # walk until a boundary cell is reached
     while not_on_boundary(i, j, n_rows, n_cols):
-        # sample an action according to π_b
+        # sample an action according to b
         direction = rng.choice(directions, p=probs)
 
-        # Move on grid
+        # move on grid
         di, dj = MOVE_VECTORS[direction]
         i += di
         j += dj
 
         importance_weight *= direction_ratio[direction]
 
-    # On exit, grid[i, j] is the boundary height h(s_T)
+    # on exit, grid[i, j] = h(s_T)
     return importance_weight * grid[i, j]
 ```
 
 Now we can sample some values and take the average to get an estimate:
 ```{python}
 # | code-fold: false
-# === importance sampling on the long rubber sheet ===
+# === importance sampling for the long rubber sheet ===
 n_samples = 1000
 rng = np.random.default_rng(0)
 
-π_b = {
+b = {
     Direction.RIGHT: 0.45,
     Direction.LEFT: 0.45,
     Direction.UP: 0.05,
     Direction.DOWN: 0.05,
 }
 samples = [
-    single_walk_importance_sampling(boundary_lanky, center_lanky, π_b, rng)
+    single_walk_importance_sampling(boundary_lanky, center_lanky, b, rng)
     for _ in range(n_samples)
 ]
 print(f"importance sampling after {n_samples} iterations:")
 print(np.average(samples))
 ```
 
-This has an error of about $0.00006$ compared to the $0.0002$ from the crude MC before. In general in this problem this gives us more accurate results.
+We can see that importance sampling MC performs better than 'crude' MC—as a simple MC is called in contrast to importance sampling MC.
+Importance sampling MC has an error of about $0.00006$ compared to the $0.0002$ from the crude MC before. And generally, we can expect better results from the importance sampling MC due to its lower variance.
 
-We can quantify this statistically. The error of MC techniques depends only on two factors the standard deviation $\sigma$ and $1/\sqrt{n}$ (under the normal approximation that holds for big sample numbers). So importance sampling is a variance reduction technique, that gives us an improvement. We can compare the two variances of crude MC and importance sampling for our example:
+The error of MC techniques depends only on two factors—the standard deviation $\sigma$ and $1/\sqrt{n}$ (under the normal approximation that holds for large sample numbers).
+Importance sampling is a variance reduction technique that gives us an improvement in our estimates without driving up the simulation costs. We can compare the two variances of crude MC and importance sampling for our example:
 
 ```{python}
 seed = 0
-n_samples = 2
+n_samples = 100_000
 
 # crude
 rng = np.random.default_rng(seed)
 samples_crude = monte_carlo_rubber_sheet(boundary_lanky, center_lanky, n_samples, rng)
-variance_crude = np.var(samples_crude)
+σ_crude = np.std(samples_crude)
 
 # importance sampling
 rng = np.random.default_rng(seed)
 samples_is = [
-    single_walk_importance_sampling(boundary_lanky, center_lanky, π_b, rng)
+    single_walk_importance_sampling(boundary_lanky, center_lanky, b, rng)
     for _ in range(n_samples)
 ]
-variance_is = np.var(samples_is)
+σ_is = np.std(samples_is)
 
-σ_crude = np.sqrt(variance_crude)
-σ_is = np.sqrt(variance_is)
-print(f"Estimates for σ after {n_samples} iterations")
-print(f"crude Monte Carlo σ: {σ_crude}")
-print(f"importance sampling σ: {σ_is}")
+print(f"Estimates for σ after {n_samples:,} iterations")
+print(f"crude Monte Carlo σ: {σ_crude:.5f}")
+print(f"importance sampling σ: {σ_is:.5f}")
 ```
 
-So we basically get an extra 10x better accuracy (in the long run), just by sampling more the important directions.
+So we get a roughly $10\times$ boost in our accuracy, just by sampling more the important directions.
 
 ### importance sampling in ML
 
-After this rather lengthy introduction to importance sampling, let's talk about it's use in off-policy prediction. In this use case the goal is not variance reduction, but to ensure exploration, in fact the variance might even go up.
+After this rather lengthy introduction to importance sampling, let's talk about it's use in off-policy prediction. In this use case the goal is not variance reduction, but to ensure exploration, in fact the variance might even explode to infinity.
 
 We have a behaviour policy $b$ that we will use for sampling episodes and a target policy $\pi$ for which we want to know the expected return $v_\pi(s)$.
 Let's use the importance-sampling ratio trick,
 $$
 \begin{split}
 v_\pi(s) &= \mathbb{E}_{\tau \sim \pi}[G_0(\tau)| S_0 = s] \\
-&= \sum_{\tau} G_0(\tau) p_{\pi}(\tau|S_0 = s) \\
-&= \sum_{\tau} G_t(\tau) \frac{p_\pi(\tau_|S_0 = s)}{p_b(\tau|S_0 = s)} p_b(\tau|S_0 = s) \\
-&= \mathbb{E}_{\tau \sim b}\left[G_0(\tau) \frac{p_\pi(\tau|S_0 = s)}{p_b(\tau|S_0 = s)}\Big| S_0 = s\right]
+&= \sum_{\tau} G_0(\tau) \mathrm{Pr}_{\pi}(\tau|S_0 = s) \\
+&= \sum_{\tau} G_t(\tau) \frac{\mathrm{Pr}_\pi(\tau |S_0 = s)}{\mathrm{Pr}_b(\tau|S_0 = s)} \mathrm{Pr}_b(\tau|S_0 = s) \\
+&= \mathbb{E}_{\tau \sim b}\left[G_0(\tau) \frac{\mathrm{Pr}_\pi(\tau|S_0 = s)}{\mathrm{Pr}_b(\tau|S_0 = s)}\Big| S_0 = s\right]
 \end{split}
 $$
 
-We call the fraction in the expectation the importance weight and its equal to (I give the reason below)
+We call the fraction in the expectation the importance weight
 $$
-w(\tau) = \frac{p_\pi(\tau)}{p_b(\tau)}.
+w(\tau) = \frac{\mathrm{Pr}_\pi(\tau)}{\mathrm{Pr}_b(\tau)}.
 $$
 
-For a given $\tau = S_0, A_0, \dots, A_{T-1}, R_T, S_T$ we can compute them. First note that
+We can calculate $w(\tau)$ for an episode $\tau = S_0, A_0, \dots, A_{T-1}, R_T, S_T$. First note that
 $$
-p_\pi(\tau) = p(S_0)\prod_{t=0}^{T-1} \pi(A_t|S_t) p(S_{t+1}| S_t, A_t)
+\mathrm{Pr}_\pi(\tau | S_0 = s) = \prod_{t=0}^{T-1} \pi(A_t|S_t) p(S_{t+1}| S_t, A_t)
 $$
 and equally for $p_b(\tau)$.
 Now the importance weight is
@@ -2340,22 +2347,30 @@ and say that $\mu \in [\hat{\mu} - \frac{2\hat{\sigma}}{\sqrt{n}}, \mu + \frac{2
 
 ### The strip problem {#sec-strip-problem}
 
-Consider the following discrete harmonic problem. The grid is a 3×(2R+1) rectangle (three rows, 2R+1 columns). All boundary sites have value 0 except the two corner boundary sites on the middle row: the values at $(1,0)$ and $(1,2R)$ are set to $1$. We want to know the solution of the discrete harmonic problem for the values on the middle row, all other rows are boundary rows. So this boils down to a 1-dimensional problem. We denote the solution at $(1,i)$ by $f(i)$ on $(1,1),\dots,(1,2R-1)$. All other rows are boundary rows.
-By the boundary setup and the 4-neighbour averaging rule, the interior middle-row values satisfy
+Consider the following discrete harmonic problem. The domain is a $3\times(2r+1)$ grid ($3$ rows and 
+$2r+1$ columns). All boundary cells have value 0 except for the two boundary cells on the middle row—the cells at $(1,0)$ and $(1,2r)$—which have value 1.
+
+Because the top and bottom rows are entirely boundary, the only non-trivial values lie along the middle row. Let
+$$
+f(i)=\text{value at } (1,i)\quad ,i=0,1,\dots,2r.
+$$
+
+By the boundary conditions and the four-neighbour averaging rule, the interior values satisfy
 $$
 \begin{split}
-f(0) &= f(2R) = 1, \text{and} \\
-f(i) &= \frac{1}{4}(f(i-1) + f(i+1)) \text{ for } 0 < i < 2R ,
+f(0) &= f(2r) = 1, \text{and} \\
+f(i) &= \frac{1}{4}(f(i-1) + f(i+1)) \text{ for } 0 < i < 2r.
 \end{split}
 $${#eq-strip-problem}
-because the up/down neighbours of the middle row are boundary zeros.
+
+The theorem below gives the unique solution. In particular, the value at the centre, $f(r)$, is given by $1/g(r)$.
 
 :::{#thm-strip-problem}
-The solution $f(i)$ of the special strip problem for $R \geq 1$ is given by
+The solution $f(i)$ for @eq-strip-problem is given by
 $$
-f(i) = \frac{g(|i-R|)}{g(R)} \quad \text{for }i = 0,1,\dots,2R
+f(i) = \frac{g(|i-r|)}{g(r)}, \quad i = 0,1,\dots,2r
 $${#eq-strip-problem-solution}
-where $g \colon \mathbb{N} \to \mathbb{N}$
+where $g \colon \mathbb{N} \to \mathbb{N}$ is defined by
 $$
 g(n) = \begin{cases} 1 &\text{if }n=0\\
 2 &\text{if }n=1\\
@@ -2364,36 +2379,14 @@ g(n) = \begin{cases} 1 &\text{if }n=0\\
 $$
 :::
 :::{.proof}
-We need to show that @eq-strip-problem-solution fulfils @eq-strip-problem.
-Clearly $f(0) = f(2R) = 1$.
-Now for the values $0 < i < 2R$.
-From the definition of $g$ we can derive that
+Consider first the infinite version of the recurrence
 $$
-g(n) = \frac{1}{4}(g(n-1) + g(n+1)), \text{ for }n > 0
-$$
-and
-$$
-g(0) = \frac{1}{2}g(1).
-$$
-If $i < R$ then we have
-$$
-\begin{split}
-f(i) &= \frac{g(R-i)}{g(R)}\\
-&= \frac{1}{4}\left( \frac{g(R-i-1)}{g(R)} + \frac{g(R-i+1)}{g(R)}\right) \\
-&= \frac{1}{4}(f(i-1) + f(i+1))
-\end{split}
-$$
-If $i = R$ we have
-$$
-\begin{split}
-f(R) &= \frac{g(0)}{g(R)}\\
-&= \frac{1}{2}\frac{g(1)}{g(R)} \\
-&= \frac{1}{4}(f(R-1) + f(R+1))
-\end{split}
-$$
-And $i > R$ is just like $i < R$.
+f(i) = \frac{1}{4}(f(i-1)+ f(i+1)) \quad i \in \mathbb{Z}.
+$$ {#eq-strip-problem-infinite}
+Place a reference cell at $i=0$ with value $1$, and look for a symmetric solution about this cell. Let 
+$g(n)$ denote the value at distance $n$ from the centre.
+Then we have clearly $g(0) = 1$. Also symmetry and @eq-strip-problem force the centre to be the average of its two neighbours, so $g(1) = 2$ because the center cell is the average of the two adjacent cells. Applying @{eq-strip-problem-infinite} at distance $n>1$ yields the recurrenc $g(n) = 4g(n-1) - g(n-2)$.
+
+Since @eq-strip-problem-infinite is linear, any scalar multiple of $g$
+is also a solution. For the finite strip, we rescale by $g(r)$ so that the values at distance $r$—the two boundary cells $(1,0)$ and $(1,2r)$—are equal to 1. This gives the formula in @{eq-strip-problem-solution}.
 :::
-
-So in particular the height of the middle is given by $1/g(R)$.
-We can calculate this value for the problem above
-
