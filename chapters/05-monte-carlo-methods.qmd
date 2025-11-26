@@ -45,38 +45,37 @@ Both converge to $v_\pi(s)$ if every $s$ is visited infinitely often. The algori
 
 First-visit MC prediction, for estimating $V \approx v_\pi$
 :::
-
 :::{#exm-5.1-blackjack}
 This is Example 5.1: **Blackjack** from @sutton2018.
 
-Get your inifite deck ready, we're heading to the casinos.
+Get your infinite deck ready, we're heading to the casinos.
 
-Here is a not so short summary of the Blackjack variant used in the source. I tried to keep it concise but also precise, the devil lives in the details here.
+Here is a not-so-short summary of the Blackjack variant used in the source. I tried to keep it concise but also precise, the devil lives in the details here.
 
 - Player competes against the dealer
-- Both parties collect cards and if ones hand value exceeds 21 they automatically loose the game (go bust).
-- the deck is "infinite", i.e., the chances for any card is always like in a freshly shuffled deck.
-- the numbered cards go from 1 to 10, the value of face cards is 10 except ace which is valued 1 or 11 if that doesn't result in a bust. 
+- Both parties collect cards and if one's hand value exceeds 21 they automatically lose the game (go bust).
+- The deck is "infinite", i.e., the chances for any card are always like in a freshly shuffled deck.
+- The numbered cards go from 1 to 10, the value of face cards is 10 except ace which is valued as 1 or 11 if that doesn't result in a bust.
 - Game begins with two cards dealt to the player and dealer each. The player can see the first card of the dealer but not the second.
 - Right after the hands have been dealt, if the player or the dealer have 21 they have a natural and immediately win, or it's a draw if both have 21.
 - If there are no naturals the player can hit (request a new card) until he sticks (stop and let the dealer collect cards) or goes bust.
-- The dealer plays to this fixed strategy, they will hit when they have less then 17, and stick otherwise.
+- The dealer plays to this fixed strategy, they will hit when they have less than 17, and stick otherwise.
 - If the dealer does not go bust during their turn, the party with the highest total wins, or it's a draw.
 
-The rule about naturals stated here seems to be different from what's stated in @sutton2018: the dealers second card is only checked if the player has a natural. I took the rule that is more in line with the general black jack rules. However, I don't know what they used in their implementation though. This is actually an important point for the distribution of the cards. If the game has properly started (no party has a natural) and the dealer's showing card is an ace, it is guaranteed that the dealer's second card (the card face down) will not be a 10.
+The rule about naturals stated here seems to be different from what's stated in @sutton2018: the dealer's second card is only checked if the player has a natural. I took the rule that is more in line with the general blackjack rules. However, I don't know which rule they used in their implementation though. This is actually an important point for the distribution of the cards. Following this implementations rules, if the game has properly started (no party has a natural) and the dealer's showing card is an ace, it is guaranteed that the dealer's second card (the card face down) will not be a 10.
 
-This is how we setup Blackjack as an MDP:
+This is how we set up Blackjack as an MDP:
 
 - Each game is an episode with reward: +1 (win), -1 (loss), 0 (draw).
-- the state is represented as
+- The state is represented as
 $$
 (\text{player's total}, \text{player has usable ace}, \text{dealer's showing card}),
 $$
 where a usable ace means that the hand has one ace that counts as 11 (soft hand).
 - W.l.o.g. we can assume that the player's total is at least 12 as for any value below, there is no chance to go bust and we disregard any incredibly stupid policies that would stick in these kind of situations.
-- all that stuff about naturals are not part of the non-terminal states of the MDP, the game basically ends before it has properly started. They influence the starting states though. In the first non-terminal state of an episode we are guaranteed that the player's total is less than 21 and when it's the dealer's turn his second card will not give them a 21.
+- All that stuff about naturals are not part of the dynamics of the MDP, the game basically ends before it has properly started. They influence the starting states though, as described above.
 
-The strategy we want to evaluate using MC prediction is a quite greedy one. The agent only sticks on a 20 or 21 otherwise hits. I implemented the BlackJack environment separately and just use it here.
+The strategy we want to evaluate using MC prediction is quite greedy. The agent only sticks on a 20 or 21 otherwise hits. I implemented the Blackjack environment separately and just use it here.
 
 ```{python}
 # | code-fold: false
@@ -93,26 +92,24 @@ for state in env.state_space:
         π_at_least_20[state] = Action.STICK
 ```
 
-Now let's set up the code for @lst-mc-prediction-first-visit. We need to do a couple of changes:
+Now let's set up the code for @lst-mc-prediction-first-visit. We need to make a few changes:
 
-- include stop condition: counter
-- calculate state-value approximation once at the end
-- for first visit we start with a count of all the episodes. Then for each $S_t$ we decrease the counter until it's one and then we know this is the first visit.
-- I added a R_0 which corresponds to naturals (episode starts in a terminal state). However, we ignore these as we only calculate rewards for non-terminal states.
-- that means a fraction of the generated episodes won't give any information
+- Include a stop condition—a simple step counter.
+- Calculate the averages for the state-value approximation just once at the end.
+- To implement first visit, start with a count of all the episodes. Then, for each $S_t$, decrease the counter for that state until it's one. When it's one, we know this is the first visit.
+- I added a $R_0$ which corresponds to naturals (episode starts in a terminal state). However, we ignore these as we only calculate rewards for non-terminal states. This means a fraction of the generated episodes won't give any experience.
 
 ```{python}
 # | code-fold: false
-# === MC prediction for Blackjack
+# === MC prediction for Blackjack ===
 from collections import Counter, defaultdict
 import statistics
 import random
-from dataclasses import dataclass
 
 from scripts.environment.black_jack import BlackJack, Action, State, Reward
 
 
-def generate_episode(env, π) -> tuple[list[State, Reward, Action]]:
+def generate_episode(env, π) -> tuple[list[State], list[Reward], list[Action]]:
     states = []  # S_0, ..., S_T
     rewards = []  # R_0, ..., R_T
     actions = []  # A_0, ..., A_{T-1}
@@ -222,7 +219,7 @@ plt.xticks(ticks=np.arange(len(dealer_cards)), labels=dealer_cards)
 plt.yticks(ticks=np.arange(len(player_sums)), labels=player_sums)
 plt.xlabel("Dealer's Showing Card")
 plt.ylabel("Player's Total")
-plt.title(f"MC Value Function (With Usable Ace), {iterations} Iterations")
+plt.title(f"MC Value Function (With Usable Ace), {iterations:,} Iterations")
 
 plt.tight_layout()
 plt.show()
@@ -248,34 +245,39 @@ plt.xticks(ticks=np.arange(len(dealer_cards)), labels=dealer_cards)
 plt.yticks(ticks=np.arange(len(player_sums)), labels=player_sums)
 plt.xlabel("Dealer's Showing Card")
 plt.ylabel("Player's Total")
-plt.title(f"MC Value Function (No Usable Ace), {iterations} Iterations")
+plt.title(f"MC Value Function (No Usable Ace), {iterations:,} Iterations")
+plt.show()
 ```
 
 This is like Figure 5.1 from @sutton2018. It shows the approximate state-value function for the Blackjack policy that sticks only for 20 or 21, computed by MC policy evaluation.
 :::
 
 :::
+
 :::{#exr-5.1}
-Consider the diagrams in @fig-blackjack-state-value-function-greedy-policy. Why does the estimated value function jump up for the last two rows at the top? Why does it drop off for the whole last row on the right (not visible here)? Why are the lower values higher in the upper diagram than in the lower?
+Consider the diagrams in @fig-blackjack-state-value-function-greedy-policy. Why does the estimated
+value function jump up for the last two rows in the top^[originally it says 'rear' but it my diagram it's the top]? Why does it drop off for dealer's showing card is 11?^[originally it says whole last row on the left, since the ace was next to 2. I have arranged ace next to 10 though.]
+Why are the lowermost values higher in the upper diagrams than in the lower?
 :::
 :::{#sol-5.1}
 Let's answer each question separately:
 
-- the jump at the top: this come from the fact that for 20 or 21 the player sticks and for those values the odds of beating the dealer are quite high. The lower values are all negative meaning, that the player is likely to loose because – I think – with this strategy the agent is quite likely to go bust
-- The drop off that is not visible in my diagram: first of all it is to say that my diagram has ace as the right most column whereas the original had it on the left, next to 2. But even then there is no drop off visible. I have the theory that their code does not check for dealer naturals which makes a dealer showing ace more dangerous than in my implementation. However, a dealer's showing 10 looks quite worse for the agent in my implementation. A 10 seems to be a good card to have as there is a decent chance for the next card to be a 10 as well $\frac{4}{14} \approx 0.29$
-- All cell values in the upper diagram are higher for player's total less than 20 as the agent has a better chance to reach 20 or 21 without going bust with an ace up its hand. The rows for player's total of 20 and 21 should return the same values as the agent chooses to stick in both cases.
+- the jump at the top: this come from the fact that for 20 or 21 the player sticks and for those values the odds of beating the dealer are quite high. The lower values are all negative meaning, that the player is likely to loose because – I think – with this strategy the agent is quite likely to go bust. The negative values indicate the expected loss for the player, not just that the player is likely to lose.
+- this drop off that is not visible in my diagram: in the original diagram the dropoff is between "Dealer's showing card" is 2 and Ace. But there is no drop off visible in my diagram. I have the theory that their code does not check for dealer naturals which would make a dealer's showing ace more dangerous.
+- All cell values in the upper diagram are higher for player's total less than 20 as the agent has a better chance to reach 20 or 21 without going bust with an ace up its hand. The rows for player's total of 20 and 21 should return the same values as the agent chooses to stick in both cases, and the expected outcome is the same.
 :::
+
 :::{#exr-5.2}
 Suppose every-visit MC was used instead of first-visit MC on the blackjack task. Would you expect the results to be very different? Why or why not?
 :::
 :::{#sol-5.2}
-The results would be exactly the same as in blackjack as there are no state-loops in a blackjack episode (player's total goes up or usable ace flag becomes false).
+The results would be exactly the same as in blackjack as there are no state loops in a blackjack episode (player's total goes up or usable ace flag becomes false).
 :::
 
 :::{#exm-soap-bubble}
 This is example 5.2: Soap Bubble from @sutton2018.
 
-Take a closed wire frame and dip it into soapy water. We do not want to blow any bubbles here; we only want to predict the shape the soap film spans over the frame. If the wire frame is not too wild we can represent it by prescribing a height function $h$ on the boundary of some planar region. The plot below shows how this can look.
+Take a closed wire frame and dip it into soapy water. We do not want to blow any bubbles here; we only want to predict the shape the soap film spans over the frame. If the wire frame is not too wild, we can represent it by prescribing a height function $h$ on the boundary of some planar region. The plot below shows how this can look.
 
 ::: {#fig-soap-film}
 ```{python}
@@ -287,7 +289,9 @@ from matplotlib import cm
 # Parameters
 radius = 2
 offset = 6
-n = 12  # resolution
+n = 2  # resolution (should be 200)
+p = 2  # patching (should be 200)
+
 # mesh
 x = np.linspace(-radius, radius, n)
 y = np.linspace(-radius, radius, n)
@@ -295,7 +299,7 @@ x, y = np.meshgrid(x, y)
 # disk
 mask = np.sqrt(x**2 + y**2) <= radius
 # circle
-theta = np.linspace(0, 2 * np.pi, 400)
+theta = np.linspace(0, 2 * np.pi, n)
 x_circle = radius * np.cos(theta)
 y_circle = radius * np.sin(theta)
 # outline and film height
@@ -333,8 +337,8 @@ surf = ax.plot_surface(
     alpha=0.75,
     antialiased=True,
     shade=False,
-    rcount=2,  # reduce the number of rendered rows (controls patching)
-    ccount=2,
+    rcount=p,
+    ccount=p,
 )
 
 
@@ -356,36 +360,34 @@ plt.show()
 This shows a Pringle-shaped soap film. The black outline is the wire frame; the rainbow surface is the film itself. The figure is modelled by a height function on the grey disk in the $xy$-plane. The underlying physics in @sutton2018, which I used for this plot, is not quite right, so this is only an approximation.
 :::
 
+---
 The question is: given the height on the boundary, what is the height $h$ at interior points? @sutton2018 set up the problem like this:
 
-> Suppose a wire frame forming a closed loop is dunked in soapy water to form a soap surface or bubble conforming at its edges to the wire frame. If the geometry of the wire frame is irregular but known, how can you compute the shape of the surface? The shape has the property that the total force on each point exerted by neighboring points is zero (or else the shape would change). This means that the surface’s height at any point is the average of its heights at points in a small circle around that point.
+> Suppose a wire frame forming a closed loop is dipped into soapy water to form a soap surface or bubble conforming to the wire frame at its edges. If the geometry of the wire frame is irregular but known, how can you compute the shape of the surface? The shape has the property that the total force on each point exerted by neighboring points is zero (or else the shape would change). This means that the height at any point is the average of the heights at points in a small circle around that point.
 
-That last sentence as stated is not correct for soap films.
-It is true for elastic sheets like rubber, for which the restoring force is (to first order) proportional to local displacement. In that case the height function $h$ satisfies the mean-value property: its value at a point equals the average of values on any circle around that point. Equivalently $h$ is [harmonic](https://en.wikipedia.org/wiki/Harmonic_function)
+That last sentence as stated is not correct for soap films. It is true for elastic sheets like rubber, for which the restoring force is proportional to local displacement (to first order). In that case, the height function $h$ satisfies the mean-value property: its value at a point equals asymptotically the average of values on small circles around that point. This is equivalent to $h$ being a [harmonic function](https://en.wikipedia.org/wiki/Harmonic_function):
 $$
 \Delta h = \frac{\partial^2 h}{\partial x^2} + \frac{\partial^2 h}{\partial y^2} = 0.
-$$ {#eq-harmonic}
+$$  {#eq-harmonic}
 
-Soap films are different. Their molecules don't "stretch out". What contracts then is surface tenison which makes them shrink into minimal surfaces. For more information about the physics behind this, I can recommend @oprea2000. Here I will just state the relevant result: for a surface given as the graph 
-$z=h(x,y)$ they satisfy the nonlinear [minimal-surface equation](https://en.wikipedia.org/wiki/Minimal_surface) (see [@oprea2000, Proposition 3.2.3])
+Soap films differ. Their molecules do not "stretch out." What contracts is surface tension, which makes them shrink into minimal surfaces. For more information about the physics behind this, I recommend @oprea2000. Here, I will state the relevant result: A soap surface given as the graph $z = h(x, y)$ satisfies the nonlinear [minimal-surface equation](https://en.wikipedia.org/wiki/Minimal_surface) [@oprea2000, Proposition 3.2.3]
 $$
-h_{xx}(1+h_y^2) - 2h_xh_yh_{xy} + h_{yy}(1 + h_x^2) = 0,
+h_{xx}(1 + h_y^2) - 2h_x h_y h_{xy} + h_{yy}(1 + h_x^2) = 0,
 $$ {#eq-minimal-surface}
+where $h_x, h_{xy}, \dots$ are the partial derivatives $\frac{\partial h}{\partial x}, \frac{\partial^2 h}{\partial x \partial y}$, etc.
 
-where $h_x, h_{xy}, \dots$ are the partial derivatives $\frac{\partial h}{\partial x}, \frac{\partial^2 h}{\partial x\partial y}$, etc.
+This is generally not equivalent to being harmonic, so the mean-value property does not hold for a soap film in general. However, there is an approximation. When higher powers of the partial derivatives are small, a soap film is well approximated by a harmonic function [@oprea2000, Exercise 4.4.9]. This is why the picture in @fig-soap-film — which simply plots the harmonic function $x^2 - y^2$ inside a disk — is only an approximation and not an exact minimal surface.
+Because of this distinction, I replace the "soap film problem" with the "rubber sheet problem" in these notes.
 
-This is generally not the same as being harmonic, so the mean-value property does not hold for a soap film in general. However, there is an approximation: when higher powers of the partial derivatives are small (see [@oprea2000, Exercise 4.4.9] for details), a soap film is well approximated by a harmonic function. This is why the picture in @fig-soap-film — which simply plots the harmonic function $x^2−y^2$ inside a circle — is only an approximation and not an exact minimal surface: $x^2−y^2$ does not satisfy the minimal-surface equation @eq-minimal-surface.
-
-Because of this distinction, I replace “soap film problem” with the rubber sheet problem in these notes. We discretise the equation for harmonic functions and solve that. On a rectangular grid we enforce the discrete mean-value property at interior nodes: for each interior node 
-$(x,y)$
+We discretize the equation for harmonic functions so we can solve it numerically. On a rectangular grid, we enforce the discrete mean-value property at interior nodes: for each interior node $(x, y)$,
 $$
-h(x,y)=\frac{1}{4} \sum_{(x',y') \in B(x,y)} h(x',y')
+h(x, y) = \frac{1}{4} \sum_{(x', y') \in B(x, y)} h(x', y'),
 $$
-with $B(x,y) = \{(x',y'): |x-x'|+|y-y'| = 1\}$.
+where $B(x, y) = \{(x', y'): |x - x'| + |y - y'| = 1\}$.
 
-Equivalently, $h$ at an interior site equals the expected boundary value reached by a simple (nearest-neighbour) random walk started at that site. Thus we can use  Monte-Carlo methods for solving the rubber sheet problem: run many independent random walks from $(x,y)$ until they first hit the boundary, record the boundary value where each walk exits, and average those values to estimate $h(x,y)$
+Equivalently, $h$ at an interior site equals the expected boundary value reached by a simple (nearest-neighbor) random walk started at that site. Thus, we can use Monte Carlo methods for solving the rubber sheet problem: run many independent random walks from $(x, y)$ until they first hit the boundary, record the boundary value where each walk exits, and average those values to estimate $h(x, y)$.
 
-Take the $7\times7$ grid with radius $3$ and boundary values:
+As a concrete example we'll take this $7\times7$ grid with radius $3$:
 ```{python}
 # | code-fold: false
 # === the rubber sheet boundary ===
@@ -409,7 +411,7 @@ boundary
 ```
 
 By symmetry the true centre value is $0$. 
-Let’s see how close a short Monte-Carlo simulation gets to the true value. 
+Let’s see how close a limited Monte-Carlo simulation gets to the true value. 
 First we set up the random-walk sampler:
 ```{python}
 # | code-fold: false
@@ -465,21 +467,21 @@ samples = monte_carlo_rubber_sheet(boundary, center, n_samples, rng)
 print(f"MC estimate after {n_samples} samples: {sum(samples)/n_samples}")
 ```
 
-This is an okeish approximation. Note that for Monte Carlo 1000 runs is not much. Monte Carlo is inherintly slow. One measure of it's accuracy is the *standard error*, which is the standard deviation of the estimator itself (all for a fixed sample size $n$).
+This is an okay approximation. Note that for Monte Carlo, 1000 runs is not much as it's inherently slow. One way to assess the quality of the method is by examining the *standard error*, which is the standard deviation of the estimator itself, i.e., the Monte Carlo simulation considered as a random variable (for a fixed sample size $n$).
+We can see the standard error of this estimator in action if we run the upper experiment a couple of times. It's quite high, so the estimates fluctuate a lot.
 
-We can see the variance of the estimator in action if we run upper experiment a couple of times:
 ```{python}
 for i in range(5):
     samples = monte_carlo_rubber_sheet(boundary, center, n_samples, rng)
     print(f"MC estimate after {n_samples} samples: {sum(samples)/n_samples}")
 ```
 
-What I mean by slow now is that the standard error typically scales with $1/\sqrt{n}$. That is, if we want to cut the standard error in half, we have to run 4 times more experiments. More about this in @sec-accuracy-of-estimators.
+What I mean by 'Monte Carlo is slow' is that the standard error typically scales with $1/\sqrt{n}$. That is, if we want to cut the standard error in half, we have to run four times more simulations. I go more into detail about this in @sec-mc-is-slow.
 
-There are two more remarks:
+There are two final remarks I want to make about Monte Carlo in general:
 
-1. A single value without error bounds is usually not really usable. A simple way to get a priori assurances is using confidence intervals. (see @sec-confidence-intervals)
-2. A clever way to decrease the standard error is by importance sampling which will be discussed and used for off-policy learning in @sec-off-policy-prediction-via-importance-sampling
+- A single value without error bounds is usually not really usable. A simple way to get a priori assurances is using confidence intervals. I discuss them quickly in the appendix @sec-confidence-intervals.
+- A clever way to decrease the standard error is by importance sampling, which will is also crucial for off-policy learning discussed in @sec-off-policy-prediction-via-importance-sampling.
 :::
 
 
@@ -531,7 +533,7 @@ I'm not 100% sure about this one. I think it's just the backup diagram for $v_\p
 
 ## Monte Carlo Control
 
-So here is the code for Monte Carlo Control.
+Here is the algorithm for the first-visit Monte Carlo control algorithm with exploring starts
 
 ::: {#lst-mc-control-exploring-starts-first-visit .listing-block} 
 | **Initialisation**:
@@ -554,16 +556,19 @@ So here is the code for Monte Carlo Control.
 Monte Carlo ES (Exploring Starts), for estimating $\pi \approx \pi_\ast$
 :::
 
-It's actually quite genious how it circumvents the problem that MC @lst-mc-prediction-first-visit does not terminate by letting the approximative $Q$ be a blend of all returns from all policies the algorithm has gone through yet.
-This results also in a quite flip-floppy behaviour in @exm-5.3-solving-black-jack as we will see. When two $Q$ values are close together, then the algorithm will switch often between $\pi(s,a_1)$ and $\pi(s,a_2)$, until it will eventually in the limit – whenever that will be – it sticks to the correct one. But that's actually not such a big problem, when the $q$ values are close then it's quite unimportant which of the two we choose. But it is a problem when we want to use the result as a definitive answer to the optimal solution.
+It’s actually quite ingenious how this algorithm circumvents the problem that MC @lst-mc-prediction-first-visit does not terminate, by letting the approximate $Q$ be a blend of all returns from all policies the algorithm has passed through so far.
+On the other hand, in my experience this algorithm tends to live in asymptopia—it can take an unrealistic number of episodes to converge to the optimal policy.
+In the practical world it can also result in rather flip-floppy behaviour. For example, in @exm-5.3-solving-black-jack there are actions with low signal-to-noise ratios: their $q$-values are close and have high variance. In this case the algorithm will often switch rapidly between these action values. It will eventually, in the limit—whenever that may be—settle on the correct one, but for solving Blackjack I couldn’t get there by sheer brute force.
+For obtaining good policies this might not be such a big problem—when the 
+$q$-values are close, it is largely unimportant which of the two we choose. 
 
-It also suffers from the problem that come with MC methods. How much should we sample? And is that really the result or did we just get unlucky with our data (so that it's quite biased)?
+The general method also suffers from the usual problems that come with MC methods. When should we stop? How do we know that we have enough episodes? This is a substantial question in its own right, but we’re dealing with the foundations here, so we’ll leave it for now.
 
 :::{#exr-5.4}
 The pseudocode for Monte Carlo ES is inefficient because, for each state-action pair, it maintains a list of all returns and repeatedly calculates their mean. It would be more efficient to use techniques similar to those explained in Section 2.4 to maintain just the mean and a count (for each state–action pair) and update them incrementally. Describe how the pseudocode would be altered to achieve this.
 :::
 :::{#sol-5.4}
-In the initialsation we don't need $\mathrm{Returns}$ any more and setup
+In the initialsation we don't need $\mathrm{Returns}$ any more and use instead
 
 :::{ .listing-block }
 |     $\mathrm{Count}(s,a) \gets 0$
@@ -573,22 +578,25 @@ In the initialsation we don't need $\mathrm{Returns}$ any more and setup
 and in the last lines instead of appending $G$ to $\mathrm{Returns}$ and calculate the average we do this
 
 :::{ .listing-block }
-|     $\mathrm{Count}(S_t,A_t) \gets \mathrm{Counts}(S_t,A_t) + 1$
-|     $\mathrm{Avg}(S_t,A_t) \gets \mathrm{Avg}(S_t,A_t) + \frac{G - \mathrm{Avg}(S_t,A_t)}{\mathrm{Counts}(S_t,A_t)}$
+|     $\mathrm{Count}(S_t,A_t) \gets \mathrm{Count}(S_t,A_t) + 1$
+|     $\mathrm{Avg}(S_t,A_t) \gets \mathrm{Avg}(S_t,A_t) + \frac{G - \mathrm{Avg}(S_t,A_t)}{\mathrm{Count}(S_t,A_t)}$
 :::
+<br>
 :::
  
 :::{#exm-5.3-solving-black-jack}
 This is example 5.3: Solving Blackjack from @sutton2018.
 
-Now we try to find the optimal policy for Blackjack @exm-5.1-blackjack. Spoiler alert, we won't find it here. There are two main obstacles, MC needs a lot of runs, and we also have no assurance how likely it is that we have found the optimal policy.
+Now we attempt to find the optimal policy for Blackjack @exm-5.1-blackjack. Spoiler alert, we won't find it here. Basically due to the same reasons given above: Monte Carlo methods require a lot of runs, and we also have no assurance how likely it is that we have found the optimal policy.
 
-The latter problem could be solved with clever statistical analyses, but I'm actually myself not too sure what the right approach is here and it's also beyond the scope of this chapter. Anyway, we won't even run into this problem as I'm also not willing to turn up the number to such a degree that we will very likely get the optimal solution.
+The latter problem could be solved with clever statistical analyses, but as I said it's beyond the scope of this chapter. Anyway, we won't even run into this problem as I'm also not willing to turn up the number to such a degree that we will very likely get the optimal solution. We have to settle with a good solution.
 
-So let's implement @lst-mc-control-exploring-starts-first-visit. The code is nearly a verbatim copy of the pseudocode so it's easy to compare. I made two changes though:
 
-- It uses @exr-5.4 for updating the averages of the $Q$-values
-- The code itself is every visit MC not like the pseudocode which is first visit MC. But it doesn't matter here as in Blackjack all trajectories are acyclic
+Let's implement @lst-mc-control-exploring-starts-first-visit.
+The code is nearly a verbatim copy of the algorithm so it's easy to compare. I made two changes to the code:
+
+- It uses the changes from @exr-5.4 for updating the averages of the $Q$-values
+- It is every-visit MC not like the algorithm which is first-visit MC. But it doesn't matter here as in Blackjack all episodes are acyclic
 
 ```{python}
 # | code-fold: false
@@ -668,7 +676,7 @@ def mc_es(env, n_episodes, rng):
     return π, q
 ```
 
-The only thing that's left to do now is run it and plot the found strategy
+So let's run it!
 
 ::: {#fig-mc-control-blackjack}
 ```{python}
@@ -676,7 +684,7 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 
-iterations = 10
+iterations = 1  # should be 1,000,000
 rng = random.Random(0)
 env = black_jack.BlackJack()
 π, q = mc_es(env, iterations, rng)
@@ -711,7 +719,7 @@ colWidths = [1 / 25] * 10
 scale = 1.5
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8))
-fig.suptitle(f"MC control Blackjack strategy ({iterations:.0e} iterations)")
+fig.suptitle(f"MC control Blackjack strategy\n( after {iterations:,} iterations)")
 
 # With Ace
 ax1.set_axis_off()
@@ -745,25 +753,31 @@ plt.tight_layout()
 plt.show()
 ```
 
+
 This shows the policy found by MC control for Blackjack. The row labels show the player sum, the column label the dealer's showing card, and the cells if the policy's action is H(it) or S(tick).
 :::
 
-After 1 million iteration we get a pretty good approximation of the optimal policy shown in Figure 5.2 from @sutton2018, but it's not quite right.
+After 1 million episodes we get a pretty good approximation of the optimal policy shown in Figure 5.2 from @sutton2018, but it's not quite right and flattening out the kinks in the policy would require much more effort.
 
-This illustrates one problem with MC. If we want to know the true answer, here the best policy, then we often can't know if the answer from our MC method provides the correct answer. Of course one way out is to use MC prediction on the final policy to check if $q_\pi$ fullfils @eq-optimal-policy, but here we also have to make sure statistically that the approximation to $q_\pi$ can tell close values apart if they are possible contenders for the greedy action.
+If we want to know the true best policy, we have to verify our result somehow. One way to do this is to use MC prediction on the final policy to check if $q_\pi$ fulfils @eq-optimal-policy, but here we also have to make sure statistically that the approximation to $q_\pi$ can tell close values apart if they are possible contenders for the greedy action.
 That's often what I find misleading about MC methods. First they look very easy but once you want to get some assurance on your claims you fall down a rabbit hole. This is just unavoidable when dealing with chance, it's always tricky to hedge against being just lucky/unlucky.
 
-Another problem that is exemplified here again is the slowness of MC. So after 1 million iterations we are pretty near to the optimal solution. How many more do we need to get to the optimal solution. I tried some and I only got lucky after 100 million iterations ...(this question always depends on the seed of course and is also kind of wrong, because if we're unlucky one of the optimal actions can underperform and be replaced by a suboptimal action again).
+Another problem that is exemplified here again is the slowness of MC. So after 1 million iterations we are pretty near to the optimal solution. How many more do we need to get to the optimal solution? I tried some and I only got lucky after 100 million episodes, and I only knew it was right because I already knew the optimal policy.
 :::
 
 ## Monte Carlo Control without Exploring Starts
 
-Two general ways to get explorative behaviour are:
+Exploring starts has two problems:
 
-- use soft policies
-- use off-policy prediction
+- not always possible
+- explores all possible states-action pairs, even though optimal behaviour might only require exploring a small subset of them.
 
-Off-policy prediction is explained later after this one in @sec-off-policy-prediction-via-importance-sampling.
+Two ways to get exploration without exploring starts are:
+
+- soft policies
+- off-policy prediction
+
+We discuss soft policies now and off-policy prediction in the next section @sec-off-policy-prediction-via-importance-sampling.
 
 
 A policy is $\varepsilon$-soft if $\pi(a|s) \geq \frac{\varepsilon}{\mathcal{A}(s)}$ for all $s \in \mathcal{S}$ and $a \in \mathcal{A}(s)$.
@@ -2290,6 +2304,7 @@ Notation used in this chapter:
 
 
 ### monte carlo is slow {#sec-mc-is-slow}
+
 The biggest problem is that MC simulation improves very slowly on average. The rate of convergence can be estimate using the central limit theorem that says that the distribution of the sample mean $\bar{X}_n$ of $n$ samples $X_1,\dots,X_n$ approximates a normal distribution center around the true mean $\mu$:
 $$
 \bar{X}_n \overset{d}{\to} \mathcal{N}(\mu, \frac{\sigma^2}{n}),

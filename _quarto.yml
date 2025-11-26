@@ -17,14 +17,16 @@ bibliography: references.bib
 format:
   html:
     page-layout: article
+    respect-user-color-scheme: true
     theme:
-      dark: darkly
+      dark: [darkly, theme-dark.scss]
       light: flatly
     highlight-style: oblivion
     css: styles.css
     number-sections: true
     code-fold: true
     lightbox: true
+
 execute: 
   cache: true
 filters:
