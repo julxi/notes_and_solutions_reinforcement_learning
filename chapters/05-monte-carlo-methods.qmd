@@ -11,22 +11,22 @@ diagram:
 
 # Monte Carlo Methods
 
-Here, Monte Carlo means sampling complete episodes.
-The Monte Carlo method does:
+In this chapter 'Monte Carlo' means sampling complete episodes.
+Monte Carlo methods have the following properties:
 
-- estimates value functions by experience
-- is only applicable for episodic tasks
-- theoretically, we assume that all episodes terminate no matter which actions are taken. I think practically this is less important, as we can't deal with finite but very long episodes either. So there's always some limit on the episode length.
-- updates only after an episode
+- use experience
+- only applicable for episodic tasks
+- updates happen only after an episode
+- the MDPs should terminate no matter which actions are taken. This is actually a theoretical assumption, as practically we can't deal with finite but very long episodes either
 
 ## Monte Carlo Prediction
 
 For prediction, we have two variants of Monte Carlo methods:
 
-- every-visit MC (states are dependent): maybe more intuitive but theoretical properties are worse as the returns are dependent.
-- first-visit MC (states are independent): seems a bit wasteful at first but returns are independent. I also think it can be beneficial to count a state only once, otherwise a lot of loops in a single episode can have a big impact on the value estimate.
+- every-visit MC: maybe more intuitive but theoretical harder to analyse.
+- first-visit MC: seems a bit wasteful at first but returns are independent. It can be beneficial to count a state only once, otherwise huge visit counts to a state in a single episode can have big impacts on the value estimate.
 
-Both converge to $v_\pi(s)$ if every $s$ is visited infinitely often. The algorithm is stochastic, that's why we loop forever in the pseudocode to get asymptotic guarantee. In real code, we have to have some stop condition. For example, the simple "high number of iterations and then fingers crossed".
+Both variants converge to $v_\pi(s)$ if every $s$ is visited infinitely often. The algorithm is stochastic, that's why we loop forever in the pseudocode to get asymptotic guarantee. In real code, we have to have some stop condition. For example, a simple "high number of iterations and then fingers crossed".
 
 ::: {#lst-mc-prediction-first-visit .listing-block} 
 | **Input**: $\pi$, the policy to be evaluated
@@ -52,17 +52,17 @@ Get your infinite deck ready, we're heading to the casinos.
 
 Here is a not-so-short summary of the Blackjack variant used in the source. I tried to keep it concise but also precise, the devil lives in the details here.
 
-- Player competes against the dealer
-- Both parties collect cards and if one's hand value exceeds 21 they automatically lose the game (go bust).
-- The deck is "infinite", i.e., the chances for any card are always like in a freshly shuffled deck.
-- The numbered cards go from 1 to 10, the value of face cards is 10 except ace which is valued as 1 or 11 if that doesn't result in a bust.
-- Game begins with two cards dealt to the player and dealer each. The player can see the first card of the dealer but not the second.
-- Right after the hands have been dealt, if the player or the dealer have 21 they have a natural and immediately win, or it's a draw if both have 21.
-- If there are no naturals the player can hit (request a new card) until he sticks (stop and let the dealer collect cards) or goes bust.
-- The dealer plays to this fixed strategy, they will hit when they have less than 17, and stick otherwise.
-- If the dealer does not go bust during their turn, the party with the highest total wins, or it's a draw.
+- player competes against the dealer
+- both parties collect cards and if one's hand value exceeds 21 they automatically lose the game (go bust).
+- the deck is "infinite", i.e., the chances for any card are always like in a freshly shuffled deck.
+- the numbered cards go from 1 to 10, the value of face cards is 10 except ace which is valued as 1 or 11 if that doesn't result in a bust.
+- game begins with two cards dealt to the player and dealer each. The player can see the first card of the dealer but not the second.
+- right after the hands have been dealt, if the player or the dealer have 21 they have a natural and immediately win, or it's a draw if both have 21.
+- if there are no naturals the player can hit—request a new card—until he sticks—stop and let the dealer collect cards.
+- the dealer plays to this fixed strategy, they will hit when they have less than 17, and stick otherwise.
+- if neither the player nor the dealer go bust during their turns, the party with the highest total wins, or it's a draw.
 
-The rule about naturals stated here seems to be different from what's stated in @sutton2018: the dealer's second card is only checked if the player has a natural. I took the rule that is more in line with the general blackjack rules. However, I don't know which rule they used in their implementation though. This is actually an important point for the distribution of the cards. Following this implementations rules, if the game has properly started (no party has a natural) and the dealer's showing card is an ace, it is guaranteed that the dealer's second card (the card face down) will not be a 10.
+The rule about naturals that I use here seems to be different from what's stated in @sutton2018 which reads as "the dealer's second card is only checked if the player has a natural". However, I don't know which rule they used in their implementation though. This is actually an important point for the distribution of the cards. Following 'my' rules, if the game has properly started—no party has a natural—and the dealer's showing card is an ace, it is guaranteed that the dealer's second card—the one face down—will not be a 10.
 
 This is how we set up Blackjack as an MDP:
 
@@ -96,7 +96,7 @@ Now let's set up the code for @lst-mc-prediction-first-visit. We need to make a 
 
 - Include a stop condition—a simple step counter.
 - Calculate the averages for the state-value approximation just once at the end.
-- To implement first visit, start with a count of all the episodes. Then, for each $S_t$, decrease the counter for that state until it's one. When it's one, we know this is the first visit.
+- To implement first visit, start with a count of all the states. Then, for each $S_t$, decrease the counter for that state until it's one, then we know this is the first visit.
 - I added a $R_0$ which corresponds to naturals (episode starts in a terminal state). However, we ignore these as we only calculate rewards for non-terminal states. This means a fraction of the generated episodes won't give any experience.
 
 ```{python}
@@ -271,13 +271,13 @@ Let's answer each question separately:
 Suppose every-visit MC was used instead of first-visit MC on the blackjack task. Would you expect the results to be very different? Why or why not?
 :::
 :::{#sol-5.2}
-The results would be exactly the same as in blackjack as there are no state loops in a blackjack episode (player's total goes up or usable ace flag becomes false).
+The results would be exactly the same as there is no way to visit a state a second time in blackjack (player's total goes up or usable ace flag becomes false, and usable ace flag can only become true once).
 :::
 
 :::{#exm-soap-bubble}
 This is example 5.2: Soap Bubble from @sutton2018.
 
-Take a closed wire frame and dip it into soapy water. We do not want to blow any bubbles here; we only want to predict the shape the soap film spans over the frame. If the wire frame is not too wild, we can represent it by prescribing a height function $h$ on the boundary of some planar region. The plot below shows how this can look.
+Take a closed wire frame and dip it into soapy water. We do not want to blow any bubbles; we only want to predict the shape the soap film spans over the frame. If the wire frame is not too wild, we can represent it by prescribing a height function $h$ on the boundary of some planar region. The plot below shows how this can look.
 
 ::: {#fig-soap-film}
 ```{python}
@@ -289,8 +289,8 @@ from matplotlib import cm
 # Parameters
 radius = 2
 offset = 6
-n = 2  # resolution (should be 200)
-p = 2  # patching (should be 200)
+n = 35  # resolution (should be 200)
+p = 35  # patching (should be 200)
 
 # mesh
 x = np.linspace(-radius, radius, n)
@@ -412,7 +412,7 @@ boundary
 
 By symmetry the true centre value is $0$. 
 Let’s see how close a limited Monte-Carlo simulation gets to the true value. 
-First we set up the random-walk sampler:
+First we set up the random-walk sampler that returns the height of the exit cell:
 ```{python}
 # | code-fold: false
 import random
@@ -476,7 +476,7 @@ for i in range(5):
     print(f"MC estimate after {n_samples} samples: {sum(samples)/n_samples}")
 ```
 
-What I mean by 'Monte Carlo is slow' is that the standard error typically scales with $1/\sqrt{n}$. That is, if we want to cut the standard error in half, we have to run four times more simulations. I go more into detail about this in @sec-mc-is-slow.
+What I mean by 'Monte Carlo is slow' is that the standard error typically scales with $1/\sqrt{n}$. That is, if we want to cut the standard error in half, we have to run four times more simulations. I go more into detail about this in appendix @sec-mc-is-slow.
 
 There are two final remarks I want to make about Monte Carlo in general:
 
@@ -487,11 +487,15 @@ There are two final remarks I want to make about Monte Carlo in general:
 
 ## Monte Carlo Estimation of Action Values
 
+One way to estimate the action-values is to view each state as its own little armed-bandit where we choose one action and obtain a reward according to the policy.
+For this we would need exploring starts, the ability to start the episode in any state action pair.
+This view misses one point though, that by generating an episode starting from one given state-action pair we see the rewards for all state-action pairs that follow.
+
 :::{#exr-5.3}
 What is the backup diagram for Monte Carlo estimation of $q_\pi$?
 :::
 :::{#sol-5.3}
-I'm not 100% sure about this one. I think it's just the backup diagram for $v_\pi$ but starting at an action node. The unsure part for me is that $q_\pi$ depends on an action and a state, so the state must be understood implicitly in the backup diagram.
+I'm not 100% sure about this one. I think it's just the backup diagram for $v_\pi$ but starting at an action node. The unsure part for me is that $q_\pi$ depends on an action and a state, so the state must be understood implicitly in the backup diagram. We could also demand that theoretically the actions for each state are distinct.
 
 ::: {.text-center}
 ```{.tikz}
@@ -556,11 +560,11 @@ Here is the algorithm for the first-visit Monte Carlo control algorithm with exp
 Monte Carlo ES (Exploring Starts), for estimating $\pi \approx \pi_\ast$
 :::
 
-It’s actually quite ingenious how this algorithm circumvents the problem that MC @lst-mc-prediction-first-visit does not terminate, by letting the approximate $Q$ be a blend of all returns from all policies the algorithm has passed through so far.
-On the other hand, in my experience this algorithm tends to live in asymptopia—it can take an unrealistic number of episodes to converge to the optimal policy.
+It’s actually quite ingenious how this algorithm circumvents the problem that MC prediction @lst-mc-prediction-first-visit does not terminate, by letting the approximate $Q$ be a blend of all returns from all policies the algorithm has passed through so far.
+On the other hand, in my experience this algorithm tends to live in asymptopia—it can take an unpractical large number of episodes to converge to the optimal policy.
 In the practical world it can also result in rather flip-floppy behaviour. For example, in @exm-5.3-solving-black-jack there are actions with low signal-to-noise ratios: their $q$-values are close and have high variance. In this case the algorithm will often switch rapidly between these action values. It will eventually, in the limit—whenever that may be—settle on the correct one, but for solving Blackjack I couldn’t get there by sheer brute force.
-For obtaining good policies this might not be such a big problem—when the 
-$q$-values are close, it is largely unimportant which of the two we choose. 
+For obtaining good enough policies this is not a real problem—when the 
+$q$-values are close, it is largely unimportant which one gets chosen. 
 
 The general method also suffers from the usual problems that come with MC methods. When should we stop? How do we know that we have enough episodes? This is a substantial question in its own right, but we’re dealing with the foundations here, so we’ll leave it for now.
 
@@ -587,16 +591,12 @@ and in the last lines instead of appending $G$ to $\mathrm{Returns}$ and calcula
 :::{#exm-5.3-solving-black-jack}
 This is example 5.3: Solving Blackjack from @sutton2018.
 
-Now we attempt to find the optimal policy for Blackjack @exm-5.1-blackjack. Spoiler alert, we won't find it here. Basically due to the same reasons given above: Monte Carlo methods require a lot of runs, and we also have no assurance how likely it is that we have found the optimal policy.
+Now, we attempt to find the optimal policy for blackjack from @exm-5.1-blackjack. Spoiler alert: we won’t find it here. Using crude Monte Carlo methods would require an unreasonable huge amount of runs to find the optimal strategy. What we can do, however, is find a good strategy and discuss how to verify the optimal strategy from @sutton2018.
 
-The latter problem could be solved with clever statistical analyses, but as I said it's beyond the scope of this chapter. Anyway, we won't even run into this problem as I'm also not willing to turn up the number to such a degree that we will very likely get the optimal solution. We have to settle with a good solution.
+Let’s dive into the implementation. The code is nearly a verbatim copy of the algorithm given in @lst-mc-control-exploring-starts-first-visit, with two changes:
 
-
-Let's implement @lst-mc-control-exploring-starts-first-visit.
-The code is nearly a verbatim copy of the algorithm so it's easy to compare. I made two changes to the code:
-
-- It uses the changes from @exr-5.4 for updating the averages of the $Q$-values
-- It is every-visit MC not like the algorithm which is first-visit MC. But it doesn't matter here as in Blackjack all episodes are acyclic
+- the code uses the changes from @exr-5.4 for updating the averages of the $Q$-values.
+- the code uses every-visit Monte Carlo, unlike the algorithm which is given for first-visit Monte Carlo. However, this doesn’t matter here as Blackjack is acyclic.
 
 ```{python}
 # | code-fold: false
@@ -684,7 +684,7 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 
-iterations = 1  # should be 1,000,000
+iterations = 1_000_000  # should be 1,000,000
 rng = random.Random(0)
 env = black_jack.BlackJack()
 π, q = mc_es(env, iterations, rng)
@@ -719,7 +719,7 @@ colWidths = [1 / 25] * 10
 scale = 1.5
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 8))
-fig.suptitle(f"MC control Blackjack strategy\n( after {iterations:,} iterations)")
+fig.suptitle(f"MC control Blackjack strategy\n(after {iterations:,} iterations)")
 
 # With Ace
 ax1.set_axis_off()
@@ -757,12 +757,12 @@ plt.show()
 This shows the policy found by MC control for Blackjack. The row labels show the player sum, the column label the dealer's showing card, and the cells if the policy's action is H(it) or S(tick).
 :::
 
-After 1 million episodes we get a pretty good approximation of the optimal policy shown in Figure 5.2 from @sutton2018, but it's not quite right and flattening out the kinks in the policy would require much more effort.
+After 1 million episodes, we get a pretty good approximation of the optimal policy shown in Figure 5.2 from @sutton2018, but it’s not quite right. Smoothing out the kinks in the policy would require many more runs.
 
-If we want to know the true best policy, we have to verify our result somehow. One way to do this is to use MC prediction on the final policy to check if $q_\pi$ fulfils @eq-optimal-policy, but here we also have to make sure statistically that the approximation to $q_\pi$ can tell close values apart if they are possible contenders for the greedy action.
-That's often what I find misleading about MC methods. First they look very easy but once you want to get some assurance on your claims you fall down a rabbit hole. This is just unavoidable when dealing with chance, it's always tricky to hedge against being just lucky/unlucky.
+Even if we could run the code for much longer, there remains the question of how to ensure that the resulting policy $\pi$ is optimal. We could use Monte Carlo prediction to estimate the $q$-values and then check if the policy takes only actions with the highest $q$-values. However, how can we know if these values are accurate enough? For this, we need a statistical procedure to distinguish the means of action values, even if they are close to each other. Since Monte Carlo prediction can be viewed as a collection of armed bandits, we can use action elimination and stopping conditions for multi-armed bandits to obtain the optimal action. A good reference for the theoretical side can be found in @eyal2006ActionElimination.
 
-Another problem that is exemplified here again is the slowness of MC. So after 1 million iterations we are pretty near to the optimal solution. How many more do we need to get to the optimal solution? I tried some and I only got lucky after 100 million episodes, and I only knew it was right because I already knew the optimal policy.
+I’ve done calculating and verifying the optimal solution in a side project, it's the same given by @sutton2018. I won’t go into any more details though, as it's only tangent to our aim for finding good policies for complicated environments.
+
 :::
 
 ## Monte Carlo Control without Exploring Starts
@@ -807,15 +807,15 @@ Here is the algorithm for approximating an optimal $\varepsilon$-soft policy.
 On-policy first-visit MC control (for $\epsilon$-soft policies), estimates $\pi \approx \pi_*$.
 :::
 
-We will use this algorithm for @exr-5.12.
+We will use this algorithm for @exr-5.12 and also discuss some properties of optimal $\varepsilon$-soft policies.
 
 ## Off-policy Prediction via Importance Sampling {#sec-off-policy-prediction-via-importance-sampling}
 
-Let's try to motivate importance sampling and also see where the word 'importance' comes from through a simpler example, going back to the rubber sheet problem.
+Let's try to motivate importance sampling and also see where the word 'importance' comes from through the rubber sheet problem.
 
-### Importance Sampling for the Rubber Sheet Problem {.unnumbered}
+### 🗐 Importance Sampling for the Rubber Sheet Problem
 
-Let’s return to @exm-soap-bubble, where we first introduced the rubber sheet problem. This time we solve it on the following $3\times 15$ grid. The goal is to estimate the height at the centre point
+Let’s return to @exm-soap-bubble, where we first saw the rubber sheet problem. This time we solve it on the following $3\times 15$ grid. The goal is to estimate the height at the centre point
 (marked with an $x$) using Monte Carlo (MC) simulation.
 ```{python}
 # | code-fold: false
@@ -871,7 +871,7 @@ we know that some outcomes (or behaviours) should be sampled more frequently bec
 Let’s formalise this for the rubber sheet problem above and bring it into the language of machine learning. We can see random walks on a grid as episodes of an MDP with a deterministic environment.
 An random walk is an episode $\tau = S_0,A_0,\dots,S_{T-1},A_{T-1},S_T$ (we are ignoring rewards for now), where the $S_i$ are the positions in the grid and the directions $A_i$ the chosen actions $U,D,L,R$. $S_0$ is the center position and $T$ is the time of first exist and thus $S_T$ is the first boundary state.
 
-We get equidirectional random walks from the uniform random policy $\pi$ that assigns equal probability to all directions $\pi(U) = \pi(D) = \pi(L) = \pi(R) = 0.25$ independent of the position (so it's stationary). The probability of a particular trajectory $\tau$ under $\pi$ is independent of the $S_i$ as the environment is deterministic and the policy is also independent of the state
+We get equidirectional random walks from the uniform random policy $\pi$ that assigns equal probability to all directions $\pi(U) = \pi(D) = \pi(L) = \pi(R) = 0.25$ independent of the position. The probability of a particular trajectory $\tau$ under $\pi$ is independent of the $S_i$ as the environment is deterministic and the policy is also independent of the state
 $$
 \mathrm{Pr}_{\pi}(\tau) = \pi(A_0) \cdot \dots \cdot \pi(A_{T-1}).
 $$
@@ -899,9 +899,9 @@ $$
 
 A simple unbiased estimator given $n$ samples $\tau_i \sim b$ is
 $$
-\frac{1}{n}\sum h(\tau_i)w(\tau_i) \quad \text{where } w(\tau_i) = \frac{\pi_t(\tau_)}{\pi_b(\tau_i)}
+\frac{1}{n}\sum h(\tau_i)w(\tau_i) \quad \text{where } w(\tau_i) = \frac{\pi_t(\tau_i)}{\pi_b(\tau_i)}
 $$
-where the $w(\tau)$ is called the importance weight.
+where $w(\tau)$ is called the importance weight.
 
 
 Now, let's implement importance sampling. First we define a function that returns $h(\tau)w(\tau)$ for one episode following  $b$:
@@ -972,7 +972,7 @@ Importance sampling is a variance reduction technique that gives us an improveme
 
 ```{python}
 seed = 0
-n_samples = 100_000
+n_samples = 1  # todo: 100_000
 
 # crude
 rng = np.random.default_rng(seed)
@@ -994,16 +994,16 @@ print(f"importance sampling σ: {σ_is:.5f}")
 
 So we get a roughly $10\times$ boost in our accuracy, just by sampling more the important directions.
 
-### importance sampling in ML
+### 🗐 Importance Sampling in ML
 
-After that rather long introduction through importance sampling in statistics, let’s talk about how it shows up in ML for off-policy prediction. The goal here isn’t variance reduction at all; it’s to let us evaluate a target policy using data generated by a different behaviour policy. In fact, the variance can easily blow up to infinity.
+After this little detour of importance sampling in statistics, let’s talk about how it shows up in ML for off-policy prediction. The goal here isn’t variance reduction at all; it’s to let us evaluate a target policy using data generated by a different behaviour policy. In fact, the variance can easily blow up to infinity.
 
 Suppose we have a behaviour policy $b$, which we use to generate episodes, and a target policy $\pi$, for which we want the expected return $v_\pi(s)$. As before, we can pull out the importance sampling trick:
 $$
 \begin{split}
 v_\pi(s) &= \mathbb{E}_{\tau \sim \pi}[G_0(\tau)| S_0 = s] \\
 &= \sum_{\tau} G_0(\tau) \mathrm{Pr}_{\pi}(\tau|S_0 = s) \\
-&= \sum_{\tau} G_t(\tau) \frac{\mathrm{Pr}_\pi(\tau |S_0 = s)}{\mathrm{Pr}_b(\tau|S_0 = s)} \mathrm{Pr}_b(\tau|S_0 = s) \\
+&= \sum_{\tau} G_0(\tau) \frac{\mathrm{Pr}_\pi(\tau |S_0 = s)}{\mathrm{Pr}_b(\tau|S_0 = s)} \mathrm{Pr}_b(\tau|S_0 = s) \\
 &= \mathbb{E}_{\tau \sim b}\left[G_0(\tau) \frac{\mathrm{Pr}_\pi(\tau|S_0 = s)}{\mathrm{Pr}_b(\tau|S_0 = s)}\Big| S_0 = s\right]
 \end{split}
 $$
@@ -1013,16 +1013,16 @@ $$
 w(\tau) = \frac{\mathrm{Pr}_\pi(\tau|S_0 = s)}{\mathrm{Pr}_b(\tau|S_0=s)}.
 $$
 
-et’s compute $w(\tau)$ for an episode $\tau = S_0, A_0, \dots, A_{T-1}, R_T, S_T$. First note that
+Let’s compute $w(\tau)$ for an episode $\tau = S_0, A_0, \dots, A_{T-1}, R_T, S_T$. First note that
 $$
-\mathrm{Pr}_\pi(\tau | S_0 = s) = \prod_{t=0}^{T-1} \pi(A_t|S_t) p(S_{t+1}| S_t, A_t)
+\mathrm{Pr}_\pi(\tau | S_0 = s) = \prod_{k=0}^{T-1} \pi(A_k|S_k) p(S_{k+1}| S_k, A_k)
 $$
 and equally for $\mathrm{Pr}_\pi(\tau|S_0 = s)$.
 So the importance weight is
 $$
 \begin{split}
 w(\tau) &= \frac{\mathrm{Pr}_\pi(\tau|S_0 = s)}{\mathrm{Pr}_b(\tau|S_0 = s)} \\
-&= \prod_{k = t}^{T-1}\frac{\pi(A_k|S_k)}{b(A_k|S_k)}
+&= \prod_{k = 0}^{T-1}\frac{\pi(A_k|S_k)}{b(A_k|S_k)}
 \end{split}
 $$
 All the environment dynamics $p(\cdot)$ cancel out, so the importance weight only depends on the policies which we can compute.
@@ -1035,7 +1035,7 @@ $$ {#eq-importance-sampling-expectation}
 with 
 $$
 w_{t:}(\tau) = \prod_{k = t}^{T-1}\frac{\pi(A_k|S_k)}{b(A_k|S_k)}
-$$
+$$ {#eq-importance-weight}
 
 
 I’ve drifted away from @sutton2018 notation here—and I’ll stick with it for now, because for me their notation is a bit dense. I know... bold move.
@@ -1057,71 +1057,67 @@ V^{\mathrm{WIS}}(s) = \frac{\sum_{(i,t) \in \mathcal{T}(s)} w_{t:}(\tau^{(i)}) G
 $${#eq-weighted-importance-sampling}
 This also comes in first-visit and every-visit flavours.
 
-### Bias, MSE, and All That
+### 🗐 Bias, MSE, and All That
 
-Now it’s time to properly talk about estimators.
-An *estimator* is a rule for computing an estimate of some unknown quantity from data.
-We can also just see them as random variables defined using the data random variables.
+Time to talk properly about estimators.
+An estimator is just a rule for computing an estimate of some unknown quantity from data. If you want, you can think of an estimator as a random variable built out of other random variables (your data).
 
-In our case, the unknown quantity is $v_\pi$, the true value function under the target policy $\pi$; the data are our episodes $\tau^{(1)},\dots,\tau^{(n)}$ generated under $b$; and the estimators are the various flavours of importance sampling: ordinary vs. weighted, and first visit-visit vs. every-visit.
+In our case, the unknown quantity is $v_\pi$, the true value function under the target policy $\pi$; the data are the episodes $\tau^{(1)}, \dots, \tau^{(n)}$ generated under the behaviour policy $b$; and the estimators are the various importance sampling constructions: ordinary vs weighted, and first-visit vs every-visit.
 
 #### First-Visit Ordinary importance Sampling {.unnumbered}
 
-The first-visit ordinary importance sampling estimator, $V^{\mathrm{OIS}}_{\mathrm{fv}}$, is probably the most straightforward of the bunch.
-For a state $s$, it estimates $v_\pi(s)$. Let us write the first-visit OIS estimator using the $m$ first-visit samples (drop the complicated indexing and think of i.i.d. samples of importance weights and returns $(w_j,G_j)$ that come from visits to $s$):
+The first-visit ordinary IS estimator, $V_\mathrm{fv}^\mathrm{OIS}$, is probably the simplest of the lot. For a given state $s$, we collect the first $m$
+first-visit samples and treat them as i.i.d. pairs $(w_j,G_j)$ of importance weights and returns. Then:
 $$
-V^{\mathrm{OIS}}_\text{fv}(s) = \frac{\sum_{j=1}^m w_j G_j}{m}
+V^{\mathrm{OIS}}_\text{fv}(s) = \frac{1}{m}\sum_{j=1}^m w_j G_j.
 $$
 
-as the mean of independent samples it is *unbiased*, meaning
+Because it’s just the mean of independent samples, it’s _unbiased_:
 $$
 \mathrm{E}[V^{\mathrm{OIS}}_\text{fv}(s)] = v_\pi(s)
 $$
-basically by definition of the importance weights, as
+basically by construction, since
 $$
 \mathbb{E}[w_jG_j] = v_\pi(s)
 $$
 
-The *mean squared error* (MSE) is a standard measure of estimator quality:
+A standard way of judging an estimator is the _mean squared error_ (MSE):
 $$
 \mathrm{MSE}(V^{\mathrm{OIS}}_\text{fv}(s)) = \mathbb{E}[(\mathrm{V}^{OIS}_\text{fv}(s) - v_\pi(s))^2].
 $$
 
-The smaller the MSE, the closer the estimator tends to be to the true value on average.
-For an unbiased estimator like $V^{\mathrm{OIS}}_\text{fv}(s)$, the MSE equals its variance,
-so it scales like the variance with $1/m$.
-What we then can really feel in the accuracy of an estimator is actually the root mean squared error (RMSE):
+For an unbiased estimator, the MSE is just the variance, so it scales like $1/m$
+What we usually feel in practice is the root MSE (RMSE):
 $$
-\text{RMSE} = \sqrt{\text{MSE}}
+\text{RMSE} = \sqrt{\text{MSE}},
 $$
-So this one scales with the for MC methods typical $1/\sqrt{m}$.
+which gives the familiar Monte-Carlo rate: $O(1/\sqrt{m})$.
 
-The catch? Ordinary importance sampling can have infinite variance if the importance weights have infinite variance for first-visit or every-visit (see @exm-5.5-infinite-variance and the solution to @exr-5.8). In this situations we don't get any $MSE = O(1/\sqrt{m})$ guarantees obviously. And the convergence will be even slower and unstable.
+The catch? Ordinary importance sampling can have infinite variance if the importance weights themselves have infinite variance—which can happen for both first-visit and every-visit versions (see @exm-5.5-infinite-variance and the solution to @exr-5.8). In those cases, you obviously don’t get the $O(1/\sqrt{m})$ behaviour. Convergence does still happen, but it becomes even slower and generally not usable.
 
 #### First-Visit Weighted importance Sampling {.unnumbered}
 
-Now let’s turn to the first-visit weighted importance sampling estimator, 
+Now let’s look at the first-visit weighted IS estimator:
 $$
-V_{\text{ev}}^{\mathrm{WIS}} = \frac{\sum_{j=1}^m w_j G_j}{\sum_{j=1} w_j},
+V_{\text{fv}}^{\mathrm{WIS}} = \frac{\sum_{j=1}^m w_j G_j}{\sum_{j=1} w_j},
 $$
-again for i.i.d. samples of $(w_j,G_j)$.
-This one trades a bit of *bias*, which is defined like this
+again for i.i.d. samples $(w_j,G_j)$.
+This estimator trades a little bias for lower variance, where bias is defined as:
 $$
-B(V_{ev}^{\mathrm{WIS}}) = \mathbb{E}[V_{\mathrm{ev}}^{\mathrm{WIS}}] - v_\pi(s),
+B(V_{\text{fv}}^{\mathrm{WIS}}) = \mathbb{E}[V_{\mathrm{fv}}^{\mathrm{WIS}}] - v_\pi(s),
 $$
-for much lower variance.
 
-To see that it's generally biased we can write it like this
+To see why the estimator is generally biased, write it as
 $$
-V_{\text{ev}}^{\mathrm{WIS}} = \frac{\left(\sum_{j=1}^m w_j G_j\right)/m}{\left(\sum_{j=1} w_j\right)/m},
+V_{\text{fv}}^{\mathrm{WIS}} = \frac{\left(\sum_{j=1}^m w_j G_j\right)/m}{\left(\sum_{j=1} w_j\right)/m},
 $$
-as the quotient of two random variables. The upper one is just $V^{\mathrm{OIS}}_{\text{ev}}$ whose expectation is $v_\pi(s)$ and the lower one has expectation $1$, which we show later. Of course the two random variables are dependent and so in general the expectation of the quotient is not the quotient of their expectations, that means in general
+The numerator is $V_{\text{fv}}^{\mathrm{OIS}}$, whose expectation is $v_\pi(s)$; the denominator has expectation 1 (we’ll show this in a moment). But because these two random variables are dependent, we can’t in general take the expectation through the quotient:
 $$
-\mathbb{E}[V_{\text{ev}}^{\mathrm{WIS}}] = \mathbb{E}\left[\frac{V_{\text{ev}}^{\mathrm{OIS}}}{(\sum_j w_j)/m}\right] 
-\not= \frac{\mathbb{E}[V_{\text{ev}}^{\mathrm{OIS}}]}{\mathbb{E}[(\sum_j w_j)/m]} 
+\mathbb{E}[V_{\text{fv}}^{\mathrm{WIS}}] = \mathbb{E}\left[\frac{V_{\text{fv}}^{\mathrm{OIS}}}{(\sum_j w_j)/m}\right] 
+\not= \frac{\mathbb{E}[V_{\text{fv}}^{\mathrm{OIS}}]}{\mathbb{E}[(\sum_j w_j)/m]} 
 = \frac{v_\pi(s)}{1}
 $$
-The last thing to show is that $\mathbb{E}[w] =1$ for a importance weight:
+And here is why $\mathbb{E}[w]=1$:
 $$
 \begin{split}
 \mathbb{E}_{\tau \sim b}[w] &= \sum_{\tau} \frac{p_\pi(\tau|S_0=s)}{p_b(\tau)|S_0=s} p_b(\tau|S_0=s) \\
@@ -1130,43 +1126,52 @@ $$
 \end{split}
 $$
 
-Nonetheless this bias is not too bad as it scales with $1/m$ [@agapiou2017Importance, Theorem 2.1], which makes it not that bad, and it's MSE scales with $1/m$, like ordinary importance sampling. So the bias can't be that bad after all.
+Despite the bias, it’s really not a disaster: the bias shrinks as $1/m$
+[@agapiou2017Importance, Theorem 2.1], and the MSE shrinks as $1/m$ too,
+just as with OIS. So the bias isn’t doing any real harm.
 
-Crucially weighted importance sampling has finite variance provided the returns are bounded by $a$.
-We can write it as a weighted sum:
+A crucial advantage is that weighted IS always has finite variance as long as returns are bounded by some $a$ (maybe even if they are unbounded, I didn't check that).
+We can write it as a convex combination:
 $$
-V^\mathrm{WIS}_\text{ev} = \sum_{j=1}^m \alpha_j G_j \quad \text{with } \alpha_j = \frac{w_j}{\sum_{k=1}^m w_k}
+V^\mathrm{WIS}_\text{fv} = \sum_{j=1}^m \alpha_j G_j \quad \text{with } \alpha_j = \frac{w_j}{\sum_{k=1}^m w_k}
 $$
 
-So $\mathbb{E}[(V^\mathrm{WIS}_\text{ev})^2] \leq \mathbb{E}[a^2] =  a^2$.
+Since the $\alpha_j$ just do a weighted sum of the $∣G_j∣\leq a$, we have $\mathbb{E}[(V^\mathrm{WIS}_\text{fv})^2] \leq a^2$.
 
 #### Every-Visit Importance Sampling {.unnumbered}
 
-The every-visit versions of importance sampling estimators look similar to their first-visit counterparts, but the underlying data are quite different.
-Now, the pairs $(w_j, G_j)$ are not independent: several of them may come from the same episode. For example, if $(w_k, G_k)$ corresponds to an early state visit and $(w_\ell, G_\ell)$ to a later one in the same trajectory, then $G_k \ge G_\ell$ whenever rewards are non-negative.
-This introduces correlation between samples and complicates the variance analysis.
+The every-visit versions is maybe the easiest to come up conceptually.
+However, the pairs $(w_j,G_j)$ are not independent when they come from the same episode.
+This creates correlations that complicate the variance analysis.
 
-The estimators are still consistent, that is
+The good news is that the every-visit estimators are still consistent:
 $$
-V^\mathrm{OIS}_\text{ev} \to v_\pi(s), V^\mathrm{WIS}_\text{ev} \to v_\pi(s) \quad \text{for } m \to \infty,
+V_\mathrm{ev}^\mathrm{OIS} \to v_π(s), V_\mathrm{ev}^\mathrm{WIS} \to v_\pi(s) \quad \text{for } n \to \infty
 $$
-but they are no longer unbiased for finite data — even for ordinary importance sampling. The bias is usually small and disappears asymptotically, but it’s worth noting that the i.i.d. assumption used in the first-visit case no longer holds.
 
-Practically, the every-visit estimators make fuller use of data: they reuse later parts of each trajectory instead of discarding everything after the first occurrence of a state. This typically reduces variance per episode compared to the first-visit versions, especially when visits to the same state are frequent. However, the reduction is not guaranteed, since correlation can sometimes have the opposite effect if the episode structure or the weighting magnifies noise.
-
+but they are no longer unbiased for finite data—even for ordinary importance sampling.
+Practically, the every-visit estimators make fuller use of data: they reuse later parts of each episode instead of discarding everything after the first occurrence of a state. But I don't know when this is actually useful.
 
 :::{#exr-5.5}
 Consider an MDP with a single nonterminal state and a single action that transitions back to the nonterminal state with probability $p$ and transitions to the terminal state with probability $1-p$. Let the reward be $+1$ on all transitions, and let $\gamma = 1$. Suppose you observe one episode that lasts 10 steps, with a return of 10. What are the first-visit and every-visit estimators of the value of the nonterminal state?
 :::
 :::{#sol-5.5}
-The basic exercise is easy:
+The exercise itself is straightforward:
 
-- The first visit estimate is just $10$, the length of the episode
-- The every visit estimator is $\frac{10 + 9 + \dots + 1}{10} = \frac{10\cdot 11}{2 \cdot 10} = 5.5$
+- The first-visit estimate is the first return: 10.
+- The every-visit estimate averages all returns after each visit to the state: 
+$$
+\frac{10 + 9 + \dots + 1}{10} = \frac{10\cdot 11}{2 \cdot 10} = 5.5
+$$
 
-In the rest of this I want to go a bit beyond and use the setup of this exercise to show that the every-visit estimator $V_\text{ev}(s)$ is biased.
+That’s the basic part. Now let’s go a bit further and use this setup to show explicitly that the every-visit estimator $V_{\text{ev}}(s)$ is biased.
 
-The length $L$ of an episode is geometrically distributed with $\mathrm{Pr}(L = \ell) = p^{\ell-1}(1-p)$. Thus the true value of the non-terminal state is:
+The episode length $L$ is geometrically distributed:
+$$
+\mathrm{Pr}(L = \ell) = p^{\ell-1}(1-p).
+$$
+The return of such an episode is just $\ell$,
+so the true value of the nonterminal state is
 $$
 \begin{split}
 v(s) &= \sum_{\ell = 1}^\infty \ell \cdot p^{\ell -1}(1-p) \\
@@ -1176,18 +1181,25 @@ v(s) &= \sum_{\ell = 1}^\infty \ell \cdot p^{\ell -1}(1-p) \\
 \end{split}
 $$
 
-The every visit estiator for a single episode is $V_\text{ev} = \frac{1+\dots+ L}{L} = \frac{L+1}{2}$. So we get *for a single episode*
+The every-visit estimator for a single episode of length $L$ is
 $$
-\mathbb{E}(V_\text{ev}) = \sum_{\ell = 1}^\infty \frac{\ell + 1}{2} p^{\ell-1}(1-p) = \frac{2-p}{2(1-p)}
+V_\text{ev} = \frac{1+\dots+L}{L} = \frac{L+1}{2}
 $$
-So here we can already see that it has bias
+So
 $$
-B(V_\text{ev}) = \mathbb{E}(V_\text{ev}) - v = - \frac{1}{2} \frac{p}{1-p}
+\mathbb{E}(V_\text{ev}) = \sum_{\ell = 1}^\infty \frac{\ell + 1}{2} p^{\ell-1}(1-p) = \frac{2-p}{2(1-p)}.
 $$
+Thus the bias is
+$$
+B(V_\text{ev}) = \mathbb{E}(V_\text{ev}) - v = - \frac{1}{2} \frac{p}{1-p}.
+$$
+So we can see that the estimator is biased when sampling a single episode.
 
-Now I want to go even abover and beyonder by going through some lengthy computations to find an explicit formula for the bias. This is just to showcase how tricky it is to work with data that is not i.i.d.
+Now let’s go above and beyond and compute the bias for the general case of $m$
+episodes.
+This is mainly to demonstrate how annoying it can be to work with data that aren’t i.i.d.
 
-In general we can write
+For $m$ episodes of lengths $L_1,\dots,L_m$, the every-visit estimator is
 $$
 \begin{split}
 V_\text{ev} &= \frac{\sum_{i=1}^m \sum_{t=1}^{L_i} G_{i,t}}{\sum_{i=1}^m L_i} \\
@@ -1195,14 +1207,14 @@ V_\text{ev} &= \frac{\sum_{i=1}^m \sum_{t=1}^{L_i} G_{i,t}}{\sum_{i=1}^m L_i} \\
 &= \frac{1}{2} \left( 1 + \frac{\sum_{i=1}^m L_i^2}{\sum_{i=1}^m L_i}\right),
 \end{split}
 $$
-for $m$ episodes of lengths $L_i$.
 
-Now let's tackle the complicated looking fraction. Let $S_m = \sum_{i=1}^m L_i$ then using these unproven facts (they need quite a bit of work to be proven themselves):
+Let $S_m=\sum_{i=1}^m L_i$.
+We now we rely on two non-trivial facts:
 
 - $\mathbb{E}[L_1^2|S_m = s] = \frac{s(2s-m+1)}{m(m+1)}$
 - $\mathbb{E}[S_m] = \frac{m}{1-p}$.
 
-we get 
+Then
 $$
 \begin{split}
 \mathbb{E}\left[ \frac{\sum_{i=1}^m L_i^2}{\sum_{i=1}^m L_i} \right] &= \sum_{s = m}^\infty \mathbb{E}\left[ \frac{\sum_{i=1}^m L_i^2}{s} | S_m = s \right] \mathrm{Pr}(S_m = s) \\
@@ -1214,34 +1226,40 @@ $$
 \end{split}
 $$
 
-Using the expression above for $V_\text{ev}$ and the derived expectation we get after some simplifying
+Substituting this into the expression for $\mathbb{E}[V_\text{ev}]$ and simplifying gives:
 $$
-\mathbb{E}[V_\text{ev}] = \frac{m + 1 - p}{(m+1)(1-p)}
+\mathbb{E}[V_\text{ev}] = \frac{m + 1 - p}{(m+1)(1-p)}.
 $$
-and for the bias
+So the bias is
 $$
 B[V_\text{ev}] = -\frac{1}{m+1}\frac{p}{1-p}.
 $$
-Which is a surprinsingly straightforward generalisation of the case $m=1$ from above.
-It is also $B \in O(\frac{1}{m})$.
+
+Surprinsingly, this is a very straightforward generalisation of the $m=1$ case.
+Also the bias falls as $1/m$.
 :::
 
 :::{#exm-5.4-off-policy-evaluation-black-jack}
 
 This is example 5.4: **Off-policy Estimation of a Blackjack State Value** from @sutton2018.
 
-The setup we want to use for estimating $v_\pi(s)$ using importance sampling is:
+Let's use importance sampling for off-policy prediction for the first time.
+The goal is to estimate the value $v_\pi(s)$ of a specific Blackjack state
+under a target policy $\pi$, even though our data will be generated by a behaviour policy 
+$b$. Concretely:
 
 - MDP = blackjack
 - $\pi =$ greedy policy from @exm-5.1-blackjack 
 - $b =$ uniform random policy
-- $s =$ (player's total = 13, hand is soft = yes, dealer showing = 2)
+- $s =$ (player's total = 13, usable ace = yes, dealer's showing = 2)
 
-First let's re-check the true estimate $v_\pi(s) = -0.27726$ from @sutton2018:
+@sutton2018 give the reference value $v_\pi(s)=−0.27726$.
+Let's check it ourselves with crude Monte Carlo just to be sure:
 ```{python}
 # | code-fold: false
+# === crude MC estimate of blackjack state value ===
 def generate_episode_from_state(env, π, start_state):
-    """Generate an episode starting from start_state following policy π."""
+    """Generate an episode starting from start_state following π."""
     env.set_state(start_state)
 
     state, terminated = start_state, False
@@ -1256,31 +1274,42 @@ env = BlackJack()
 start_state = State(13, True, 2)
 n_samples = 1  # 100_000
 
-sum(
-    [
-        generate_episode_from_state(env, π_at_least_20, start_state)
-        for _ in range(n_samples)
-    ]
-) / n_samples
+trials = [
+    generate_episode_from_state(env, π_at_least_20, start_state)
+    for _ in range(n_samples)
+]
+print(f"v_π(s) ~= {sum(trials) / n_samples} ({n_samples} trials)")
 ```
 
+This lands pretty close to $-0.27726$, so we believe them and take their number as the reference.
 
-This is pretty close to the $-0.27726$, so we take theirs.
+Now let's set up importance sampling.
+To do off-policy prediction we need to calculate the importance weight @eq-importance-weight.
+Because $b$ is stochastic and $\pi$ is deterministic, the importance weight for a trajectory is:
+$$
+w(\tau) = \begin{cases} 0 & \text{if } \exists t \text{ s.t. } A_{t} \neq \pi(S_{t}) \\ \prod_{t=0}^{T-1}\frac{1}{b(A_t)} & \text{otherwise} \end{cases}
+$$
 
-Now let's set up importance sampling. I don't want to show the full code here, because it's a bit bookkeapy. However, how we compute the importance weights is interesting, as the target policy is deterministic.
-This results in a *compliance* version of importance sampling: as soon as the behaviour policy deviates from the target policy the resulting importance-weight is $0$. That means in our case – where we have two actions and the behaviour policy is uniformly random – the importance-weight is either $0$ if $b$ does something $\pi$ wouldn't or $2^\ell$ where $\ell$ is the number of compliant actions.
+Here is the implementation of the function `bj_importance_weight_compliance` that generates an episode and returns the importance weight and the return. The behaviour policy $b$ is hardcoded as uniformly random and the target policy $\pi$ is a parameter and expects a deterministic policy. Since $b$ is stochastic and $\pi$ is deterministic, the importance weight is $0$ if $b$ does something $\pi$ wouldn't.
+This results in a *compliance* version of importance sampling: as soon as the behaviour policy deviates from the target policy the resulting importance-weight is $0$. That means in our case—where we have two actions and the behaviour policy is uniformly random—the importance-weight is either $0$ if $b$ does something $\pi$ wouldn't or $2^\ell$ where $\ell$ is the number of compliant actions.
 
 ```{python}
 # | code-fold: false
-# === Single importance sampling trajectory for Black Jack ===
+# === single importance-sampling episode for Black Jack ===
 
 EpisodeWG = tuple[float, float]  # (weight, return)
 
 
-def bj_importance_weight_compliance(env, π, start_state, rng) -> EpisodeWG:
-    """Run one episode returning (importance-weight, return).
-    Behaviour is uniformly random.
-    Returns (0, 0) if behaviour non-compliant."""
+def bj_importance_weight_compliance(
+    env: BlackJack, π: dict[State, Action], start_state: State, rng
+) -> EpisodeWG:
+    """Generate one episode under the *behaviour* policy b (uniform random)
+    and return (importance-weight, return)
+    for target deterministic policy π.
+
+    Note:
+    If the behaviour policy deviates even once (non-compliant),
+    the correct IS weight is 0 and this returns (0, 0)."""
     env.rng = rng
     env.set_state(start_state)
 
@@ -1288,17 +1317,22 @@ def bj_importance_weight_compliance(env, π, start_state, rng) -> EpisodeWG:
     state, terminated = start_state, False
     while not terminated:
         episode_length += 1
+
+        # behaviour: uniformly random
         action = rng.choice(env.action_space)
 
+        # if non-compliant, return (0, 0)
         if action != π[state]:
-            return 0, 0 #<1>
+            return 0, 0  # <1>
 
+        # otherwise, continue as usual
         state, reward, terminated = env.step(action)
 
+    # compliant for the entire episode:
     return 2**episode_length, reward
 ```
 
-1. It's ok to return $(w,G) = (0,0)$ here as $G$ only occurs in $wG$. So $G$ doesn't matter if $w = 0$.
+1. It's ok to return $(w,G) = (0,0)$ as soon as $b$ is non-compliant. We don't have to know the real $G$. It only appears in products $w \cdot G$ so its value doesn't matter if $w = 0$.
 
 Just to get a feel for it we can see the returns for 10 episodes
 ```{python}
@@ -1310,8 +1344,8 @@ for i in range(10):
     print(f"episode {i+1:2d} – Weight {w}, return {r}")
 ```
 
-So usually the weight is 0 except sometimes it can get quite big.
-This exemplifies how ordinary importance sampling  in ML can have such big variance.
+So most of the time the weight is 0 and if not it can get quite big.
+This shows why ordinary importance sampling for off-policy prediction can have such high variance.
 
 Now let's plot the performance of ordinary and weighted importance sampling.
 
@@ -1398,16 +1432,16 @@ def plot_ordinary_vs_weighted_IS(max_episodes, iterations_per_episode, rng):
     plt.ylim(top=10)
     plt.xlabel("Saple size (episodes)")
     plt.ylabel(f"Mean squarred error (over {iterations_per_episode} runs)")
-    plt.title("Ordinary vs Weighted Importance Sampling")
+    plt.title("Ordinary vs Weighted Importance Sampling\non single Blackjack state")
     plt.show()
 
 
 # Example seed that gives nice illustrative curves # 21, 23, 38, 9112
 rng = random.Random(0)
-# max_episodes = 100
-# iterations_per_episode = 100
-max_episodes = 1
-iterations_per_episode = 1
+max_episodes = 100
+iterations_per_episode = 100
+# max_episodes = 1
+# iterations_per_episode = 1
 
 plot_ordinary_vs_weighted_IS(max_episodes, iterations_per_episode, rng)
 ```
@@ -1415,7 +1449,7 @@ plot_ordinary_vs_weighted_IS(max_episodes, iterations_per_episode, rng)
 This is like figure 5.3 from @sutton2018. Weighted importance sapling produces lower error estimates for small sample sizes. Both curves are based on the same data.
 :::
 
-We can see in @fig-5.3-off-policy-evaluation-black-jack that the variance of ordinary importance sampling is higher (it produces higher spikes). For samples of size around 100 and bigger the difference is neglibale.
+We can see in @fig-5.3-off-policy-evaluation-black-jack that the variance of ordinary importance sampling is higher (it produces higher spikes). For samples of size around 100 they seem to produce comparatively similar results.
 :::
 
 :::{#exm-5.5-infinite-variance}
@@ -1705,22 +1739,27 @@ TBD
 ## Off-policy Monte Carlo Control
 
 ::: {#exr-5.11}
-In the boxed algorithm for off-policy MC control, you may have been expecting the $W$ update to have involved the importance-sampling ratio \frac{\pi(A_t|S_t)}{b(A_t|S_t)}$, but instead it involves \frac{1}{b(A_t|S_t)}$. Why is this nevertheless correct?
+In the boxed algorithm for off-policy MC control, you may have been expecting the $W$ update to have involved the importance-sampling ratio $\frac{\pi(A_t|S_t)}{b(A_t|S_t)}$, but instead it involves $\frac{1}{b(A_t|S_t)}$. Why is this nevertheless correct?
 :::
 ::: {#sol-5.11}
-The whole thing about proceeding to the next episode and updating $W$ how it is in there is just compliance.
+The whole thing about proceeding to the next episode and updating $W$ is just complinace. If the behavioral policy does something the target policy would not do, the weight is $0$. In the other case the importance sampling ratio is just 
+$$
+\frac{\pi(A_t|S_t)}{b(A_t|S_t)} = \frac{1}{b(A_t|S_t)}
+$$
 :::
 ::: {#exr-5.12}
 Consider driving a race car around a turn like those shown in Figure 5.5. You want to go as fast as possible, but not so fast as to run off the track. In our simplified racetrack, the car is at one of a discrete set of grid positions, the cells in the diagram. The velocity is also discrete, a number of grid cells moved horizontally and vertically per time step. The actions are increments to the velocity components. Each may be changed by $+1$, $-1$, or $0$ in each step, for a total of nine ($3 \times 3$) actions. Both velocity components are restricted to be nonnegative and less than $5$, and they cannot both be zero except at the starting line. Each episode begins in one of the randomly selected start states with both velocity components zero and ends when the car crosses the finish line. The rewards are 1 for each step until the car crosses the finish line. If the car hits the track boundary, it is moved back to a random position on the starting line, both velocity components are reduced to zero, and the episode continues. Before updating the car’s location at each time step, check to see if the projected path of the car intersects the track boundary. If it intersects the finish line, the episode ends; if it intersects anywhere else, the car is considered to have hit the track boundary and is sent back to the starting line. To make the task more challenging, with
 probability $0.1$ at each time step the velocity increments are both zero, independently of the intended increments. Apply a Monte Carlo control method to this task to compute the optimal policy from each starting state. Exhibit several trajectories following the optimal policy (but turn the noise off for these trajectories).
 :::
 ::: {#sol-5.12}
-This is a substantial exercise. Setting up the environment, the training code, debugging everyting. That's quite a lot of work. Also training on the full-size tracks is too much to do inside these notes. So I use a smaller track for exposition (@fig-track-choice) and for the bigger problems I use pretrained models. On all problem I use on-policy $\varepsilon$-soft first-visit sample-average Monte-Carlo control for training. That's quite a mouthfull but I will discuss each of these modifiers somewhere in this solution. At the very end I will also say some thoughts about Monte-Carlo exploring-starts and off-policy Monte-Carlo.
+This is a substantial exercise. Setting up the environment, the training code, debugging everyting. That's quite a lot of work. Also training on the full-size tracks is too much to do inside these notes. So I use a smaller track for exposition (@fig-track-choice) and for the bigger problems I use pretrained models.
+
+On all problem I use on-policy $\varepsilon$-soft first-visit sample-average Monte-Carlo control for training. That's quite a mouthfull but I will discuss each of these modifiers in this solution. At the very end I will also say some thoughts about Monte-Carlo exploring-starts and off-policy Monte-Carlo.
 
 #### The track environment {.unnumbered}
-I externalised the racetrack environment into `scripts.environment.race_track`. It's only required argument is the layout represented as an ASCII string. There are some other knobs, among them the size of the maximal velocity components `max_velocity` or if the velocity components can be negative `only_positive_velocity`^[Maybe `negative_velocity_components` would have been a better name.]. How I read the exercise, they want `only_positive_velocity=True` but I think that's a bit strange, especially since then some parts of the provided exmaple tracks would be unreachable. So I will use `only_posititve_velocity=False` in all of the environments. The `prob_steering_failure=0.1` by default, as required in the exercise.
+I externalised the racetrack environment into `scripts.environment.race_track`. Its only required argument is the layout represented as an ASCII string. There are some other knobs, among them the size of the maximal velocity components `max_velocity` or if the velocity components can be negative `only_positive_velocity`^[Maybe `negative_velocity_components` would have been a better name.]. How I read the exercise, they want `only_positive_velocity=True` but I think that's a bit strange, especially since then some parts of the provided exmaple tracks would be unreachable. So I will use `only_posititve_velocity=False` in all of the environments. Also `prob_steering_failure=0.1` by default, as required in the exercise.
 
-In the next code I define the small example `track_tight`. This environment only allows has `max_velocity=2`, this makes optimal episodes taking the left route shorter than taking the right route.
+In the next code I define the small example `env_tight`. This environment only allows has `max_velocity=2`, this makes optimal episodes taking the left route shorter than taking the right route.
 
 ```{python}
 # | code-fold: false
@@ -1843,9 +1882,9 @@ The best route is going left and has a length of 5. Going the right path require
 ### On-policy first-visit MC control (for ε-soft policies) {.unnumbered}
 
 We need to implement @lst-mc-control-on-policy-first-visit.
-The algorithm lends itself to the following implementation. We the policies objects deterministic, but in the episode generation we soften these to $\varepsilon$-soft policies, this is basically an implementation of the idea that $\varepsilon$-soft policies can be thought of hard policies on the a changed environment that randomices the choosen action with probablity $\varepsilon$  [@sutton2018, Chapter 5.4].
+The algorithm lends itself to the following implementation, where the policies are deterministic, but in the episode generation we soften these to $\varepsilon$-soft policies, this is basically an implementation of the idea that $\varepsilon$-soft policies can be thought of hard policies on the a changed environment that randomices the choosen action with probablity $\varepsilon$  [@sutton2018, Chapter 5.4].
 
-This is what `generate_episode_soft` does, it takes an envirnment, a deterministic policy, an $\varepsilon$ and produces an episode following $\pi$ where each step the action gets randomply choosen with probablity $\varepsilon$. With that the implementation of @lst-mc-control-on-policy-first-visit in `on_policy_mc_control_soft` is actually quite similar to the code used @exm-5.3-solving-black-jack for MC exploring starts. In a sense on-policy $\varepsilon$-soft MC control could be thought of as Monte Carlo exploring episodes.
+This is what `generate_episode_soft` does, it takes an envirnment, a deterministic policy, an $\varepsilon$ and produces an episode following $\pi$ where each step the action gets randomply choosen with probablity $\varepsilon$. With that the implementation of @lst-mc-control-on-policy-first-visit in `on_policy_mc_control_soft` is actually quite similar to the code used @exm-5.3-solving-black-jack for MC exploring starts. In a sense on-policy $\varepsilon$-soft MC control could be thought of as Monte Carlo with exploring episodes.
 
 ```{python}
 # | code-fold: false
@@ -1988,12 +2027,12 @@ plt.title("Loss during training on `env_tight`")
 plt.legend()
 ```
 
-Overall, the loss doesn't go up, and also has some significant drops, which is good. We can also see that in this training run there is only a single episode that reaches the optimal running length of 5 and in the later episodes it regularily gets to 6.
-Also note that the first couple of episodes had enourmus lengts for the of over 10_000. This is the problem balancing explotaition and exploration again. If I had choosen a higher $\varepsilon$ then the first couple of episodes would be smaller but the agent had less possibilities to improve as more often it's actions are out of its control.
+Overall, the loss doesn't go up, and also has some significant drops, which is good. We can also see that in this training run there is only a single episode that reaches the optimal running length of 4 and in the later episodes it regularily gets to 5.
+Also note that the first couple of episodes had enourmus lengts for the of over 10,000. This is the problem balancing explotaition and exploration again. If I had choosen a higher $\varepsilon$ then the first couple of episodes would be smaller but the agent had less possibilities to improve as more often it's actions are out of its control.
 
 These very long intial episodes are also a reason why it's a bad idea to use every-visit MC for this problem. In every-visit MC these long episodes give lots of unhelpful rewards, I'm pretty sure that some episodes have more every-visits in the first 10 episodes than first-visit in the total run of the training. Also, in this problem good policies usually produce episodes that visit every state once anyways.
 
-Now, let's see what the trained policy 
+Now, let's see what the trained policy produces without steering failures:
 ```{python}
 env_tight.prob_steering_failure = 0.0
 states, _, _ = generate_episode_soft(
@@ -2007,14 +2046,16 @@ states, _, _ = generate_episode_soft(
 plot_episode(env_tight, states)
 ```
 
-As seen in the loss, the policy prefers taking the right path. Mostl likely, going right is optimal for $\varepsilon$-soft policies with $\varepsilon=0.1$. So this was just to show that $\varepsilon$-soft policies tend to avoid tight situations that require precise control and or only give a small reward.
+As seen in the loss, the policy prefers taking the right path. Mostl likely, going right is optimal for $\varepsilon$-soft policies with $\varepsilon=0.1$.
 
-#### The big problems {.unnumbered}
+This is a demonstration thet soft policies can to avoid optimal behaviour if they require clutch control without error for failure.
+
+#### The big tracks {.unnumbered}
 
 Now let's turn our attention to the original problems [@sutton2018, Figure 5.5]. The code that we have used so far is too slow for these problems and also for the approach I have chosen learning requires hundreds of millions of episodes on these problems.
-So I have used a script in `scripts/solving_race_track/train_left_track.py` and `scripts/solving_race_track/train_right_track.py` to train policies for a couple of hours. Although, if you want really fast code you don't use python, but that would be too much for these problems.
+So I have used a script in `scripts/solving_race_track/train_left_track.py` and `scripts/solving_race_track/train_right_track.py` to train policies for a couple of hours. Although, if you want really fast code I wouldn't use python.
 
-We start with the right track, because for some reasons it's easier to solve. Well.. actually it's an interesting observation. The right track has a bigger space statet but is easier for our MC method, since the space of _relevant_ states, states that actually matter for a typical run is smaller. This is because optimised episodes for the right track are actually shorter, as the finishing line has a lower y-corrdinate, and thus can be reached in fewer steps.
+We start with the right track, because surprisingly it's easier to solve. It's an interesting observation. The right track has a bigger state space but is easier for our MC method, since the space of _relevant_ states, states that actually matter for a typical run is smaller. This is because optimised episodes for the right track are actually shorter, as the finishing line has a lower y-coordinate, and thus can be reached in fewer steps. Also intiially—where randomness very high—the average episode lengths are shorter.
 
 This code loads the trained policy, the environment and also the loss during training.
 ```{python}
@@ -2038,31 +2079,42 @@ print(f"The policy was trained for {n_episodes_right:,} episodes.")
 print(f"The ε decreased exponentially from {ε_max_right} to {ε_min_right}")
 ```
 
-The loss is for some time approximately $\frac{1}{\sqrt[5]{n}}$. I don't know why, but it shows how slow the learning is, but it could have also come from the slow $\varepsilon$ decay used in the training.
+In many parts of the training the loss decreases like $n^{-m}$ for some $m < 1$. This is a typical behavior for Monte Carlo methods. I have highlighted one part where it scales approximately like $n^{-1/4}$. I don't know why the scaling is how it is.
+
 ```{python}
-plt.plot(loss_means_starts_right, loss_means_right, label="loss")
+import numpy as np
+import matplotlib.pyplot as plt
 
-start = 600
-end = 1200
-k = 460
-exp = -0.22
-anin = k * loss_means_starts_right[start:end] ** (exp)
+# Constants
+START, END = 750, 1150
 
-plt.plot(loss_means_starts_right[start:end], anin, label="anin")
+# Slice data
+x = loss_means_starts_right[START:END]
+y = loss_means_right[START:END]
 
+# Log-transform for linear fitting
+log_x, log_y = np.log(x), np.log(y)
+
+# Fit linear trend in log-log space
+slope, intercept = np.polyfit(log_x, log_y, 1)
+decay_rate = np.exp(intercept) * x**slope
+decay_rate_str = f"{slope:.2f}"
+
+# Plotting
+plt.figure(figsize=(10, 6))
+plt.plot(loss_means_starts_right, loss_means_right, label="Loss")
+plt.plot(x, decay_rate, label=rf"fit: $n^{{{decay_rate_str}}}$")
+
+# Formatting
 plt.xscale("log")
 plt.yscale("log")
 plt.legend()
-plt.title(f"Log-Log loss averaged over {loss_means_window_right:,} episodes")
-
-
-
+plt.title(f"Loss averaged over {loss_means_window_right:,} episodes")
+plt.grid(True, which="both", linestyle="--", alpha=0.5)
+plt.show()
 ```
 
-
-Note that the plot has only a limited number of data points and the inital straight line is just two datapoints. Also even though it looks that for a good portion the loss scales as described above, this is a log-log plot, so the improvement tampers off for a good 3/4 of the whole episodes.
-
-Now let's see how the trajectories look like that are found by the policy. 
+Now let's see how the trajectories look like that this policy returns. 
 
 ::::{#fig-track-right layout="[1,1,1]"}
 
@@ -2096,7 +2148,7 @@ states, _, _ = generate_episode_soft(
 plot_episode(env_right, states)
 ```
 
-The policy also finds a good trajector from the penultimate rightmost starting point.
+The policy also finds a good trajector from the some starting positions on the right.
 :::
 :::{#fig-track-right-c}
 ```{python}
@@ -2122,192 +2174,13 @@ The policy has found pretty good strategies for some positions, as shown in (a) 
 ::::
 
 
-
-```{python}
-import pickle
-
-with open("results/race_track_left.pkl", "rb") as file_in:
-    result = pickle.load(file_in)
-
-loss_left = result["loss_means"]
-n_episodes_left = result["num_episodes"]
-π_left = result["policy"]
-ε_max_left = result["epsilon_max"]
-ε_min_left = result["epsilon_min"]
-env_left = result["env"]
-env_left.prob_steering_failure = 0.0
-
-print(f"The policy was trained for {n_episodes_left:,} episodes.")
-print(f"The ε decreased exponentially from {ε_max_left} to {ε_min_left}")
-```
-
-Good pos: 4,5,8
-Bad pos: 3,6,7
-
-::::{#fig-track-leftlayout="[1,1]"}
-
-:::{#fig-track-left-a}
-```{python}
-states, _, _ = generate_episode_soft(
-    env_left,
-    π_left,
-    0.0,
-    rng,
-    max_lenght=200,
-    start_pos=(4, 0),
-)
-
-plot_episode(env_right, states)
-```
-
-The policy finds a good trajectory from all the left.
-:::
-:::{#fig-track-left-b}
-```{python}
-rng = random.Random(1)
-env_left.rng = rng
-states, _, _ = generate_episode_soft(
-    env_left,
-    π_left,
-    0.0,
-    rng,
-    max_lenght=200,
-    start_pos=(7, 0),
-)
-
-plot_episode(env_right, states)
-```
-
-The policy also finds a good trajector from the penultimate rightmost starting point.
 :::
 
-The policy has found pretty good strategies for some positions, as shown in (a) and (b). Other positions like the one shown in the last picture have a policy of crashing. , which rerols the starting position. In this example here, there are a couple of crashes until the car gets set to a position for which the policy knows how to finish the race.
-::::
+## 🗐 Appendix
 
 
 
-:::
-
-
-
-
-
-
-
-
-
-
-```
-env_tricky.prob_steering_failure = 0.0
-states, _, _ = generate_episode_soft(
-    env_tricky,
-    π_tricky,
-    0.0,
-    rng,
-    max_lenght=200,
-)
-
-plot_episode(env_tricky, states)
-```
-
-
-
-
-```{python}
-import pickle
-
-print("Unpickle!")
-with open("results/race_track_left.pkl", "rb") as file_in:
-    result = pickle.load(file_in)
-
-loss_left = result["loss_means"]
-n_episodes_left = result["num_episodes"]
-π_left = result["policy"]
-env_left = result["env"]
-q_left = result["evaluation"]
-```
-
-
-
-```{python}
-env_left.prob_steering_failure = 0.0
-states, _, _ = generate_episode_soft(env_left, π_left, 0.0, rng, max_lenght=200, start_pos=(3, 0))
-
-plot_episode(env_left, states)
-```
-
-```
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
-
-import scripts.environment.race_track as rt
-
-
-n_loss_blocks = len(loss_means)
-loss_labels = np.linspace(0, n_episodes, n_loss_blocks, dtype=int)
-
-skip = 200
-plt.plot(loss_labels[skip:], loss_means[skip:])
-plt.title(f"Loss averaged")
-plt.show()
-```
-
-```{python}
-
-```
-
-
-ndiae
-
-
-1. I've eternalised the programm for the race-track environment
-1. The first argument to a race-rack environment is the layout as an ASCII-string.
-1. In the original source it says that the velocity components
-1. I've restricted the velocity to 2 to make the track 'trickier
-
-
-
-```{python}
-
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Appendix
-
-### Notation
-
-Notation used in this chapter:
-
-- The future trajector $\tau_{t:} := (R_t, S_t, A_t, A_{t+1}, \dots, A_{T-1}, R_{T}, S_T)$
-
-
-### monte carlo is slow {#sec-mc-is-slow}
+### Monte Carlo is Slow {#sec-mc-is-slow}
 
 The biggest problem is that MC simulation improves very slowly on average. The rate of convergence can be estimate using the central limit theorem that says that the distribution of the sample mean $\bar{X}_n$ of $n$ samples $X_1,\dots,X_n$ approximates a normal distribution center around the true mean $\mu$:
 $$
@@ -2320,14 +2193,6 @@ As we are working with quite big $n$ in MC simulations we'll just do a leap of f
 Using the normal approximation this gives us that with a bit more than 95% probability $\bar{X}_n$ falls within the two sigma interval $[\mu - \frac{2\sigma}{\sqrt{n}}, \mu + \frac{2\sigma}{\sqrt{n}}]$. If we want to cut this interval in half, i.e., make $\frac{2\sigma}{\sqrt{n}}$ half as big, we have to quadruple the number of trials $n$, and if we want to get another decimal point in precision we need 100 times more samples. That is really slow.
 
 A saving grace for MC could be that it is very easy to scale in parallel computations but I don't know how much that helps in real live and here in the real of these notes we are not dealing with any parallelisation.
-
-### early introduction of importance sampling {#sec-introduction-importance-sampling}
-
-
-
-
-
-
 
 ### Confidence intervals {#sec-confidence-intervals}
 
