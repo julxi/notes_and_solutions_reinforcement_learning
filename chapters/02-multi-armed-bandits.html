@@ -6,6 +6,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="dcterms.date" content="2025-10-30">
 
 <title>2&nbsp; Multi-armed Bandits – Notes on Sutton &amp; Barto</title>
 <style>
@@ -98,7 +99,7 @@ div.csl-indent {
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="../site_libs/bootstrap/bootstrap-fb02f3c877dd64dca3cf6a6e57462b95.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-febd3d0b452fc20adeeab4d20a8c1a88.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-dark-72e3104a5210017f14ac4024f5014c88.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
 <script src="../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
 <link href="../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
 <link href="../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
@@ -306,7 +307,8 @@ window.Quarto = {
       }
     };
     const authorPrefersDark = true;
-    const darkModeDefault = authorPrefersDark;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
     let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
     // Dark / light mode switch
     window.quartoToggleColorScheme = () => {
@@ -316,6 +318,14 @@ window.Quarto = {
       setStyleSentinel(toAlternate);
       toggleGiscusIfUsed(toAlternate, darkModeDefault);
     };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
     // Switch to dark mode if need be
     if (hasAlternateSentinel()) {
       toggleColorMode(true);
@@ -390,6 +400,12 @@ window.Quarto = {
  <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Dynamic Programming</span></span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-monte-carlo-methods.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Monte Carlo Methods</span></span></a>
+  </div>
+</li>
     </ul>
     </div>
 </nav>
@@ -402,9 +418,9 @@ window.Quarto = {
   <ul>
   <li><a href="#a-k-armed-bandit-problem" id="toc-a-k-armed-bandit-problem" class="nav-link active" data-scroll-target="#a-k-armed-bandit-problem"><span class="header-section-number">2.1</span> A k-armed Bandit Problem</a>
   <ul class="collapse">
-  <li><a href="#random-variables-and-probability" id="toc-random-variables-and-probability" class="nav-link" data-scroll-target="#random-variables-and-probability">random variables and probability</a></li>
-  <li><a href="#conditional-probability" id="toc-conditional-probability" class="nav-link" data-scroll-target="#conditional-probability">conditional probability</a></li>
-  <li><a href="#expected-value" id="toc-expected-value" class="nav-link" data-scroll-target="#expected-value">expected value</a></li>
+  <li><a href="#random-variables-and-probability" id="toc-random-variables-and-probability" class="nav-link" data-scroll-target="#random-variables-and-probability">Random Variables and Probability</a></li>
+  <li><a href="#conditional-probability" id="toc-conditional-probability" class="nav-link" data-scroll-target="#conditional-probability">Conditional Probability</a></li>
+  <li><a href="#expected-value" id="toc-expected-value" class="nav-link" data-scroll-target="#expected-value">Expected Value</a></li>
   </ul></li>
   <li><a href="#action-value-methods" id="toc-action-value-methods" class="nav-link" data-scroll-target="#action-value-methods"><span class="header-section-number">2.2</span> Action-value Methods</a></li>
   <li><a href="#the-10-armed-testbed" id="toc-the-10-armed-testbed" class="nav-link" data-scroll-target="#the-10-armed-testbed"><span class="header-section-number">2.3</span> The 10-armed Testbed</a></li>
@@ -428,7 +444,7 @@ window.Quarto = {
   <li><a href="#independent-variables" id="toc-independent-variables" class="nav-link" data-scroll-target="#independent-variables"><span class="header-section-number">2.11.6</span> independent variables</a></li>
   <li><a href="#estimators" id="toc-estimators" class="nav-link" data-scroll-target="#estimators"><span class="header-section-number">2.11.7</span> estimators</a></li>
   <li><a href="#sec-geometric-series" id="toc-sec-geometric-series" class="nav-link" data-scroll-target="#sec-geometric-series"><span class="header-section-number">2.11.8</span> geometric series</a></li>
-  <li><a href="#sec-recurrence-relations" id="toc-sec-recurrence-relations" class="nav-link" data-scroll-target="#sec-recurrence-relations"><span class="header-section-number">2.11.9</span> recurrence relations</a></li>
+  <li><a href="#sec-recurrence-relations" id="toc-sec-recurrence-relations" class="nav-link" data-scroll-target="#sec-recurrence-relations"><span class="header-section-number">2.11.9</span> recurrence Relations</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -447,6 +463,12 @@ window.Quarto = {
 <div class="quarto-title-meta">
 
     
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">October 30, 2025</p>
+    </div>
+  </div>
   
     
   </div>
@@ -456,14 +478,14 @@ window.Quarto = {
 </header>
 
 
-<p>(Some imports for python, can be ignored)</p>
-<div id="24369fda" class="cell" data-execution_count="2">
+<div id="deb061e3" class="cell" data-execution_count="2">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass, field</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> typing <span class="im">import</span> Sequence, Tuple</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Some import for python</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dataclasses <span class="im">import</span> dataclass, field</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> typing <span class="im">import</span> Sequence, Tuple</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <section id="a-k-armed-bandit-problem" class="level2" data-number="2.1">
@@ -472,68 +494,68 @@ window.Quarto = {
 <p>The true value of an action is defined as: <span class="math display">\[
 q_*(a) := \mathbb{E}[ R_t \mid A_t = a].
 \]</span></p>
-<p>The time index here doesn’t play a special role as the action-reward probabilities in the armed bandit are stationary. You can think of it as “when <span class="math inline">\(a\)</span> is picked”—that is, the expected reward when action <span class="math inline">\(a\)</span> is chosen.</p>
+<p>The time index here doesn’t play a special role as the action-reward probabilities in the armed bandit are stationary. You can think of the condition meaning “when <span class="math inline">\(a\)</span> is picked”.</p>
 <p>If you’re feeling queasy about the conditional expected value, here’s a quick refresher on the relevant notation and concepts.</p>
 <section id="random-variables-and-probability" class="level3 unnumbered">
-<h3 class="unnumbered anchored" data-anchor-id="random-variables-and-probability">random variables and probability</h3>
-<p>The foundations of all processes we discuss here are discrete probability spaces <span class="math inline">\((\Omega, \mathrm{Pr})\)</span>. <!-- todo: can I be more precise about these processes? We need armed bandits + MDPs --> <span class="math inline">\(\Omega\)</span> is the set of all possible trajectories—that is, complete sequences of outcomes for the random variables in a single run of the process—and <span class="math inline">\(\mathrm{Pr}\)</span> assigns a probability to each trajectory. That is, <span class="math display">\[
+<h3 class="unnumbered anchored" data-anchor-id="random-variables-and-probability">Random Variables and Probability</h3>
+<p>The foundations of all processes we discuss here – armed bandits or more involved environments that appear later – are discrete probability spaces <span class="math inline">\((\Omega, \mathrm{Pr})\)</span>. <span class="math inline">\(\Omega\)</span> is the set of all possible trajectories on the environment, i.e., complete sequences of outcomes for the random variables describing a run of the process, and <span class="math inline">\(\mathrm{Pr}\)</span> assigns a probability to each trajectory: <span class="math display">\[
 \mathrm{Pr}\colon \Omega \to [0,1] \quad \text{with} \quad
 \sum_{\omega \in \Omega} \mathrm{Pr}(\omega) = 1.
 \]</span></p>
-<p>The random variables <span class="math inline">\(X\)</span> are simply functions <span class="math inline">\(X\colon \Omega \to \mathcal{X}\)</span> from <span class="math inline">\(\Omega\)</span> to a result space <span class="math inline">\(\mathcal{X}\)</span>.</p>
+<p><em>Random variables</em> are simply functions <span class="math inline">\(X\colon \Omega \to \mathcal{X}\)</span> from <span class="math inline">\(\Omega\)</span> to a result space <span class="math inline">\(\mathcal{X}\)</span>.</p>
 <p>We follow the convention of <span class="citation" data-cites="sutton2018">Sutton and Barto (<a href="#ref-sutton2018" role="doc-biblioref">2018</a>)</span>: random variables are written in capital letters, and their possible values are in lowercase.</p>
-<p>If we want to refer to the concrete outcome of a single trajectory (which we actually don’t often do in theory crafting), we evaluate random variables on a specific <span class="math inline">\(\omega \in \Omega\)</span>, which fixes their values. <!-- I don't like "apply" here. It's more the chosen ω sets the values of the random variables --> So an arbitrary trajectory looks like this <span class="math inline">\(A_1(\omega), R_1(\omega), A_2(\omega), R_2(\omega) \dots\)</span></p>
-<p>Let’s bring up two common conventions we can find in <span class="math inline">\(\mathbb{E}[ R_t \mid A_t = a]\)</span>:</p>
+<p>If we want to refer to the concrete outcome of a single trajectory (which we actually don’t often do in theory crafting), we evaluate random variables on a specific <span class="math inline">\(\omega \in \Omega\)</span>, which fixes their values. So an arbitrary but concrete trajectory looks like this <span class="math inline">\(A_1(\omega), R_1(\omega), A_2(\omega), R_2(\omega) \dots\)</span></p>
+<p>Let’s bring up two common conventions are used for this notation <span class="math inline">\(\mathbb{E}[ R_t \mid A_t = a]\)</span> of the conditional expectation:</p>
 <ol type="1">
-<li>We usually omit the argument <span class="math inline">\(\omega\)</span> when referring to the value of a random variable. This is what makes the randomness implicit in a random variable <span class="math inline">\(X\)</span>. This mathematically conflates the function <span class="math inline">\(X ⁣\colon\Omega\to \mathcal{X}\)</span> with the value <span class="math inline">\(X(\omega)\)</span>, but context sorts that out.</li>
-<li>When writing functions of sets, we abbreviate expressions like <span class="math inline">\(F({\omega \in \Omega : \text{statement true in }\omega})\)</span> to simply <span class="math inline">\(F(\text{statement})\)</span>.</li>
+<li>We usually omit the argument <span class="math inline">\(\omega\)</span> when referring to the value of a random variable. This conflates the notation for <span class="math inline">\(X\)</span> the function and <span class="math inline">\(X(\omega)\)</span> a value of the function, but is easer to write than <span class="math inline">\(\mathbb{E}[R_t(\omega) | A_t(\omega) = a]\)</span>.</li>
+<li>When dealing with functions over subsets of <span class="math inline">\(\Omega\)</span>, we abbreviate expressions like <span class="math inline">\(F({\omega \in \Omega : \text{statement true for }\omega})\)</span> to simply <span class="math inline">\(F(\text{statement})\)</span>. Without this we had to write <span class="math inline">\(\mathbb{E}[R_t(\omega) | \omega \in \Omega : A_t(\omega) = a]\)</span>.</li>
 </ol>
 <p>With both conventions in play, we can see that <span class="math inline">\(\mathrm{Pr}(X = x)\)</span> is just shorthand for <span class="math inline">\(\mathrm{Pr}(\omega \in \Omega : X(\omega) = x)\)</span></p>
 </section>
 <section id="conditional-probability" class="level3 unnumbered">
-<h3 class="unnumbered anchored" data-anchor-id="conditional-probability">conditional probability</h3>
+<h3 class="unnumbered anchored" data-anchor-id="conditional-probability">Conditional Probability</h3>
 <p>The reward <span class="math inline">\(R_t\)</span>​ depends on the action <span class="math inline">\(A_t\)</span>​ taken. If we know the value of <span class="math inline">\(A_t\)</span>, then the conditional probability that <span class="math inline">\(R_t=r\)</span> given <span class="math inline">\(A_t = a\)</span> is: <span class="math display">\[
 \mathrm{Pr}(R_t = r \mid A_t = a) = \frac{\mathrm{Pr}(R_t = r, A_t = a)}{\mathrm{Pr}(A_t = a)},
 \]</span></p>
 <p>where the comma denotes conjunction of the statements.</p>
-<p>This is only well-defined if <span class="math inline">\(\mathrm{Pr}(A_t = a) &gt; 0\)</span> but that’s a technicality we won’t worry too much about—it won’t bite us.</p>
+<p>This is only well-defined if <span class="math inline">\(\mathrm{Pr}(A_t = a) &gt; 0\)</span> but that’s a technicality that won’t come up.</p>
 </section>
 <section id="expected-value" class="level3 unnumbered">
-<h3 class="unnumbered anchored" data-anchor-id="expected-value">expected value</h3>
-<p>Real-valued random variables like <span class="math inline">\(R_t\colon \Omega \to \mathbb{R}\)</span> have an expected value—also called the mean—<span class="math inline">\(\mathbb{E}[R_t]\)</span>, defined as: <span class="math display">\[
+<h3 class="unnumbered anchored" data-anchor-id="expected-value">Expected Value</h3>
+<p>Real-valued random variables like <span class="math inline">\(R_t\colon \Omega \to \mathbb{R}\)</span> have an expected value <span class="math inline">\(\mathbb{E}[R_t]\)</span>, which is also called their mean. It is defined as: <span class="math display">\[
 \mathbb{E}[ R_t ] := \sum_{\omega \in \Omega} R_t(\omega) \mathrm{Pr}(\omega)
 \]</span></p>
-<p>A more commonly used form—sometimes called the “law of the unconscious statistician” (see appendix <a href="#thm-law-of-the-unconscious-statistician" class="quarto-xref">Theorem&nbsp;<span>2.1</span></a>)—is: <span class="math display">\[
-\mathbb{E}[R_t] = \sum_{r \in \mathcal{R}} r \; \mathrm{Pr}(R_t = r),
+<p>A more commonly used form is the “law of the unconscious statistician”-theorem, also called LOTUS (see appendix <a href="#thm-law-of-the-unconscious-statistician" class="quarto-xref">Theorem&nbsp;<span>2.1</span></a>): <span class="math display">\[
+\mathbb{E}[R_t] = \sum_{r \in \mathbb{R}} r \; \mathrm{Pr}(R_t = r),
 \]</span></p>
 <p>To compute a conditional expectation, we just switch probabilities with conditional probabilities: <span class="math display">\[
 \mathbb{E}[R_t \mid A_t = a] = \sum_{\omega \in \Omega} R_t(\omega) \mathrm{Pr}(\omega \mid A_t = a).
 \]</span></p>
 <p>Or, using the more practical LOTUS form: <span class="math display">\[
-\mathbb{E}[R_t \mid A_t = a] = \sum_{r \in \mathcal{R}} r \; \mathrm{Pr}(R_t = r \mid A_t = a).
+\mathbb{E}[R_t \mid A_t = a] = \sum_{r \in \mathbb{R}} r \; \mathrm{Pr}(R_t = r \mid A_t = a).
 \]</span></p>
-<p>To close the loop, a more explicit formulation of the true value of an action is: <span class="math display">\[
-q_*(a) = \sum_{r \in \mathcal{R}} r \; \frac{\mathrm{Pr}(R_t = r, A_t = a)}{\mathrm{Pr}(A_t = a)}
-\]</span> (This form is arguably less intuitive, but it’s included here to jog our memory.)</p>
+<p>With all that said a more explicit formula of the true value of an action can be given as: <span class="math display">\[
+q_*(a) = \sum_{r \in \mathbb{R}} r \; \frac{\mathrm{Pr}(R_t = r, A_t = a)}{\mathrm{Pr}(A_t = a)}.
+\]</span></p>
 </section>
 </section>
 <section id="action-value-methods" class="level2" data-number="2.2">
 <h2 data-number="2.2" class="anchored" data-anchor-id="action-value-methods"><span class="header-section-number">2.2</span> Action-value Methods</h2>
-<p>This part always trips me up, so let me clarify it for myself: <span class="math inline">\(Q_t(a)\)</span> is the estimated value of action <span class="math inline">\(a\)</span> <em>prior</em> to time <span class="math inline">\(t\)</span>, so not included are <span class="math inline">\(A_t\)</span> and it’s corresponding reward <span class="math inline">\(R_t\)</span>.</p>
+<p>This part always trips me up, so let me clarify it for myself: <span class="math inline">\(Q_t(a)\)</span> is the estimated value of action <span class="math inline">\(a\)</span> <em>prior</em> to time <span class="math inline">\(t\)</span>, not including <span class="math inline">\(A_t\)</span> and it’s corresponding reward <span class="math inline">\(R_t\)</span>.</p>
 <p>Instead, <span class="math inline">\(A_t\)</span> is selected based on the current estimates <span class="math inline">\(\{Q_{t}(a):a \in \mathcal{A}\}\)</span>. For example, our algorithm could pick <span class="math inline">\(A_t\)</span>​ greedily as <span class="math inline">\(A_t:=\mathrm{argmax}_{a \in \mathcal{A}} Q_t(a)\)</span>, or <span class="math inline">\(\varepsilon\)</span>-greedily.</p>
 <div id="exr-2.1" class="theorem exercise">
 <p><span class="theorem-title"><strong>Exercise 2.1</strong></span> In <span class="math inline">\(\varepsilon\)</span>-greedy action selection, for the case of two actions and <span class="math inline">\(\varepsilon = 0.5\)</span>, what is the probability that the greedy action is selected?</p>
 </div>
 <div id="sol-2.1" class="proof solution">
 <p><span class="proof-title"><em>Solution 2.1</em>. </span>The total probability of selecting the greedy action is: <span class="math display">\[
-\mathrm{Pr}(\text{greedy action}) + \mathrm{Pr}(\text{exploratory action}) \cdot \frac{1}{2} = 0.75
+\mathrm{Pr}(\text{greedy}) + \mathrm{Pr}(\text{exploratory}) \cdot \frac{1}{|\mathcal{A}|} = 0.75
 \]</span></p>
 </div>
 </section>
 <section id="the-10-armed-testbed" class="level2" data-number="2.3">
 <h2 data-number="2.3" class="anchored" data-anchor-id="the-10-armed-testbed"><span class="header-section-number">2.3</span> The 10-armed Testbed</h2>
-<p>The 10-armed testbed will accompany us through the rest of this chapter (I had to keep it variable in size just for the sake of generalization though).</p>
-<div id="c78407c1" class="cell" data-execution_count="3">
+<p>The 10-armed testbed will accompany us through the rest of this chapter. So here is the class that we use as the armed bandit environment.</p>
+<div id="a8ee76ea" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === the armed bandit ===</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ArmedBandit:</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""k-armed Gaussian bandit."""</span></span>
@@ -546,9 +568,9 @@ q_*(a) = \sum_{r \in \mathcal{R}} r \; \frac{\mathrm{Pr}(R_t = r, A_t = a)}{\mat
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> pull_arm(<span class="va">self</span>, action):</span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.rng.normal(loc<span class="op">=</span><span class="va">self</span>.action_mu[action], scale<span class="op">=</span><span class="va">self</span>.action_sd)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>And here’s the code for the sample-average bandit algorithm. For clarity, I’ll refer to this and upcoming algorithms as ‘agents’, given their autonomous implementation. Note that we’re also using the incremental implementation from section 2.4.</p>
-<div id="3755aae8" class="cell" data-execution_count="4">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === the simple average bandit agent ===</span></span>
+<p>And here’s the code for the sample-average bandit algorithm. For clarity, I’ll refer to this and upcoming algorithms as ‘agents’, given their learning behaviour. Note that this is using the incremental implementation from <a href="#sec-incremental-implementation" class="quarto-xref"><span>Section 2.4</span></a>.</p>
+<div id="fbf711c0" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === the sample average bandit agent ===</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> SampleAverageBanditAgent:</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, Q1, ε, seed<span class="op">=</span><span class="va">None</span>):</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.rng <span class="op">=</span> np.random.default_rng(seed)</span>
@@ -578,8 +600,8 @@ q_*(a) = \sum_{r \in \mathcal{R}} r \; \frac{\mathrm{Pr}(R_t = r, A_t = a)}{\mat
 <span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> (action, reward)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Next, I’ll define an experiment function <code>bandit_experiment</code> that we’ll use throughout this chapter. In short, it takes multiple agents, length of each episode, and the number of episodes, then executes these agents repeatedly in a shared bandit environment, which gets reset after each episode. It returns two arrays: the average reward per step and the percentage of optimal actions taken per step—both averaged over all runs. These results can then be visualised using the plotting functions also provided. You don’t have to read the code unless you’re curious…</p>
-<div id="ef2cdafc" class="cell" data-execution_count="5">
+<p>Next, I’ll define an experiment function <code>bandit_experiment</code> that we’ll use throughout this chapter. In short, it takes multiple agents, length of each episode, and the number of episodes, then executes these agents repeatedly in a shared bandit environment, which gets reset after each episode. It returns two arrays: the average reward per step and the percentage of optimal actions taken per step—both averaged over all runs. These results can then be visualised using the plotting functions also provided in this code snipped. You don’t have to read the code unless you’re curious…</p>
+<div id="05e675b4" class="cell" data-execution_count="5">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === the core bandit experiment ===</span></span>
@@ -706,92 +728,114 @@ q_*(a) = \sum_{r \in \mathcal{R}} r \; \frac{\mathrm{Pr}(R_t = r, A_t = a)}{\mat
 <span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ax</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p>…, but it’s still helpful to see such an experiment in action. We can, for example, recreate Figure 2.2 <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>)</span>. It compares the performance of a greedy agent (<span class="math inline">\(\varepsilon = 0\)</span>), and two <span class="math inline">\(\varepsilon\)</span>-greedy agents with <span class="math inline">\(\varepsilon =0.1\)</span> and <span class="math inline">\(\varepsilon=0.01\)</span>. We let them run for a couple of steps and then repeat this process for a couple of runs to get a smoother curve.</p>
-<div class="cell" data-execution_count="6">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === comparison greediness ===</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co"># configuration of the experiment</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">1_000</span>,</span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">2_000</span>)</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"># initialize agents with different epsilon values</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>epsilons <span class="op">=</span> [<span class="fl">0.0</span>, <span class="fl">0.1</span>, <span class="fl">0.01</span>]</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [SampleAverageBanditAgent(Q1<span class="op">=</span>np.zeros(config.bandit_num_arms), ε<span class="op">=</span>ε, seed<span class="op">=</span>config.exp_seed) <span class="cf">for</span> ε <span class="kw">in</span> epsilons]</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co"># run bandit experiment</span></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    agents,</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    config    </span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a><span class="co"># plots</span></span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [<span class="ss">f"ε=</span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> e <span class="kw">in</span> epsilons]</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>plot_average_reward(avg_rwd, labels<span class="op">=</span>labels)</span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div id="fig-bandit-comparison-greediness" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-execution_count="6">
-<figure class="quarto-float quarto-float-fig figure">
-<div aria-describedby="fig-bandit-comparison-greediness-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<div class="cell-output cell-output-display">
-<div id="fig-bandit-comparison-greediness-1" class="quarto-float quarto-figure quarto-figure-center anchored">
-<figure class="quarto-float quarto-subfloat-fig figure">
-<div aria-describedby="fig-bandit-comparison-greediness-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<a href="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-greediness-output-1.png" class="lightbox" data-gallery="fig-bandit-comparison-greediness" title="Figure&nbsp;2.1&nbsp;(a): The average reward."><img src="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-greediness-output-1.png" class="img-fluid figure-img" data-ref-parent="fig-bandit-comparison-greediness"></a>
+<p>… but it’s still helpful to see such an experiment in action. We can, for example, recreate Figure 2.2 <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>)</span>. It compares the performance of a greedy agent (<span class="math inline">\(\varepsilon = 0\)</span>), and two <span class="math inline">\(\varepsilon\)</span>-greedy agents with <span class="math inline">\(\varepsilon =0.1\)</span> and <span class="math inline">\(\varepsilon=0.01\)</span>. We let them run for a couple of steps (<code>exp_steps</code>) and also repeat such a run a couple of times (<code>exp_runs</code>) so we can take the average over all the runs.</p>
+<div id="4fb39f9c" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(exp_steps<span class="op">=</span><span class="dv">1_000</span>, exp_runs<span class="op">=</span><span class="dv">2_000</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># initialize agents with different epsilon values</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>epsilons <span class="op">=</span> [<span class="fl">0.0</span>, <span class="fl">0.1</span>, <span class="fl">0.01</span>]</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    SampleAverageBanditAgent(</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        Q1<span class="op">=</span>np.zeros(config.bandit_num_arms),</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>        ε<span class="op">=</span>ε,</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        seed<span class="op">=</span>config.exp_seed,</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> ε <span class="kw">in</span> epsilons</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co"># run bandit experiment</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(agents, config)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-bandit-comparison-greediness-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-(a) The average reward.
+<p>The result of this experiment is shown in these figures.</p>
+<div id="fig-2.2-bandit-comparison-greediness" class="quarto-layout-panel">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-2.2-bandit-comparison-greediness-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-2.2-bandit-comparison-greediness" style="flex-basis: 50.0%;justify-content: flex-start;">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [<span class="ss">f"ε=</span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> e <span class="kw">in</span> epsilons]</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>plot_average_reward(avg_rwd, labels<span class="op">=</span>labels)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div id="fig-2.2-bandit-comparison-greediness-a" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-subfloat-fig figure">
+<div aria-describedby="fig-2.2-bandit-comparison-greediness-a-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="57d75a9e" class="cell" data-execution_count="7">
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-7-output-1.png" class="lightbox" data-gallery="fig-2.2-bandit-comparison-greediness" title="Figure&nbsp;2.1&nbsp;(a): The average reward"><img src="02-multi-armed-bandits_files/figure-html/cell-7-output-1.png" class="img-fluid figure-img" data-ref-parent="fig-2.2-bandit-comparison-greediness"></a></p>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-2.2-bandit-comparison-greediness-a-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+(a) The average reward
 </figcaption>
 </figure>
 </div>
 </div>
-<div class="cell-output cell-output-display">
-<div id="fig-bandit-comparison-greediness-2" class="quarto-float quarto-figure quarto-figure-center anchored">
+<div class="quarto-layout-cell-subref quarto-layout-cell" data-ref-parent="fig-2.2-bandit-comparison-greediness" style="flex-basis: 50.0%;justify-content: flex-start;">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div id="fig-2.2-bandit-comparison-greediness-b" class="quarto-float quarto-figure quarto-figure-center anchored">
 <figure class="quarto-float quarto-subfloat-fig figure">
-<div aria-describedby="fig-bandit-comparison-greediness-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-<a href="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-greediness-output-2.png" class="lightbox" data-gallery="fig-bandit-comparison-greediness" title="Figure&nbsp;2.1&nbsp;(b): The percentage of optimal step selection"><img src="02-multi-armed-bandits_files/figure-html/fig-bandit-comparison-greediness-output-2.png" class="img-fluid figure-img" data-ref-parent="fig-bandit-comparison-greediness"></a>
+<div aria-describedby="fig-2.2-bandit-comparison-greediness-b-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div id="347ea161" class="cell" data-execution_count="8">
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-8-output-1.png" class="lightbox" data-gallery="fig-2.2-bandit-comparison-greediness" title="Figure&nbsp;2.1&nbsp;(b): The percentage of optimal step selection"><img src="02-multi-armed-bandits_files/figure-html/cell-8-output-1.png" class="img-fluid figure-img" data-ref-parent="fig-2.2-bandit-comparison-greediness"></a></p>
+</figure>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-bandit-comparison-greediness-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+</div>
+</div>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-subfloat-caption quarto-subfloat-fig" id="fig-2.2-bandit-comparison-greediness-b-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 (b) The percentage of optimal step selection
 </figcaption>
 </figure>
 </div>
 </div>
 </div>
-<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-bandit-comparison-greediness-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;2.1: This is like Figure 2.2 <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>)</span>: the average performance of different ε-greedy sample average methods over 2000 runs. On the 10-armed testbed.
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-2.2-bandit-comparison-greediness-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2.1: <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018, fig. 2.2</a>)</span>. The performance of ε-greedy sample average agents on the 10-armed testbed for different values <span class="math inline">\(\varepsilon\)</span> averaged over 2000 runs.
 </figcaption>
 </figure>
 </div>
-</div>
-<p>Out of curiosity, let’s see what happens when we have only one run (so it’s not the average anymore but just the reward). It’s a mess, wow. Without averaging over a couple of runs, we can’t make out anything.</p>
-<div id="e98a37ef" class="cell" data-execution_count="7">
+<p>Out of curiosity, let’s see what happens when we have only one run, so there is no averaging to be done. It’s a mess, wow. Without averaging over a couple of runs, we can’t make out anything.</p>
+<div id="b906e5f7" class="cell" data-execution_count="9">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === experiment with only one run ===</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">1_000</span>,</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">1</span>)</span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>epsilons <span class="op">=</span> [<span class="fl">0.0</span>, <span class="fl">0.1</span>, <span class="fl">0.01</span>]</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [SampleAverageBanditAgent(Q1<span class="op">=</span>np.zeros(config.bandit_num_arms), ε<span class="op">=</span>ε, seed<span class="op">=</span>config.exp_seed) <span class="cf">for</span> ε <span class="kw">in</span> epsilons]</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    agents,</span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    config</span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>plot_average_reward(avg_rwd, labels<span class="op">=</span>[<span class="ss">f"ε=</span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> e <span class="kw">in</span> epsilons])</span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === experiment with only one run ===</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">1_000</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>epsilons <span class="op">=</span> [<span class="fl">0.0</span>, <span class="fl">0.1</span>, <span class="fl">0.01</span>]</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [SampleAverageBanditAgent(Q1<span class="op">=</span>np.zeros(config.bandit_num_arms), ε<span class="op">=</span>ε, seed<span class="op">=</span>config.exp_seed) <span class="cf">for</span> ε <span class="kw">in</span> epsilons]</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    agents,</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    config</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>plot_average_reward(avg_rwd, labels<span class="op">=</span>[<span class="ss">f"ε=</span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> e <span class="kw">in</span> epsilons])</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><a href="02-multi-armed-bandits_files/figure-html/cell-7-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="02-multi-armed-bandits_files/figure-html/cell-7-output-1.png" class="img-fluid figure-img"></a></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-9-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-3"><img src="02-multi-armed-bandits_files/figure-html/cell-9-output-1.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
@@ -800,74 +844,73 @@ Figure&nbsp;2.1: This is like Figure 2.2 <span class="citation" data-cites="sutt
 <p><span class="theorem-title"><strong>Exercise 2.2 (Bandit example)</strong></span> Consider a k-armed bandit problem with k = 4 actions, denoted 1, 2, 3, and 4. Consider applying to this problem a bandit algorithm using <span class="math inline">\(\varepsilon\)</span>-greedy action selection, sample-average action-value estimates, and initial estimates of <span class="math inline">\(Q_1(a) = 0\)</span>, for all a. Suppose the initial sequence of actions and rewards is <span class="math inline">\(A_1 = 1\)</span>, <span class="math inline">\(R_1 = -1\)</span>, <span class="math inline">\(A_2 = 2\)</span>, <span class="math inline">\(R_2 = 1\)</span>, <span class="math inline">\(A_3 = 2\)</span>, <span class="math inline">\(R_3 = -2\)</span>, <span class="math inline">\(A_4 = 2\)</span>, <span class="math inline">\(R_4 = 2\)</span>, <span class="math inline">\(A_5 = 3\)</span>, <span class="math inline">\(R_5 = 0\)</span>. On some of these time steps the <span class="math inline">\(\varepsilon\)</span> case may have occurred, causing an action to be selected at random. On which time steps did this definitely occur? On which time steps could this possibly have occurred?</p>
 </div>
 <div id="sol-2.2" class="proof solution">
-<p><span class="proof-title"><em>Solution 2.2</em>. </span>Step 1 could have been exploratory, as all actions have the same estimates. After that, the value function is: <span class="math display">\[
-Q_2(a) = \begin{cases}
+<p><span class="proof-title"><em>Solution 2.2</em>. </span>Generally, we can only positively conclude that an exploratory was taken, when the taken action is not greedy. Exculding the posibility for an exploratory action selection is imposible.</p>
+<p>So each time step could have been an explorotory action.</p>
+<p>If we keep track of the estimated value function <span class="math display">\[
+\begin{split}
+Q_1(a) &amp;= 0 \\
+Q_2(a) &amp;= \begin{cases}
             -1,&amp; \text{if $a = 1$}\\
             0,&amp; \text{otherwise}
-         \end{cases}
-\]</span></p>
-<p>Also, step 2 could have been exploratory. Now the value function is: <span class="math display">\[
-Q_3(a) = \begin{cases}
+         \end{cases} \\
+Q_3(a) &amp;= \begin{cases}
             -1,&amp; \text{if $a = 1$}\\
             1,&amp; \text{if $a = 2$}\\
             0,&amp; \text{otherwise}
-         \end{cases}
-\]</span></p>
-<p>In step 3, the greedy action is taken. But it could also have been an exploratory action that selected 2. At this point, the value function is: <span class="math display">\[
-Q_4(a) = \begin{cases}
+         \end{cases} \\
+Q_4(a) &amp;= \begin{cases}
             -1,&amp; \text{if $a = 1$}\\
             -0.5,&amp; \text{if $a = 2$}\\
             0,&amp; \text{otherwise}
-         \end{cases}
-\]</span></p>
-<p>In step 4, a non-greedy action is taken, so this must have been an exploratory move. The value function is: <span class="math display">\[
-Q_5(a) = \begin{cases}
+         \end{cases}\\
+Q_5(a) &amp;= \begin{cases}
             -1,&amp; \text{if $a = 1$}\\
             0.33,&amp; \text{if $a = 2$}\\
             0,&amp; \text{otherwise}
-         \end{cases}
+         \end{cases}            
+\end{split}                      
 \]</span></p>
-<p>In step 5, again a non-greedy action was taken, so this must have been an exploratory move as well.</p>
+<p>we can see that in step 4 and 5 a non-greedy action were taken, so these must have been exploratory moves.</p>
 </div>
 <div id="exr-2.3" class="theorem exercise">
-<p><span class="theorem-title"><strong>Exercise 2.3</strong></span> In the comparison shown in <a href="#fig-bandit-comparison-greediness" class="quarto-xref">Figure&nbsp;<span>2.1</span></a>, which method will perform best in the long run in terms of cumulative reward and probability of selecting the best action? How much better will it be? Express your answer quantitatively.</p>
+<p><span class="theorem-title"><strong>Exercise 2.3</strong></span> In the comparison shown in <a href="#fig-2.2-bandit-comparison-greediness" class="quarto-xref">Figure&nbsp;<span>2.1</span></a>, which method will perform best in the long run in terms of cumulative reward and probability of selecting the best action? How much better will it be? Express your answer quantitatively.</p>
 </div>
 <div id="sol-2.3" class="proof solution">
 <p><span class="proof-title"><em>Solution 2.3</em>. </span>Obviously, we can disregard <span class="math inline">\(\varepsilon = 0\)</span>. It’s just rubbish. Before we do the quantitative analysis, let’s see what happens when we just crank up the number of steps (and reduce the runs even though now it’s a bit noisier).</p>
-<div id="f2adf529" class="cell" data-execution_count="8">
+<div id="6a47e259" class="cell" data-execution_count="10">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === battle between ε=0.1 and ε=0.01 ===</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">15_000</span>,</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">200</span>)</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>epsilons <span class="op">=</span> [<span class="fl">0.1</span>, <span class="fl">0.01</span>]</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [SampleAverageBanditAgent(Q1<span class="op">=</span>np.zeros(config.bandit_num_arms), ε<span class="op">=</span>ε, seed<span class="op">=</span>config.exp_seed) <span class="cf">for</span> ε <span class="kw">in</span> epsilons]</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    agents,</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    config</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>plot_average_reward(avg_rwd, labels<span class="op">=</span>[<span class="ss">f"ε=</span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> e <span class="kw">in</span> epsilons])</span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>[<span class="ss">f"ε=</span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> e <span class="kw">in</span> epsilons])</span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === battle between ε=0.1 and ε=0.01 ===</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">15_000</span>,</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">200</span>)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>epsilons <span class="op">=</span> [<span class="fl">0.1</span>, <span class="fl">0.01</span>]</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [SampleAverageBanditAgent(Q1<span class="op">=</span>np.zeros(config.bandit_num_arms), ε<span class="op">=</span>ε, seed<span class="op">=</span>config.exp_seed) <span class="cf">for</span> ε <span class="kw">in</span> epsilons]</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    agents,</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    config</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>plot_average_reward(avg_rwd, labels<span class="op">=</span>[<span class="ss">f"ε=</span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> e <span class="kw">in</span> epsilons])</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>[<span class="ss">f"ε=</span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">"</span> <span class="cf">for</span> e <span class="kw">in</span> epsilons])</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><a href="02-multi-armed-bandits_files/figure-html/cell-8-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4"><img src="02-multi-armed-bandits_files/figure-html/cell-8-output-1.png" class="img-fluid figure-img"></a></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-10-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-4"><img src="02-multi-armed-bandits_files/figure-html/cell-10-output-1.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><a href="02-multi-armed-bandits_files/figure-html/cell-8-output-2.png" class="lightbox" data-gallery="quarto-lightbox-gallery-5"><img src="02-multi-armed-bandits_files/figure-html/cell-8-output-2.png" class="img-fluid figure-img"></a></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-10-output-2.png" class="lightbox" data-gallery="quarto-lightbox-gallery-5"><img src="02-multi-armed-bandits_files/figure-html/cell-10-output-2.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
@@ -901,26 +944,27 @@ Q_{n+1} = Q_n + \frac{1}{n}[R_n - Q_n].
     }^\text{error} \Big]
 \]</span></p>
 <p>I especially like how nice it looks in python. In value-based algorithms, this typically corresponds to the following line of code:</p>
-<div id="c3a6f27d" class="cell" data-execution_count="9">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>Q[action] <span class="op">+=</span> α <span class="op">*</span> (reward <span class="op">-</span> Q[action])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="3d0b2817" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>Q[action] <span class="op">+=</span> α <span class="op">*</span> (reward <span class="op">-</span> Q[action])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="tracking-a-nonstationary-problem" class="level2" data-number="2.5">
 <h2 data-number="2.5" class="anchored" data-anchor-id="tracking-a-nonstationary-problem"><span class="header-section-number">2.5</span> Tracking a Nonstationary Problem</h2>
-<p>To avoid the learning rate decreasing over time—at the cost of convergence—we can use a constant step size <span class="math inline">\(\alpha \in (0,1]\)</span>. <span id="eq-bandit-constant-step-size-update"><span class="math display">\[
+<p>To avoid the learning rate decreasing over time we can use a constant step size <span class="math inline">\(\alpha \in (0,1]\)</span>. Keep in mind that with a constant step size we don’t have convergence in the long run.</p>
+<p>The update formula with constant step is: <span id="eq-bandit-constant-step-size-update"><span class="math display">\[
 Q_{n+1} := Q_n + \alpha \Big[ R_n - Q_n \Big],
 \tag{2.2}\]</span></span></p>
 <p>for <span class="math inline">\(n \geq 1\)</span> and <span class="math inline">\(Q_1\)</span> is our given initial estimate.</p>
-<p>This can be phrased as a recurrence relation of the form <span class="math inline">\(Q_n = \sum_{i=0}^n \gamma^{n-i} r_i\)</span>, as discussed in the appendix <a href="#sec-recurrence-relations" class="quarto-xref"><span>Section 2.11.9</span></a>: We add <span class="math inline">\(Q_0\)</span> and <span class="math inline">\(R_0\)</span>. Then, <a href="#eq-bandit-constant-step-size-update" class="quarto-xref">Equation&nbsp;<span>2.2</span></a> is equivalent to: <span id="eq-bandit-action-values-convolution"><span class="math display">\[
+<p>This recursive definition can also be be phrased as a <a href="#sec-recurrence-relations">recurrence relation</a>. We this recursive relation for <span class="math inline">\(n=0\)</span> by <span class="math inline">\(Q_0 = 0\)</span> and <span class="math inline">\(R_0 = \frac{Q_1}{\alpha}\)</span>. Then, <a href="#eq-bandit-constant-step-size-update" class="quarto-xref">Equation&nbsp;<span>2.2</span></a> is equivalent to: <span id="eq-bandit-action-values-convolution"><span class="math display">\[
 Q_{n+1} = \alpha R_n + (1 - \alpha) Q_n \quad \text{and} \quad Q_0 = 0,
 \tag{2.3}\]</span></span></p>
-<p>This is a recurrence relation of the form <a href="#eq-non-homogenous-geometric-series-recurrence-relation" class="quarto-xref">Equation&nbsp;<span>2.18</span></a> and thus has the explicit form <span class="math display">\[
+<p>By <a href="#thm-first-order-linear-recurrence" class="quarto-xref">Theorem&nbsp;<span>2.6</span></a> we get <span class="math display">\[
 Q_{n+1} = \sum_{i=0}^n (1 - \alpha)^{n-i} \alpha R_{i}
 \]</span></p>
-<p>Substituting <span class="math inline">\(R_0 = \frac{Q_1}{\alpha}\)</span>—so that <span class="math inline">\(Q_1\)</span> becomes our arbitrary initial value—yields the form used by Sutton and Barto: <span id="eq-weighted-average"><span class="math display">\[
+<p>Substituting back <span class="math inline">\(R_0 = \frac{Q_1}{\alpha}\)</span> yields the form used by <span class="citation" data-cites="sutton2018">Sutton and Barto (<a href="#ref-sutton2018" role="doc-biblioref">2018</a>)</span>: <span id="eq-weighted-average"><span class="math display">\[
 Q_{n+1} = (1-\alpha)^n Q_1 + \sum_{i=1}^n \alpha (1 - \alpha)^{n-i} R_i
 \tag{2.4}\]</span></span></p>
-<p>This is a weighted average of the random variables involved, as the weights sum to 1. The sum of the weights for the <span class="math inline">\(R_i\)</span> is (using the geometric series identity <a href="#eq-finite-geometric-series" class="quarto-xref">Equation&nbsp;<span>2.14</span></a>): <span class="math display">\[
+<p>This is a weighted sum. The sum of the weights for the <span class="math inline">\(R_i\)</span> is (using the geometric series identity <a href="#eq-finite-geometric-series" class="quarto-xref">Equation&nbsp;<span>2.14</span></a>): <span class="math display">\[
 \begin{split}
 \sum_{i=1}^n \alpha (1- \alpha)^{n-i} &amp;= \alpha \sum_{i=o}^{n-1}(1-\alpha)^i \\
 &amp;= \alpha \frac{1 - (1-\alpha)^n}{\alpha}\\
@@ -949,34 +993,34 @@ Q_{n+1} = (1-\alpha)^n Q_1 + \sum_{i=1}^n \alpha (1 - \alpha)^{n-i} R_i
 \]</span></p>
 <p>It’s hard for me to translate these stochastic results in statistic behaviour, but I think that means that constant step size will end up wiggling around the true value.</p>
 <p>Let’s define the constant step size agent to compare it with the sample average method later.</p>
-<div id="7bcdd4f2" class="cell" data-execution_count="10">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === the constant step bandit agent ===</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ConstantStepBanditAgent:</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, Q1, α, ε, seed<span class="op">=</span><span class="va">None</span>):</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.rng <span class="op">=</span> np.random.default_rng(seed)</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.num_actions <span class="op">=</span> <span class="bu">len</span>(Q1)</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.Q1 <span class="op">=</span> Q1</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.α <span class="op">=</span> α</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.ε <span class="op">=</span> ε</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.reset()</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> reset(<span class="va">self</span>):</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.Q <span class="op">=</span> <span class="va">self</span>.Q1.copy()</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> act(<span class="va">self</span>, bandit):</span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>        <span class="co"># ε-greedy action selection</span></span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="va">self</span>.rng.random() <span class="op">&lt;</span> <span class="va">self</span>.ε:</span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>            action <span class="op">=</span> <span class="va">self</span>.rng.integers(<span class="va">self</span>.num_actions)</span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>            action <span class="op">=</span> np.argmax(<span class="va">self</span>.Q)</span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>        <span class="co"># take action</span></span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>        reward <span class="op">=</span> bandit.pull_arm(action)</span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>        <span class="co"># update value estimate</span></span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.Q[action] <span class="op">+=</span> <span class="va">self</span>.α <span class="op">*</span> (reward <span class="op">-</span> <span class="va">self</span>.Q[action])</span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> (action, reward)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="5f63c20f" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === the constant step bandit agent ===</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ConstantStepBanditAgent:</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, Q1, α, ε, seed<span class="op">=</span><span class="va">None</span>):</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.rng <span class="op">=</span> np.random.default_rng(seed)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.num_actions <span class="op">=</span> <span class="bu">len</span>(Q1)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.Q1 <span class="op">=</span> Q1</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.α <span class="op">=</span> α</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.ε <span class="op">=</span> ε</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.reset()</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> reset(<span class="va">self</span>):</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.Q <span class="op">=</span> <span class="va">self</span>.Q1.copy()</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> act(<span class="va">self</span>, bandit):</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>        <span class="co"># ε-greedy action selection</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="va">self</span>.rng.random() <span class="op">&lt;</span> <span class="va">self</span>.ε:</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>            action <span class="op">=</span> <span class="va">self</span>.rng.integers(<span class="va">self</span>.num_actions)</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>            action <span class="op">=</span> np.argmax(<span class="va">self</span>.Q)</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>        <span class="co"># take action</span></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>        reward <span class="op">=</span> bandit.pull_arm(action)</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>        <span class="co"># update value estimate</span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.Q[action] <span class="op">+=</span> <span class="va">self</span>.α <span class="op">*</span> (reward <span class="op">-</span> <span class="va">self</span>.Q[action])</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> (action, reward)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div id="exr-2.4" class="theorem exercise">
 <p><span class="theorem-title"><strong>Exercise 2.4</strong></span> If the step-size parameters, <span class="math inline">\(\alpha_n\)</span>, are not constant, then the estimate <span class="math inline">\(Q_n\)</span> is a weighted average of previously received rewards with a weighting different from that given by <a href="#eq-weighted-average" class="quarto-xref">Equation&nbsp;<span>2.4</span></a>. What is the weighting on each prior reward for the general case, analogous to <a href="#eq-weighted-average" class="quarto-xref">Equation&nbsp;<span>2.4</span></a>, in terms of the sequence of step-size parameters.</p>
@@ -1000,55 +1044,55 @@ Q_{n+1} &amp;= Q_n + \alpha_n \Big[ R_n - Q_n \Big] \\
 <p>We also note that in this general setting, <a href="#eq-general-weighted-average" class="quarto-xref">Equation&nbsp;<span>2.7</span></a> is still a weighted average. We could prove it by induction or use a little trick. If we set <span class="math inline">\(Q_1 = 1\)</span> and <span class="math inline">\(R_n = 1\)</span> for all <span class="math inline">\(n\)</span> in the recurrence relation <a href="#eq-non-constant-stepsize" class="quarto-xref">Equation&nbsp;<span>2.6</span></a> we see that each <span class="math inline">\(Q_n = 1\)</span>. If we do the same in the explicit formula <a href="#eq-general-weighted-average" class="quarto-xref">Equation&nbsp;<span>2.7</span></a> we see that each <span class="math inline">\(Q_n\)</span> is equal to the sum of the weights. Therefore, the weights sum up to <span class="math inline">\(1\)</span>.</p>
 </div>
 <div id="exr-2.5" class="theorem exercise">
-<p><span class="theorem-title"><strong>Exercise 2.5</strong></span> Design and conduct an experiment to demonstrate the difficulties that sample-average methods have for nonstationary problems. Use a modified version of the 10-armed testbed in which all the <span class="math inline">\(q_\star(a)\)</span> start out equal and then take independent random walks (say by adding a normally distributed increment with mean zero and standard deviation 0.01 to all the <span class="math inline">\(q_\star(a)\)</span> on each step). Prepare plots like Figure <a href="#fig-bandit-comparison-greediness" class="quarto-xref">Figure&nbsp;<span>2.1</span></a> for an action-value method using sample averages, incrementally computed, and another action-value method using a constant step-size parameter, <span class="math inline">\(\alpha = 0.1\)</span>. Use <span class="math inline">\(\epsilon = 0.1\)</span> and longer runs, say of 10,000 steps</p>
+<p><span class="theorem-title"><strong>Exercise 2.5</strong></span> Design and conduct an experiment to demonstrate the difficulties that sample-average methods have for nonstationary problems. Use a modified version of the 10-armed testbed in which all the <span class="math inline">\(q_\star(a)\)</span> start out equal and then take independent random walks (say by adding a normally distributed increment with mean zero and standard deviation 0.01 to all the <span class="math inline">\(q_\star(a)\)</span> on each step). Prepare plots like Figure <a href="#fig-2.2-bandit-comparison-greediness" class="quarto-xref">Figure&nbsp;<span>2.1</span></a> for an action-value method using sample averages, incrementally computed, and another action-value method using a constant step-size parameter, <span class="math inline">\(\alpha = 0.1\)</span>. Use <span class="math inline">\(\epsilon = 0.1\)</span> and longer runs, say of 10,000 steps</p>
 </div>
 <div id="sol-2.5" class="proof solution">
 <p><span class="proof-title"><em>Solution 2.5</em>. </span>Alright, let’s do a little experiment, just as they told us.</p>
-<div id="0f341e8a" class="cell" data-execution_count="11">
+<div id="fe67cf8f" class="cell" data-execution_count="13">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === battle between sample average and constant step ===</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    bandit_setup_mu<span class="op">=</span><span class="dv">0</span>,</span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    bandit_setup_sd<span class="op">=</span><span class="dv">0</span>,</span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    bandit_value_drift<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    bandit_value_drift_mu<span class="op">=</span><span class="dv">0</span>,</span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    bandit_value_drift_sd<span class="op">=</span><span class="fl">0.01</span>,</span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">10_000</span>,</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">100</span>,</span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>agent0 <span class="op">=</span> SampleAverageBanditAgent(Q1<span class="op">=</span>np.zeros(config.bandit_num_arms, dtype<span class="op">=</span><span class="bu">float</span>), ε<span class="op">=</span><span class="fl">0.1</span>, seed<span class="op">=</span>config.exp_seed)</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>agent1 <span class="op">=</span> ConstantStepBanditAgent(</span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.zeros(config.bandit_num_arms, dtype<span class="op">=</span><span class="bu">float</span>), α<span class="op">=</span><span class="fl">0.1</span>, ε<span class="op">=</span><span class="fl">0.1</span>, seed<span class="op">=</span>config.exp_seed</span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [agent0, agent1]</span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    agents,</span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    config</span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [<span class="st">"sample averages (ε=0.1)"</span>, <span class="st">"constant step-size (α=0.1, ε=0.1)"</span>]</span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>plot_average_reward(avg_rwd, labels<span class="op">=</span>labels)</span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === battle between sample average and constant step ===</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    bandit_setup_mu<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    bandit_setup_sd<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    bandit_value_drift<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    bandit_value_drift_mu<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    bandit_value_drift_sd<span class="op">=</span><span class="fl">0.01</span>,</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">10_000</span>,</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">100</span>,</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>agent0 <span class="op">=</span> SampleAverageBanditAgent(Q1<span class="op">=</span>np.zeros(config.bandit_num_arms, dtype<span class="op">=</span><span class="bu">float</span>), ε<span class="op">=</span><span class="fl">0.1</span>, seed<span class="op">=</span>config.exp_seed)</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>agent1 <span class="op">=</span> ConstantStepBanditAgent(</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.zeros(config.bandit_num_arms, dtype<span class="op">=</span><span class="bu">float</span>), α<span class="op">=</span><span class="fl">0.1</span>, ε<span class="op">=</span><span class="fl">0.1</span>, seed<span class="op">=</span>config.exp_seed</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [agent0, agent1]</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    agents,</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    config</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [<span class="st">"sample averages (ε=0.1)"</span>, <span class="st">"constant step-size (α=0.1, ε=0.1)"</span>]</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>plot_average_reward(avg_rwd, labels<span class="op">=</span>labels)</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>plt.show()</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><a href="02-multi-armed-bandits_files/figure-html/cell-11-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-6"><img src="02-multi-armed-bandits_files/figure-html/cell-11-output-1.png" class="img-fluid figure-img"></a></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-13-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-6"><img src="02-multi-armed-bandits_files/figure-html/cell-13-output-1.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><a href="02-multi-armed-bandits_files/figure-html/cell-11-output-2.png" class="lightbox" data-gallery="quarto-lightbox-gallery-7"><img src="02-multi-armed-bandits_files/figure-html/cell-11-output-2.png" class="img-fluid figure-img"></a></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-13-output-2.png" class="lightbox" data-gallery="quarto-lightbox-gallery-7"><img src="02-multi-armed-bandits_files/figure-html/cell-13-output-2.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
@@ -1060,34 +1104,34 @@ Q_{n+1} &amp;= Q_n + \alpha_n \Big[ R_n - Q_n \Big] \\
 <section id="optimistic-initial-values" class="level2" data-number="2.6">
 <h2 data-number="2.6" class="anchored" data-anchor-id="optimistic-initial-values"><span class="header-section-number">2.6</span> Optimistic Initial Values</h2>
 <p>We later need the following figure comparing an optimistic greedy agent and a realistic <span class="math inline">\(\varepsilon\)</span>-greedy agent.</p>
-<div id="cell-fig-bandit-comparison-optimism" class="cell" data-execution_count="12">
+<div id="cell-fig-bandit-comparison-optimism" class="cell" data-execution_count="14">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === realism vs optimism ===</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">1_000</span>,</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">1_000</span></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>agent_optimistic_greedy <span class="op">=</span> ConstantStepBanditAgent(</span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.full(config.bandit_num_arms, <span class="fl">5.0</span>, dtype<span class="op">=</span><span class="bu">float</span>), α<span class="op">=</span><span class="fl">0.1</span>, ε<span class="op">=</span><span class="fl">0.0</span>, seed<span class="op">=</span>config.exp_seed</span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>agent_realistic_ε_greedy <span class="op">=</span> ConstantStepBanditAgent(</span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.zeros(config.bandit_num_arms, dtype<span class="op">=</span><span class="bu">float</span>), α<span class="op">=</span><span class="fl">0.1</span>, ε<span class="op">=</span><span class="fl">0.1</span>, seed<span class="op">=</span>config.exp_seed</span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [agent_optimistic_greedy, agent_realistic_ε_greedy]</span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>    agents,</span>
-<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>    config</span>
-<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [</span>
-<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"optimistic,greedy (Q1=5, ε=0, α=0.1)"</span>,</span>
-<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"realistic,ε-greedy (Q1=0, ε=0.1, α=0.1)"</span>,</span>
-<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
-<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === realism vs optimism ===</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">1_000</span>,</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">1_000</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>agent_optimistic_greedy <span class="op">=</span> ConstantStepBanditAgent(</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.full(config.bandit_num_arms, <span class="fl">5.0</span>, dtype<span class="op">=</span><span class="bu">float</span>), α<span class="op">=</span><span class="fl">0.1</span>, ε<span class="op">=</span><span class="fl">0.0</span>, seed<span class="op">=</span>config.exp_seed</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>agent_realistic_ε_greedy <span class="op">=</span> ConstantStepBanditAgent(</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.zeros(config.bandit_num_arms, dtype<span class="op">=</span><span class="bu">float</span>), α<span class="op">=</span><span class="fl">0.1</span>, ε<span class="op">=</span><span class="fl">0.1</span>, seed<span class="op">=</span>config.exp_seed</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [agent_optimistic_greedy, agent_realistic_ε_greedy]</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>    agents,</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>    config</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"optimistic,greedy (Q1=5, ε=0, α=0.1)"</span>,</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"realistic,ε-greedy (Q1=0, ε=0.1, α=0.1)"</span>,</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <div id="fig-bandit-comparison-optimism" class="quarto-float quarto-figure quarto-figure-center anchored">
@@ -1107,39 +1151,39 @@ Figure&nbsp;2.2: This is like Figure 2.3 <span class="citation" data-cites="sutt
 </div>
 <div id="sol-2.6" class="proof solution">
 <p><span class="proof-title"><em>Solution 2.6</em>. </span>We have the hard-earned luxury that we can zoom in on <a href="#fig-bandit-comparison-optimism" class="quarto-xref">Figure&nbsp;<span>2.2</span></a>:</p>
-<div id="8ef29c11" class="cell" data-execution_count="13">
+<div id="ef5c8400" class="cell" data-execution_count="15">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === realism vs optimism zoomed in ===</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">30</span>,</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">5_000</span>,</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>agent_optimistic_greedy <span class="op">=</span> ConstantStepBanditAgent(</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.full(config.bandit_num_arms, <span class="fl">5.0</span>, dtype<span class="op">=</span><span class="bu">float</span>), α<span class="op">=</span><span class="fl">0.1</span>, ε<span class="op">=</span><span class="fl">0.0</span>, seed<span class="op">=</span>config.exp_seed</span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>agent_realistic_ε_greedy <span class="op">=</span> ConstantStepBanditAgent(</span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.zeros(config.bandit_num_arms, dtype<span class="op">=</span><span class="bu">float</span>), α<span class="op">=</span><span class="fl">0.1</span>, ε<span class="op">=</span><span class="fl">0.1</span>, seed<span class="op">=</span>config.exp_seed</span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [agent_optimistic_greedy, agent_realistic_ε_greedy]</span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    agents,</span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>    config</span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [</span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"optimistic,greedy (Q1=5, ε=0, α=0.1)"</span>,</span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"realistic,ε-greedy (Q1=0, ε=0.1, α=0.1)"</span>,</span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === realism vs optimism zoomed in ===</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">30</span>,</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">5_000</span>,</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>agent_optimistic_greedy <span class="op">=</span> ConstantStepBanditAgent(</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.full(config.bandit_num_arms, <span class="fl">5.0</span>, dtype<span class="op">=</span><span class="bu">float</span>), α<span class="op">=</span><span class="fl">0.1</span>, ε<span class="op">=</span><span class="fl">0.0</span>, seed<span class="op">=</span>config.exp_seed</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>agent_realistic_ε_greedy <span class="op">=</span> ConstantStepBanditAgent(</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.zeros(config.bandit_num_arms, dtype<span class="op">=</span><span class="bu">float</span>), α<span class="op">=</span><span class="fl">0.1</span>, ε<span class="op">=</span><span class="fl">0.1</span>, seed<span class="op">=</span>config.exp_seed</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [agent_optimistic_greedy, agent_realistic_ε_greedy]</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    agents,</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>    config</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [</span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"optimistic,greedy (Q1=5, ε=0, α=0.1)"</span>,</span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">"realistic,ε-greedy (Q1=0, ε=0.1, α=0.1)"</span>,</span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <div>
 <figure class="figure">
-<p><a href="02-multi-armed-bandits_files/figure-html/cell-13-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-9"><img src="02-multi-armed-bandits_files/figure-html/cell-13-output-1.png" class="img-fluid figure-img"></a></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-15-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-9"><img src="02-multi-armed-bandits_files/figure-html/cell-15-output-1.png" class="img-fluid figure-img"></a></p>
 </figure>
 </div>
 </div>
@@ -1191,73 +1235,73 @@ A_t := \mathrm{argmax}_a \left[ Q_t(a) + c \sqrt{ \frac{\ln t}{N_t(a)} }\right]
 <p>where <span class="math inline">\(N_t(a)\)</span> is the number of times that action has been selected, c &gt; 0 controls the exploration (similar to <span class="math inline">\(\varepsilon\)</span>).</p>
 <p>If an action has not been selected even once, i.e., <span class="math inline">\(N_t(a)=0\)</span>, then <span class="math inline">\(a\)</span> is considered to be a maximizing action. (In our case, this means that in the first few steps, all actions have to be selected once, and only after that does the UCB-based action selection kick in.)</p>
 <p>By the way, I have no idea where the UCB formulation comes from, but at least it looks fancy (and reasonable), and we can implement it:</p>
-<div id="86aaec36" class="cell" data-execution_count="14">
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === the ucb bandit agent ===</span></span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> UcbBanditAgent:</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, num_actions, c, seed<span class="op">=</span><span class="va">None</span>):</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.num_actions <span class="op">=</span> num_actions</span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.c <span class="op">=</span> c  <span class="co"># exploration parameter</span></span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.reset()</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.rng <span class="op">=</span> np.random.default_rng(seed)</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> reset(<span class="va">self</span>):</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.t <span class="op">=</span> <span class="dv">0</span></span>
-<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.Q <span class="op">=</span> np.zeros(<span class="va">self</span>.num_actions, dtype<span class="op">=</span><span class="bu">float</span>)</span>
-<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.counts <span class="op">=</span> np.zeros(<span class="va">self</span>.num_actions, dtype<span class="op">=</span><span class="bu">int</span>)</span>
-<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> act(<span class="va">self</span>, bandit):</span>
-<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.t <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>        <span class="co"># upper-Confidence-Bound Action Selection</span></span>
-<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="va">self</span>.t <span class="op">&lt;=</span> <span class="va">self</span>.num_actions:</span>
-<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>            <span class="co"># if not all actions have been tried yet, select an untried action</span></span>
-<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>            action <span class="op">=</span> <span class="va">self</span>._choose_untaken_action()</span>
-<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
-<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>            <span class="co"># calculate UCB values for each action</span></span>
-<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>            ucb_values <span class="op">=</span> <span class="va">self</span>.Q <span class="op">+</span> <span class="va">self</span>.c <span class="op">*</span> np.sqrt(np.log(<span class="va">self</span>.t) <span class="op">/</span> (<span class="va">self</span>.counts))</span>
-<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>            <span class="co"># select the action with the highest UCB value</span></span>
-<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>            action <span class="op">=</span> np.argmax(ucb_values)</span>
-<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>        <span class="co"># take action and observe the reward</span></span>
-<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>        reward <span class="op">=</span> bandit.pull_arm(action)</span>
-<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>        <span class="co"># update count and value estimate</span></span>
-<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.counts[action] <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.Q[action] <span class="op">+=</span> (reward <span class="op">-</span> <span class="va">self</span>.Q[action]) <span class="op">/</span> <span class="va">self</span>.counts[action]</span>
-<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> (action, reward)</span>
-<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _choose_untaken_action(<span class="va">self</span>):</span>
-<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.rng.choice(np.where(<span class="va">self</span>.counts <span class="op">==</span> <span class="dv">0</span>)[<span class="dv">0</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="530ca918" class="cell" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === the ucb bandit agent ===</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> UcbBanditAgent:</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, num_actions, c, seed<span class="op">=</span><span class="va">None</span>):</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.num_actions <span class="op">=</span> num_actions</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.c <span class="op">=</span> c  <span class="co"># exploration parameter</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.reset()</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.rng <span class="op">=</span> np.random.default_rng(seed)</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> reset(<span class="va">self</span>):</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.t <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.Q <span class="op">=</span> np.zeros(<span class="va">self</span>.num_actions, dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.counts <span class="op">=</span> np.zeros(<span class="va">self</span>.num_actions, dtype<span class="op">=</span><span class="bu">int</span>)</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> act(<span class="va">self</span>, bandit):</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.t <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>        <span class="co"># upper-Confidence-Bound Action Selection</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="va">self</span>.t <span class="op">&lt;=</span> <span class="va">self</span>.num_actions:</span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>            <span class="co"># if not all actions have been tried yet, select an untried action</span></span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>            action <span class="op">=</span> <span class="va">self</span>._choose_untaken_action()</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>        <span class="cf">else</span>:</span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>            <span class="co"># calculate UCB values for each action</span></span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>            ucb_values <span class="op">=</span> <span class="va">self</span>.Q <span class="op">+</span> <span class="va">self</span>.c <span class="op">*</span> np.sqrt(np.log(<span class="va">self</span>.t) <span class="op">/</span> (<span class="va">self</span>.counts))</span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>            <span class="co"># select the action with the highest UCB value</span></span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>            action <span class="op">=</span> np.argmax(ucb_values)</span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>        <span class="co"># take action and observe the reward</span></span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>        reward <span class="op">=</span> bandit.pull_arm(action)</span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>        <span class="co"># update count and value estimate</span></span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.counts[action] <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.Q[action] <span class="op">+=</span> (reward <span class="op">-</span> <span class="va">self</span>.Q[action]) <span class="op">/</span> <span class="va">self</span>.counts[action]</span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> (action, reward)</span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> _choose_untaken_action(<span class="va">self</span>):</span>
+<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.rng.choice(np.where(<span class="va">self</span>.counts <span class="op">==</span> <span class="dv">0</span>)[<span class="dv">0</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Let’s recreate the figure illustrating UCB action selection performance, which we’ll need for the next exercise.</p>
-<div id="cell-fig-bandit-ucb-performance" class="cell" data-execution_count="15">
+<div id="cell-fig-bandit-ucb-performance" class="cell" data-execution_count="17">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === ucb agent performance ===</span></span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">1_000</span>,</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">1_000</span>,</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>agent_ucb <span class="op">=</span> UcbBanditAgent(num_actions<span class="op">=</span>config.bandit_num_arms, c<span class="op">=</span><span class="dv">2</span>, seed<span class="op">=</span>config.exp_seed)</span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>agent_ε_greedy <span class="op">=</span> SampleAverageBanditAgent(</span>
-<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.zeros(config.bandit_num_arms, dtype<span class="op">=</span><span class="bu">float</span>), ε<span class="op">=</span><span class="fl">0.1</span>, seed<span class="op">=</span>config.exp_seed</span>
-<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [agent_ucb, agent_ε_greedy]</span>
-<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
-<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    agents,</span>
-<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    config</span>
-<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [</span>
-<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ucb (c=2, α=0.1)"</span>,</span>
-<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ε-greedy (ε=0.1, α=0.1)"</span>,</span>
-<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
-<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === ucb agent performance ===</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">1_000</span>,</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">1_000</span>,</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>agent_ucb <span class="op">=</span> UcbBanditAgent(num_actions<span class="op">=</span>config.bandit_num_arms, c<span class="op">=</span><span class="dv">2</span>, seed<span class="op">=</span>config.exp_seed)</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>agent_ε_greedy <span class="op">=</span> SampleAverageBanditAgent(</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    Q1<span class="op">=</span>np.zeros(config.bandit_num_arms, dtype<span class="op">=</span><span class="bu">float</span>), ε<span class="op">=</span><span class="fl">0.1</span>, seed<span class="op">=</span>config.exp_seed</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [agent_ucb, agent_ε_greedy]</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>    agents,</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>    config</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [</span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ucb (c=2, α=0.1)"</span>,</span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ε-greedy (ε=0.1, α=0.1)"</span>,</span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <div id="fig-bandit-ucb-performance" class="quarto-float quarto-figure quarto-figure-center anchored">
@@ -1294,74 +1338,74 @@ H_{t+1}(a) &amp;:= H_t(a) + \alpha (R_t - \bar{R}_t) (\mathbb{I}_{a = A_t} - \pi
 \end{split}
 \tag{2.9}\]</span></span></p>
 <p>Now, let’s implement this gradient bandit algorithm:</p>
-<div id="00af9bf8" class="cell" data-execution_count="16">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === the gradient agent ===</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> GradientBanditAgent:</span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, H1, α, baseline<span class="op">=</span><span class="va">True</span>, seed<span class="op">=</span><span class="va">None</span>):</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.num_actions <span class="op">=</span> <span class="bu">len</span>(H1) </span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.α <span class="op">=</span> α </span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.H1 <span class="op">=</span> np.asarray(H1, dtype<span class="op">=</span>np.float64)  <span class="co"># initial preferences</span></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.baseline <span class="op">=</span> baseline <span class="co"># apply average reward baseline</span></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.reset()</span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.rng <span class="op">=</span> np.random.default_rng(seed)</span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> reset(<span class="va">self</span>):</span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.H <span class="op">=</span> <span class="va">self</span>.H1.copy()  </span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.avg_reward <span class="op">=</span> <span class="dv">0</span> </span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.t <span class="op">=</span> <span class="dv">0</span>  <span class="co"># step count</span></span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> act(<span class="va">self</span>, bandit):</span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.t <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>        <span class="co"># select action using softmax</span></span>
-<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>        action_probs <span class="op">=</span> GradientBanditAgent.softmax(<span class="va">self</span>.H)</span>
-<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>        action <span class="op">=</span> <span class="va">self</span>.rng.choice(<span class="va">self</span>.num_actions, p<span class="op">=</span>action_probs)</span>
-<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>        <span class="co"># take action and observe the reward</span></span>
-<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>        reward <span class="op">=</span> bandit.pull_arm(action)</span>
-<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>        <span class="co"># update average reward</span></span>
-<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="va">self</span>.baseline:</span>
-<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>            <span class="va">self</span>.avg_reward <span class="op">+=</span> (reward <span class="op">-</span> <span class="va">self</span>.avg_reward) <span class="op">/</span> <span class="va">self</span>.t</span>
-<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>        <span class="co"># update action preferences</span></span>
-<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a>        advantage <span class="op">=</span> reward <span class="op">-</span> <span class="va">self</span>.avg_reward <span class="co"># avg_reward = 0 if baseline = false</span></span>
-<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a>        one_hot_action <span class="op">=</span> np.eye(<span class="va">self</span>.num_actions)[action]</span>
-<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.H <span class="op">+=</span> <span class="va">self</span>.α <span class="op">*</span> advantage <span class="op">*</span> (one_hot_action <span class="op">-</span> action_probs)</span>
-<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> action, reward</span>
-<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">@staticmethod</span></span>
-<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> softmax(x):</span>
-<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a>        <span class="co"># shift vector by max(x) to avoid hughe numbers.</span></span>
-<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a>        <span class="co"># This is basically using the fact that softmax(x) = softmax(x + C)</span></span>
-<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a>        exp_x <span class="op">=</span> np.exp(x <span class="op">-</span> np.<span class="bu">max</span>(x))</span>
-<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> exp_x <span class="op">/</span> np.<span class="bu">sum</span>(exp_x)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div id="79b0aba0" class="cell" data-execution_count="18">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === the gradient agent ===</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> GradientBanditAgent:</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, H1, α, baseline<span class="op">=</span><span class="va">True</span>, seed<span class="op">=</span><span class="va">None</span>):</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.num_actions <span class="op">=</span> <span class="bu">len</span>(H1) </span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.α <span class="op">=</span> α </span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.H1 <span class="op">=</span> np.asarray(H1, dtype<span class="op">=</span>np.float64)  <span class="co"># initial preferences</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.baseline <span class="op">=</span> baseline <span class="co"># apply average reward baseline</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.reset()</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.rng <span class="op">=</span> np.random.default_rng(seed)</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> reset(<span class="va">self</span>):</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.H <span class="op">=</span> <span class="va">self</span>.H1.copy()  </span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.avg_reward <span class="op">=</span> <span class="dv">0</span> </span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.t <span class="op">=</span> <span class="dv">0</span>  <span class="co"># step count</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> act(<span class="va">self</span>, bandit):</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.t <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>        <span class="co"># select action using softmax</span></span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>        action_probs <span class="op">=</span> GradientBanditAgent.softmax(<span class="va">self</span>.H)</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>        action <span class="op">=</span> <span class="va">self</span>.rng.choice(<span class="va">self</span>.num_actions, p<span class="op">=</span>action_probs)</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>        <span class="co"># take action and observe the reward</span></span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>        reward <span class="op">=</span> bandit.pull_arm(action)</span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>        <span class="co"># update average reward</span></span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="va">self</span>.baseline:</span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>            <span class="va">self</span>.avg_reward <span class="op">+=</span> (reward <span class="op">-</span> <span class="va">self</span>.avg_reward) <span class="op">/</span> <span class="va">self</span>.t</span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>        <span class="co"># update action preferences</span></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>        advantage <span class="op">=</span> reward <span class="op">-</span> <span class="va">self</span>.avg_reward <span class="co"># avg_reward = 0 if baseline = false</span></span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>        one_hot_action <span class="op">=</span> np.eye(<span class="va">self</span>.num_actions)[action]</span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.H <span class="op">+=</span> <span class="va">self</span>.α <span class="op">*</span> advantage <span class="op">*</span> (one_hot_action <span class="op">-</span> action_probs)</span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> action, reward</span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">@staticmethod</span></span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> softmax(x):</span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>        <span class="co"># shift vector by max(x) to avoid hughe numbers.</span></span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>        <span class="co"># This is basically using the fact that softmax(x) = softmax(x + C)</span></span>
+<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>        exp_x <span class="op">=</span> np.exp(x <span class="op">-</span> np.<span class="bu">max</span>(x))</span>
+<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> exp_x <span class="op">/</span> np.<span class="bu">sum</span>(exp_x)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Sutton and Barto <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018, 37</a>)</span> emphasize the importance of the baseline <span class="math inline">\(\bar{R}_t\)</span>​ in the update forumla and show that performance drops without it. In the derivation of the update as a form of stochastic gradient ascent, the baseline can be chosen arbitrarily (see <a href="#sec-derivation-bandit-gradient-update-formula" class="quarto-xref"><span>Section 2.8.1</span></a>). Whether or not a baseline is used, the resulting updates are unbiased estimators of the gradient. I assume, the baseline serves to reduce the variance of the estimator, although I have no idea about the maths behind it.</p>
 <p>Here we recreat Figure 2.5 <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>)</span>, which shows how drastically the running average baseline can improve performance.</p>
-<div id="cell-fig-gradient-bandit-performance" class="cell" data-execution_count="17">
+<div id="cell-fig-gradient-bandit-performance" class="cell" data-execution_count="19">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === gradient bandit performance ===</span></span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
-<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">1_000</span>,</span>
-<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">50</span>,</span>
-<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    bandit_setup_mu<span class="op">=</span><span class="dv">4</span>,</span>
-<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>alphas <span class="op">=</span> [<span class="fl">0.1</span>, <span class="fl">0.4</span>]</span>
-<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [GradientBanditAgent(H1<span class="op">=</span>np.zeros(config.bandit_num_arms), α<span class="op">=</span>α, seed<span class="op">=</span>config.exp_seed) <span class="cf">for</span> α <span class="kw">in</span> alphas] <span class="op">+</span> [GradientBanditAgent(H1<span class="op">=</span>np.zeros(config.bandit_num_arms), α<span class="op">=</span>α, baseline<span class="op">=</span><span class="va">False</span>, seed<span class="op">=</span>config.exp_seed) <span class="cf">for</span> α <span class="kw">in</span> alphas]</span>
-<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
-<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>    agents,</span>
-<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>    config</span>
-<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [<span class="ss">f"α = </span><span class="sc">{α}</span><span class="ss">, with baseline"</span> <span class="cf">for</span> α <span class="kw">in</span> alphas] <span class="op">+</span> [<span class="ss">f"α = </span><span class="sc">{α}</span><span class="ss">, without baseline"</span> <span class="cf">for</span> α <span class="kw">in</span> alphas]</span>
-<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
-<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
-<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === gradient bandit performance ===</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>config <span class="op">=</span> Config(</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    exp_steps<span class="op">=</span><span class="dv">1_000</span>,</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    exp_runs<span class="op">=</span><span class="dv">50</span>,</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    bandit_setup_mu<span class="op">=</span><span class="dv">4</span>,</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>alphas <span class="op">=</span> [<span class="fl">0.1</span>, <span class="fl">0.4</span>]</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>agents <span class="op">=</span> [GradientBanditAgent(H1<span class="op">=</span>np.zeros(config.bandit_num_arms), α<span class="op">=</span>α, seed<span class="op">=</span>config.exp_seed) <span class="cf">for</span> α <span class="kw">in</span> alphas] <span class="op">+</span> [GradientBanditAgent(H1<span class="op">=</span>np.zeros(config.bandit_num_arms), α<span class="op">=</span>α, baseline<span class="op">=</span><span class="va">False</span>, seed<span class="op">=</span>config.exp_seed) <span class="cf">for</span> α <span class="kw">in</span> alphas]</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>avg_rwd, opt_pct <span class="op">=</span> bandit_experiment(</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>    agents,</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>    config</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> [<span class="ss">f"α = </span><span class="sc">{α}</span><span class="ss">, with baseline"</span> <span class="cf">for</span> α <span class="kw">in</span> alphas] <span class="op">+</span> [<span class="ss">f"α = </span><span class="sc">{α}</span><span class="ss">, without baseline"</span> <span class="cf">for</span> α <span class="kw">in</span> alphas]</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>plot_optimal_action_percent(opt_pct, labels<span class="op">=</span>labels)</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <div id="fig-gradient-bandit-performance" class="quarto-float quarto-figure quarto-figure-center anchored">
@@ -1503,130 +1547,133 @@ H_{t+1}(a) = H_t(a) + \alpha  (R_t - B_t) (\mathbb{I}_{a = A_t} - \pi_{H_t(a)})
 <div id="sol-2.11" class="proof solution">
 <p><span class="proof-title"><em>Solution 2.11</em>. </span>That last exercise is a banger to finish with. There’s a lot going on here. I’ll explain what was difficult for me at the end, but let’s start with what I actually did and what we can see in the graph.</p>
 <p>I ran a parameter sweep for four different bandit agents over 200 episodes of 300,000 steps each. For each episode, I only looked at the average reward over the last 50,000 steps to measure steady-state performance.</p>
-<div id="25e1aeaf" class="cell" data-execution_count="18">
+<div id="de53e354" class="cell" data-execution_count="20">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === Parameter sweep for nonstationary bandit ===</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="co">"""</span></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co">We compare 4 bandit agents:</span></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co">0 - ε-greedy sample-average, parameter = ε</span></span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co">1 - ε-greedy constant α = 0.1, parameter = ε</span></span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co">2 - Gradient ascent with baseline, parameter = α</span></span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co">3 - Gradient ascent no baseline, parameter = α</span></span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="co">"""</span></span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> functools <span class="im">import</span> partial</span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> matplotlib.ticker <span class="im">import</span> FuncFormatter</span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
-<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="co"># custom import</span></span>
-<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scripts.parameter_study.episode_mean <span class="im">import</span> episode_mean</span>
-<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Global config</span></span>
-<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>CONFIG <span class="op">=</span> <span class="bu">dict</span>(</span>
-<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>    seed<span class="op">=</span><span class="dv">1000000</span>,</span>
-<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>    num_arms<span class="op">=</span><span class="dv">10</span>,</span>
-<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>    steps<span class="op">=</span><span class="dv">300_000</span>,</span>
-<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>    keep<span class="op">=</span><span class="dv">50_000</span>,</span>
-<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>    runs<span class="op">=</span><span class="dv">200</span>,</span>
-<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>    q_0<span class="op">=</span><span class="dv">10</span>,</span>
-<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>    drift_sd<span class="op">=</span><span class="fl">0.1</span>,</span>
-<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>AGENTS <span class="op">=</span> {</span>
-<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ε in ε-greedy (sample-avg)"</span>: <span class="bu">dict</span>(</span>
-<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>        <span class="bu">id</span><span class="op">=</span><span class="dv">0</span>,</span>
-<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>        x_name<span class="op">=</span><span class="st">"ε"</span>,</span>
-<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>        x_vals<span class="op">=</span>[<span class="dv">2</span><span class="op">**-</span>k <span class="cf">for</span> k <span class="kw">in</span> (<span class="dv">12</span>, <span class="dv">9</span>, <span class="dv">6</span>, <span class="dv">3</span>, <span class="dv">1</span>, <span class="dv">0</span>)],</span>
-<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>        fixed<span class="op">=</span><span class="bu">dict</span>(),</span>
-<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ε in ε-greedy (α = 0.1)"</span>: <span class="bu">dict</span>(</span>
-<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>        <span class="bu">id</span><span class="op">=</span><span class="dv">1</span>,</span>
-<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>        x_name<span class="op">=</span><span class="st">"ε"</span>,</span>
-<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>        x_vals<span class="op">=</span>[<span class="dv">2</span><span class="op">**-</span>k <span class="cf">for</span> k <span class="kw">in</span> (<span class="dv">12</span>, <span class="dv">9</span>, <span class="dv">6</span>, <span class="dv">3</span>, <span class="dv">1</span>, <span class="dv">0</span>)],</span>
-<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>        fixed<span class="op">=</span><span class="bu">dict</span>(α<span class="op">=</span><span class="fl">0.1</span>),</span>
-<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a>    <span class="st">"α in gradient ascent"</span>: <span class="bu">dict</span>(</span>
-<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a>        <span class="bu">id</span><span class="op">=</span><span class="dv">2</span>,</span>
-<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a>        x_name<span class="op">=</span><span class="st">"α"</span>,</span>
-<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a>        x_vals<span class="op">=</span>[<span class="dv">2</span><span class="op">**-</span>k <span class="cf">for</span> k <span class="kw">in</span> (<span class="dv">20</span>, <span class="dv">18</span>, <span class="dv">14</span>, <span class="dv">9</span>, <span class="dv">6</span>, <span class="dv">3</span>, <span class="dv">1</span>)],</span>
-<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a>        fixed<span class="op">=</span><span class="bu">dict</span>(),</span>
-<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a>    <span class="st">"α in gradient ascent (no base)"</span>: <span class="bu">dict</span>(</span>
-<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a>        <span class="bu">id</span><span class="op">=</span><span class="dv">3</span>,</span>
-<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a>        x_name<span class="op">=</span><span class="st">"α"</span>,</span>
-<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a>        x_vals<span class="op">=</span>[<span class="dv">2</span><span class="op">**-</span>k <span class="cf">for</span> k <span class="kw">in</span> (<span class="dv">20</span>, <span class="dv">18</span>, <span class="dv">14</span>, <span class="dv">9</span>, <span class="dv">6</span>, <span class="dv">3</span>, <span class="dv">1</span>)],</span>
-<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a>        fixed<span class="op">=</span><span class="bu">dict</span>(),</span>
-<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Experiment helper</span></span>
-<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> evaluate(agent_type: <span class="bu">int</span>, <span class="op">**</span>kwargs) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
-<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Mean reward over the last *keep* steps averaged across *runs* runs."""</span></span>
-<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a>    args <span class="op">=</span> {<span class="op">**</span>CONFIG, <span class="op">**</span>kwargs}</span>
-<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(args[<span class="st">"seed"</span>])</span>
-<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a>    seeds <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">2_000_000</span>, size<span class="op">=</span>args[<span class="st">"runs"</span>])</span>
-<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-64"><a href="#cb17-64" aria-hidden="true" tabindex="-1"></a>    rewards <span class="op">=</span> [</span>
-<span id="cb17-65"><a href="#cb17-65" aria-hidden="true" tabindex="-1"></a>        episode_mean(</span>
-<span id="cb17-66"><a href="#cb17-66" aria-hidden="true" tabindex="-1"></a>            agent_type,</span>
-<span id="cb17-67"><a href="#cb17-67" aria-hidden="true" tabindex="-1"></a>            args[<span class="st">"num_arms"</span>],</span>
-<span id="cb17-68"><a href="#cb17-68" aria-hidden="true" tabindex="-1"></a>            args[<span class="st">"steps"</span>],</span>
-<span id="cb17-69"><a href="#cb17-69" aria-hidden="true" tabindex="-1"></a>            args[<span class="st">"keep"</span>],</span>
-<span id="cb17-70"><a href="#cb17-70" aria-hidden="true" tabindex="-1"></a>            args[<span class="st">"q_0"</span>],</span>
-<span id="cb17-71"><a href="#cb17-71" aria-hidden="true" tabindex="-1"></a>            <span class="dv">1</span>,  <span class="co"># bandit_action_sd</span></span>
-<span id="cb17-72"><a href="#cb17-72" aria-hidden="true" tabindex="-1"></a>            <span class="dv">0</span>,  <span class="co"># drift_mu</span></span>
-<span id="cb17-73"><a href="#cb17-73" aria-hidden="true" tabindex="-1"></a>            args[<span class="st">"drift_sd"</span>],</span>
-<span id="cb17-74"><a href="#cb17-74" aria-hidden="true" tabindex="-1"></a>            seed,</span>
-<span id="cb17-75"><a href="#cb17-75" aria-hidden="true" tabindex="-1"></a>            kwargs.get(<span class="st">"ε"</span>, <span class="fl">0.1</span>),</span>
-<span id="cb17-76"><a href="#cb17-76" aria-hidden="true" tabindex="-1"></a>            kwargs.get(<span class="st">"α"</span>, <span class="fl">0.1</span>),</span>
-<span id="cb17-77"><a href="#cb17-77" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb17-78"><a href="#cb17-78" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> seed <span class="kw">in</span> seeds</span>
-<span id="cb17-79"><a href="#cb17-79" aria-hidden="true" tabindex="-1"></a>    ]</span>
-<span id="cb17-80"><a href="#cb17-80" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">float</span>(np.mean(rewards))</span>
-<span id="cb17-81"><a href="#cb17-81" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-82"><a href="#cb17-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-83"><a href="#cb17-83" aria-hidden="true" tabindex="-1"></a><span class="co"># --- run the sweeps</span></span>
-<span id="cb17-84"><a href="#cb17-84" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> {}</span>
-<span id="cb17-85"><a href="#cb17-85" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> label, spec <span class="kw">in</span> AGENTS.items():</span>
-<span id="cb17-86"><a href="#cb17-86" aria-hidden="true" tabindex="-1"></a>    run <span class="op">=</span> partial(evaluate, spec[<span class="st">"id"</span>], <span class="op">**</span>spec[<span class="st">"fixed"</span>])</span>
-<span id="cb17-87"><a href="#cb17-87" aria-hidden="true" tabindex="-1"></a>    results[label] <span class="op">=</span> [run(<span class="op">**</span>{spec[<span class="st">"x_name"</span>]: x}) <span class="cf">for</span> x <span class="kw">in</span> spec[<span class="st">"x_vals"</span>]]</span>
-<span id="cb17-88"><a href="#cb17-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-89"><a href="#cb17-89" aria-hidden="true" tabindex="-1"></a><span class="co"># --- plot</span></span>
-<span id="cb17-90"><a href="#cb17-90" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">6</span>))</span>
-<span id="cb17-91"><a href="#cb17-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-92"><a href="#cb17-92" aria-hidden="true" tabindex="-1"></a>markers <span class="op">=</span> [<span class="st">"^"</span>, <span class="st">"o"</span>, <span class="st">"s"</span>, <span class="st">"*"</span>]  <span class="co"># one per agent</span></span>
-<span id="cb17-93"><a href="#cb17-93" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (label, spec), marker <span class="kw">in</span> <span class="bu">zip</span>(AGENTS.items(), markers):</span>
-<span id="cb17-94"><a href="#cb17-94" aria-hidden="true" tabindex="-1"></a>    ax.plot(</span>
-<span id="cb17-95"><a href="#cb17-95" aria-hidden="true" tabindex="-1"></a>        spec[<span class="st">"x_vals"</span>],</span>
-<span id="cb17-96"><a href="#cb17-96" aria-hidden="true" tabindex="-1"></a>        results[label],</span>
-<span id="cb17-97"><a href="#cb17-97" aria-hidden="true" tabindex="-1"></a>        marker<span class="op">=</span>marker,</span>
-<span id="cb17-98"><a href="#cb17-98" aria-hidden="true" tabindex="-1"></a>        label<span class="op">=</span>label,</span>
-<span id="cb17-99"><a href="#cb17-99" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb17-100"><a href="#cb17-100" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-101"><a href="#cb17-101" aria-hidden="true" tabindex="-1"></a>ax.set_xscale(<span class="st">"log"</span>, base<span class="op">=</span><span class="dv">2</span>)</span>
-<span id="cb17-102"><a href="#cb17-102" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"Exploration / step-size (log scale)"</span>)</span>
-<span id="cb17-103"><a href="#cb17-103" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(</span>
-<span id="cb17-104"><a href="#cb17-104" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"Average reward for the last </span><span class="sc">{</span>CONFIG[<span class="st">'keep'</span>]<span class="sc">:,}</span><span class="ss"> steps (</span><span class="sc">{</span>CONFIG[<span class="st">'steps'</span>]<span class="sc">:,}</span><span class="ss"> steps total)"</span></span>
-<span id="cb17-105"><a href="#cb17-105" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-106"><a href="#cb17-106" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="ss">f"Average reward (mean of </span><span class="sc">{</span>CONFIG[<span class="st">'runs'</span>]<span class="sc">}</span><span class="ss"> runs)"</span>)</span>
-<span id="cb17-107"><a href="#cb17-107" aria-hidden="true" tabindex="-1"></a>ax.grid(<span class="va">True</span>, which<span class="op">=</span><span class="st">"both"</span>, linewidth<span class="op">=</span><span class="fl">0.5</span>)</span>
-<span id="cb17-108"><a href="#cb17-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-109"><a href="#cb17-109" aria-hidden="true" tabindex="-1"></a>ax.xaxis.set_major_formatter(</span>
-<span id="cb17-110"><a href="#cb17-110" aria-hidden="true" tabindex="-1"></a>    FuncFormatter(<span class="kw">lambda</span> x, _: <span class="ss">f"1/</span><span class="sc">{</span><span class="bu">int</span>(<span class="dv">1</span><span class="op">/</span>x)<span class="sc">}</span><span class="ss">"</span> <span class="cf">if</span> x <span class="op">&lt;</span> <span class="dv">1</span> <span class="cf">else</span> <span class="bu">str</span>(<span class="bu">int</span>(x)))</span>
-<span id="cb17-111"><a href="#cb17-111" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb17-112"><a href="#cb17-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-113"><a href="#cb17-113" aria-hidden="true" tabindex="-1"></a>ax.legend()</span>
-<span id="cb17-114"><a href="#cb17-114" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
-<span id="cb17-115"><a href="#cb17-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-116"><a href="#cb17-116" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># === Parameter sweep for nonstationary bandit ===</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co">"""</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co">We compare 4 bandit agents:</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co">0 - ε-greedy sample-average, parameter = ε</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co">1 - ε-greedy constant α = 0.1, parameter = ε</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co">2 - Gradient ascent with baseline, parameter = α</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co">3 - Gradient ascent no baseline, parameter = α</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="co">"""</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> functools <span class="im">import</span> partial</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> matplotlib.ticker <span class="im">import</span> FuncFormatter</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a><span class="co"># custom import</span></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scripts.parameter_study.episode_mean <span class="im">import</span> episode_mean</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Global config</span></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>CONFIG <span class="op">=</span> <span class="bu">dict</span>(</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>    seed<span class="op">=</span><span class="dv">1000000</span>,</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>    num_arms<span class="op">=</span><span class="dv">10</span>,</span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">#steps=300_000,</span></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>    <span class="co">#keep=50_000,</span></span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>    <span class="co">#runs=200,</span></span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>    steps <span class="op">=</span> <span class="dv">1</span>,</span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>    keep <span class="op">=</span> <span class="dv">1</span>,</span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a>    runs <span class="op">=</span> <span class="dv">1</span>,</span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>    q_0<span class="op">=</span><span class="dv">10</span>,</span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a>    drift_sd<span class="op">=</span><span class="fl">0.1</span>,</span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a>AGENTS <span class="op">=</span> {</span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ε in ε-greedy (sample-avg)"</span>: <span class="bu">dict</span>(</span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a>        <span class="bu">id</span><span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a>        x_name<span class="op">=</span><span class="st">"ε"</span>,</span>
+<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a>        x_vals<span class="op">=</span>[<span class="dv">2</span><span class="op">**-</span>k <span class="cf">for</span> k <span class="kw">in</span> (<span class="dv">12</span>, <span class="dv">9</span>, <span class="dv">6</span>, <span class="dv">3</span>, <span class="dv">1</span>, <span class="dv">0</span>)],</span>
+<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a>        fixed<span class="op">=</span><span class="bu">dict</span>(),</span>
+<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb19-39"><a href="#cb19-39" aria-hidden="true" tabindex="-1"></a>    <span class="st">"ε in ε-greedy (α = 0.1)"</span>: <span class="bu">dict</span>(</span>
+<span id="cb19-40"><a href="#cb19-40" aria-hidden="true" tabindex="-1"></a>        <span class="bu">id</span><span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb19-41"><a href="#cb19-41" aria-hidden="true" tabindex="-1"></a>        x_name<span class="op">=</span><span class="st">"ε"</span>,</span>
+<span id="cb19-42"><a href="#cb19-42" aria-hidden="true" tabindex="-1"></a>        x_vals<span class="op">=</span>[<span class="dv">2</span><span class="op">**-</span>k <span class="cf">for</span> k <span class="kw">in</span> (<span class="dv">12</span>, <span class="dv">9</span>, <span class="dv">6</span>, <span class="dv">3</span>, <span class="dv">1</span>, <span class="dv">0</span>)],</span>
+<span id="cb19-43"><a href="#cb19-43" aria-hidden="true" tabindex="-1"></a>        fixed<span class="op">=</span><span class="bu">dict</span>(α<span class="op">=</span><span class="fl">0.1</span>),</span>
+<span id="cb19-44"><a href="#cb19-44" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb19-45"><a href="#cb19-45" aria-hidden="true" tabindex="-1"></a>    <span class="st">"α in gradient ascent"</span>: <span class="bu">dict</span>(</span>
+<span id="cb19-46"><a href="#cb19-46" aria-hidden="true" tabindex="-1"></a>        <span class="bu">id</span><span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb19-47"><a href="#cb19-47" aria-hidden="true" tabindex="-1"></a>        x_name<span class="op">=</span><span class="st">"α"</span>,</span>
+<span id="cb19-48"><a href="#cb19-48" aria-hidden="true" tabindex="-1"></a>        x_vals<span class="op">=</span>[<span class="dv">2</span><span class="op">**-</span>k <span class="cf">for</span> k <span class="kw">in</span> (<span class="dv">20</span>, <span class="dv">18</span>, <span class="dv">14</span>, <span class="dv">9</span>, <span class="dv">6</span>, <span class="dv">3</span>, <span class="dv">1</span>)],</span>
+<span id="cb19-49"><a href="#cb19-49" aria-hidden="true" tabindex="-1"></a>        fixed<span class="op">=</span><span class="bu">dict</span>(),</span>
+<span id="cb19-50"><a href="#cb19-50" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb19-51"><a href="#cb19-51" aria-hidden="true" tabindex="-1"></a>    <span class="st">"α in gradient ascent (no base)"</span>: <span class="bu">dict</span>(</span>
+<span id="cb19-52"><a href="#cb19-52" aria-hidden="true" tabindex="-1"></a>        <span class="bu">id</span><span class="op">=</span><span class="dv">3</span>,</span>
+<span id="cb19-53"><a href="#cb19-53" aria-hidden="true" tabindex="-1"></a>        x_name<span class="op">=</span><span class="st">"α"</span>,</span>
+<span id="cb19-54"><a href="#cb19-54" aria-hidden="true" tabindex="-1"></a>        x_vals<span class="op">=</span>[<span class="dv">2</span><span class="op">**-</span>k <span class="cf">for</span> k <span class="kw">in</span> (<span class="dv">20</span>, <span class="dv">18</span>, <span class="dv">14</span>, <span class="dv">9</span>, <span class="dv">6</span>, <span class="dv">3</span>, <span class="dv">1</span>)],</span>
+<span id="cb19-55"><a href="#cb19-55" aria-hidden="true" tabindex="-1"></a>        fixed<span class="op">=</span><span class="bu">dict</span>(),</span>
+<span id="cb19-56"><a href="#cb19-56" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb19-57"><a href="#cb19-57" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb19-58"><a href="#cb19-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-59"><a href="#cb19-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-60"><a href="#cb19-60" aria-hidden="true" tabindex="-1"></a><span class="co"># --- Experiment helper</span></span>
+<span id="cb19-61"><a href="#cb19-61" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> evaluate(agent_type: <span class="bu">int</span>, <span class="op">**</span>kwargs) <span class="op">-&gt;</span> <span class="bu">float</span>:</span>
+<span id="cb19-62"><a href="#cb19-62" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Mean reward over the last *keep* steps averaged across *runs* runs."""</span></span>
+<span id="cb19-63"><a href="#cb19-63" aria-hidden="true" tabindex="-1"></a>    args <span class="op">=</span> {<span class="op">**</span>CONFIG, <span class="op">**</span>kwargs}</span>
+<span id="cb19-64"><a href="#cb19-64" aria-hidden="true" tabindex="-1"></a>    rng <span class="op">=</span> np.random.default_rng(args[<span class="st">"seed"</span>])</span>
+<span id="cb19-65"><a href="#cb19-65" aria-hidden="true" tabindex="-1"></a>    seeds <span class="op">=</span> rng.integers(<span class="dv">0</span>, <span class="dv">2_000_000</span>, size<span class="op">=</span>args[<span class="st">"runs"</span>])</span>
+<span id="cb19-66"><a href="#cb19-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-67"><a href="#cb19-67" aria-hidden="true" tabindex="-1"></a>    rewards <span class="op">=</span> [</span>
+<span id="cb19-68"><a href="#cb19-68" aria-hidden="true" tabindex="-1"></a>        episode_mean(</span>
+<span id="cb19-69"><a href="#cb19-69" aria-hidden="true" tabindex="-1"></a>            agent_type,</span>
+<span id="cb19-70"><a href="#cb19-70" aria-hidden="true" tabindex="-1"></a>            args[<span class="st">"num_arms"</span>],</span>
+<span id="cb19-71"><a href="#cb19-71" aria-hidden="true" tabindex="-1"></a>            args[<span class="st">"steps"</span>],</span>
+<span id="cb19-72"><a href="#cb19-72" aria-hidden="true" tabindex="-1"></a>            args[<span class="st">"keep"</span>],</span>
+<span id="cb19-73"><a href="#cb19-73" aria-hidden="true" tabindex="-1"></a>            args[<span class="st">"q_0"</span>],</span>
+<span id="cb19-74"><a href="#cb19-74" aria-hidden="true" tabindex="-1"></a>            <span class="dv">1</span>,  <span class="co"># bandit_action_sd</span></span>
+<span id="cb19-75"><a href="#cb19-75" aria-hidden="true" tabindex="-1"></a>            <span class="dv">0</span>,  <span class="co"># drift_mu</span></span>
+<span id="cb19-76"><a href="#cb19-76" aria-hidden="true" tabindex="-1"></a>            args[<span class="st">"drift_sd"</span>],</span>
+<span id="cb19-77"><a href="#cb19-77" aria-hidden="true" tabindex="-1"></a>            seed,</span>
+<span id="cb19-78"><a href="#cb19-78" aria-hidden="true" tabindex="-1"></a>            kwargs.get(<span class="st">"ε"</span>, <span class="fl">0.1</span>),</span>
+<span id="cb19-79"><a href="#cb19-79" aria-hidden="true" tabindex="-1"></a>            kwargs.get(<span class="st">"α"</span>, <span class="fl">0.1</span>),</span>
+<span id="cb19-80"><a href="#cb19-80" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb19-81"><a href="#cb19-81" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> seed <span class="kw">in</span> seeds</span>
+<span id="cb19-82"><a href="#cb19-82" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb19-83"><a href="#cb19-83" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="bu">float</span>(np.mean(rewards))</span>
+<span id="cb19-84"><a href="#cb19-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-85"><a href="#cb19-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-86"><a href="#cb19-86" aria-hidden="true" tabindex="-1"></a><span class="co"># --- run the sweeps</span></span>
+<span id="cb19-87"><a href="#cb19-87" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> {}</span>
+<span id="cb19-88"><a href="#cb19-88" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> label, spec <span class="kw">in</span> AGENTS.items():</span>
+<span id="cb19-89"><a href="#cb19-89" aria-hidden="true" tabindex="-1"></a>    run <span class="op">=</span> partial(evaluate, spec[<span class="st">"id"</span>], <span class="op">**</span>spec[<span class="st">"fixed"</span>])</span>
+<span id="cb19-90"><a href="#cb19-90" aria-hidden="true" tabindex="-1"></a>    results[label] <span class="op">=</span> [run(<span class="op">**</span>{spec[<span class="st">"x_name"</span>]: x}) <span class="cf">for</span> x <span class="kw">in</span> spec[<span class="st">"x_vals"</span>]]</span>
+<span id="cb19-91"><a href="#cb19-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-92"><a href="#cb19-92" aria-hidden="true" tabindex="-1"></a><span class="co"># --- plot</span></span>
+<span id="cb19-93"><a href="#cb19-93" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">10</span>, <span class="dv">6</span>))</span>
+<span id="cb19-94"><a href="#cb19-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-95"><a href="#cb19-95" aria-hidden="true" tabindex="-1"></a>markers <span class="op">=</span> [<span class="st">"^"</span>, <span class="st">"o"</span>, <span class="st">"s"</span>, <span class="st">"*"</span>]  <span class="co"># one per agent</span></span>
+<span id="cb19-96"><a href="#cb19-96" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (label, spec), marker <span class="kw">in</span> <span class="bu">zip</span>(AGENTS.items(), markers):</span>
+<span id="cb19-97"><a href="#cb19-97" aria-hidden="true" tabindex="-1"></a>    ax.plot(</span>
+<span id="cb19-98"><a href="#cb19-98" aria-hidden="true" tabindex="-1"></a>        spec[<span class="st">"x_vals"</span>],</span>
+<span id="cb19-99"><a href="#cb19-99" aria-hidden="true" tabindex="-1"></a>        results[label],</span>
+<span id="cb19-100"><a href="#cb19-100" aria-hidden="true" tabindex="-1"></a>        marker<span class="op">=</span>marker,</span>
+<span id="cb19-101"><a href="#cb19-101" aria-hidden="true" tabindex="-1"></a>        label<span class="op">=</span>label,</span>
+<span id="cb19-102"><a href="#cb19-102" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb19-103"><a href="#cb19-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-104"><a href="#cb19-104" aria-hidden="true" tabindex="-1"></a>ax.set_xscale(<span class="st">"log"</span>, base<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb19-105"><a href="#cb19-105" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"Exploration / step-size (log scale)"</span>)</span>
+<span id="cb19-106"><a href="#cb19-106" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(</span>
+<span id="cb19-107"><a href="#cb19-107" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"Average reward for the last </span><span class="sc">{</span>CONFIG[<span class="st">'keep'</span>]<span class="sc">:,}</span><span class="ss"> steps (</span><span class="sc">{</span>CONFIG[<span class="st">'steps'</span>]<span class="sc">:,}</span><span class="ss"> steps total)"</span></span>
+<span id="cb19-108"><a href="#cb19-108" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-109"><a href="#cb19-109" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="ss">f"Average reward (mean of </span><span class="sc">{</span>CONFIG[<span class="st">'runs'</span>]<span class="sc">}</span><span class="ss"> runs)"</span>)</span>
+<span id="cb19-110"><a href="#cb19-110" aria-hidden="true" tabindex="-1"></a>ax.grid(<span class="va">True</span>, which<span class="op">=</span><span class="st">"both"</span>, linewidth<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb19-111"><a href="#cb19-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-112"><a href="#cb19-112" aria-hidden="true" tabindex="-1"></a>ax.xaxis.set_major_formatter(</span>
+<span id="cb19-113"><a href="#cb19-113" aria-hidden="true" tabindex="-1"></a>    FuncFormatter(<span class="kw">lambda</span> x, _: <span class="ss">f"1/</span><span class="sc">{</span><span class="bu">int</span>(<span class="dv">1</span><span class="op">/</span>x)<span class="sc">}</span><span class="ss">"</span> <span class="cf">if</span> x <span class="op">&lt;</span> <span class="dv">1</span> <span class="cf">else</span> <span class="bu">str</span>(<span class="bu">int</span>(x)))</span>
+<span id="cb19-114"><a href="#cb19-114" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-115"><a href="#cb19-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-116"><a href="#cb19-116" aria-hidden="true" tabindex="-1"></a>ax.legend()</span>
+<span id="cb19-117"><a href="#cb19-117" aria-hidden="true" tabindex="-1"></a>fig.tight_layout()</span>
+<span id="cb19-118"><a href="#cb19-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-119"><a href="#cb19-119" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><a href="02-multi-armed-bandits_files/figure-html/cell-18-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-12" title="Parameter sweep for a non-stationary bandit, similar to Figure 2.6 [@sutton2018]. The plot displays the average reward of the last 50,000 steps of a 300,000-step episode, averaged over 200 runs. The bandit was initialized with action-value means set to 10, which drifted according to a normal distribution with a standard deviation of 0.1 at each step. The standard deviation of the reward noise was 1."><img src="02-multi-armed-bandits_files/figure-html/cell-18-output-1.png" class="img-fluid figure-img" alt="Parameter sweep for a non-stationary bandit, similar to Figure 2.6 (Sutton and Barto 2018). The plot displays the average reward of the last 50,000 steps of a 300,000-step episode, averaged over 200 runs. The bandit was initialized with action-value means set to 10, which drifted according to a normal distribution with a standard deviation of 0.1 at each step. The standard deviation of the reward noise was 1."></a></p>
+<p><a href="02-multi-armed-bandits_files/figure-html/cell-20-output-1.png" class="lightbox" data-gallery="quarto-lightbox-gallery-12" title="Parameter sweep for a non-stationary bandit, similar to Figure 2.6 [@sutton2018]. The plot displays the average reward of the last 50,000 steps of a 300,000-step episode, averaged over 200 runs. The bandit was initialized with action-value means set to 10, which drifted according to a normal distribution with a standard deviation of 0.1 at each step. The standard deviation of the reward noise was 1."><img src="02-multi-armed-bandits_files/figure-html/cell-20-output-1.png" class="img-fluid figure-img" alt="Parameter sweep for a non-stationary bandit, similar to Figure 2.6 (Sutton and Barto 2018). The plot displays the average reward of the last 50,000 steps of a 300,000-step episode, averaged over 200 runs. The bandit was initialized with action-value means set to 10, which drifted according to a normal distribution with a standard deviation of 0.1 at each step. The standard deviation of the reward noise was 1."></a></p>
 <figcaption>Parameter sweep for a non-stationary bandit, similar to Figure 2.6 <span class="citation" data-cites="sutton2018">(<a href="#ref-sutton2018" role="doc-biblioref">Sutton and Barto 2018</a>)</span>. The plot displays the average reward of the last 50,000 steps of a 300,000-step episode, averaged over 200 runs. The bandit was initialized with action-value means set to 10, which drifted according to a normal distribution with a standard deviation of 0.1 at each step. The standard deviation of the reward noise was 1.</figcaption>
 </figure>
 </div>
@@ -1932,20 +1979,26 @@ S(n) = (1 - \gamma^{n+1}) + \gamma S(n).
 \tag{2.17}\]</span></span></p>
 </section>
 <section id="sec-recurrence-relations" class="level3" data-number="2.11.9">
-<h3 data-number="2.11.9" class="anchored" data-anchor-id="sec-recurrence-relations"><span class="header-section-number">2.11.9</span> recurrence relations</h3>
-<p>As it turns out, the basic geometric series we’ve explored isn’t quite enough to handle discounting and cumulative discounted returns in reinforcement learning. While the geometric series solves the homogeneous linear recurrence relation given by <a href="#eq-geometric-series-recurrence-relation" class="quarto-xref">Equation&nbsp;<span>2.13</span></a>, dealing with cumulative discounted returns introduces a non-homogeneous variation, where the constants 1s are replaced by a some <span class="math inline">\(r_i\)</span>​, leading to the recurrence relation: <span id="eq-non-homogenous-geometric-series-recurrence-relation"><span class="math display">\[
+<h3 data-number="2.11.9" class="anchored" data-anchor-id="sec-recurrence-relations"><span class="header-section-number">2.11.9</span> recurrence Relations</h3>
+<p>As it turns out, the basic geometric series we’ve explored isn’t quite enough to handle discounting and cumulative discounted returns in reinforcement learning. While the geometric series solves the homogeneous linear recurrence relation given by <a href="#eq-geometric-series-recurrence-relation" class="quarto-xref">Equation&nbsp;<span>2.13</span></a>, dealing with cumulative discounted returns introduces a non-homogeneous variation, where the constants 1s are replaced by a some <span class="math inline">\(r_i\)</span>​, leading to the recurrence relation: <span class="math display">\[
 Q(n+1) := r_n + \gamma Q(n) \quad \text{and} \quad Q(0) := 0
-\tag{2.18}\]</span></span></p>
-<p>We can also give an explicit formula for <span class="math inline">\(Q(n+1)\)</span>: <span id="eq-non-homogenous-geometric-series-convolution-form"><span class="math display">\[
+\]</span></p>
+<div id="thm-first-order-linear-recurrence" class="theorem">
+<p><span class="theorem-title"><strong>Theorem 2.6</strong></span> The function <span class="math display">\[
 Q(n+1) = \sum_{i=0}^n \gamma^{n-i} r_i.
-\tag{2.19}\]</span></span></p>
-<p>It’s easy to verify that this fulfils the recursive definition: <span class="math display">\[
+\]</span> is the solution to the recurrence relation <span class="math display">\[
+Q(n+1) := r_n + \gamma Q(n) \quad \text{and} \quad Q(0) := 0
+\]</span></p>
+</div>
+<div class="proof">
+<p><span class="proof-title"><em>Proof</em>. </span>It’s easy to verify that this fulfils the recursive definition: <span class="math display">\[
 \begin{split}
 Q(n+1) &amp;= r_n + \sum_{i=0}^{n-1} \gamma^{n-i} r_i \\
 &amp;= r_n + \gamma\sum_{i=0}^{n-1} \gamma^{n-1-i} r_{i} \\
 &amp;= r_n + \gamma Q(n).
 \end{split}
 \]</span></p>
+</div>
 
 
 <div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
@@ -2316,25 +2369,66 @@ Sutton, Richard S., and Andrew G. Barto. 2018. <em>Reinforcement Learning: An In
           }
         };
       }
-        // Attach click handler to the DT
-        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
-        for (const annoteDlNode of annoteDls) {
-          annoteDlNode.addEventListener('click', (event) => {
-            const clickedEl = event.target;
-            if (clickedEl !== selectedAnnoteEl) {
-              unselectCodeLines();
-              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
-              if (activeEl) {
-                activeEl.classList.remove('code-annotation-active');
-              }
-              selectCodeLines(clickedEl);
-              clickedEl.classList.add('code-annotation-active');
-            } else {
-              // Unselect the line
-              unselectCodeLines();
-              clickedEl.classList.remove('code-annotation-active');
+        const annoteTargets = window.document.querySelectorAll('.code-annotation-anchor');
+        for (let i=0; i<annoteTargets.length; i++) {
+          const annoteTarget = annoteTargets[i];
+          const targetCell = annoteTarget.getAttribute("data-target-cell");
+          const targetAnnotation = annoteTarget.getAttribute("data-target-annotation");
+          const contentFn = () => {
+            const content = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+            if (content) {
+              const tipContent = content.cloneNode(true);
+              tipContent.classList.add("code-annotation-tip-content");
+              return tipContent.outerHTML;
             }
-          });
+          }
+          const config = {
+            allowHTML: true,
+            content: contentFn,
+            onShow: (instance) => {
+              selectCodeLines(instance.reference);
+              instance.reference.classList.add('code-annotation-active');
+              window.tippy.hideAll();
+            },
+            onHide: (instance) => {
+              unselectCodeLines();
+              instance.reference.classList.remove('code-annotation-active');
+            },
+            maxWidth: 300,
+            delay: [50, 0],
+            duration: [200, 0],
+            offset: [5, 10],
+            arrow: true,
+            trigger: 'click',
+            appendTo: function(el) {
+              return el.parentElement.parentElement.parentElement;
+            },
+            interactive: true,
+            interactiveBorder: 10,
+            theme: 'quarto',
+            placement: 'right',
+            positionFixed: true,
+            popperOptions: {
+              modifiers: [
+              {
+                name: 'flip',
+                options: {
+                  flipVariations: false, // true by default
+                  allowedAutoPlacements: ['right'],
+                  fallbackPlacements: ['right', 'top', 'top-start', 'top-end', 'bottom', 'bottom-start', 'bottom-end', 'left'],
+                },
+              },
+              {
+                name: 'preventOverflow',
+                options: {
+                  mainAxis: false,
+                  altAxis: false
+                }
+              }
+              ]        
+            }      
+          };
+          window.tippy(annoteTarget, config); 
         }
     const findCites = (el) => {
       const parentEl = el.parentElement;

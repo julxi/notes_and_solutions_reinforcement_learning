@@ -98,7 +98,7 @@ div.csl-indent {
 <script src="../site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="../site_libs/bootstrap/bootstrap-fb02f3c877dd64dca3cf6a6e57462b95.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="../site_libs/bootstrap/bootstrap-dark-febd3d0b452fc20adeeab4d20a8c1a88.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-dark-72e3104a5210017f14ac4024f5014c88.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
 <script src="../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
 <link href="../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
 <link href="../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
@@ -306,7 +306,8 @@ window.Quarto = {
       }
     };
     const authorPrefersDark = true;
-    const darkModeDefault = authorPrefersDark;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
     let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
     // Dark / light mode switch
     window.quartoToggleColorScheme = () => {
@@ -316,6 +317,14 @@ window.Quarto = {
       setStyleSentinel(toAlternate);
       toggleGiscusIfUsed(toAlternate, darkModeDefault);
     };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
     // Switch to dark mode if need be
     if (hasAlternateSentinel()) {
       toggleColorMode(true);
@@ -388,6 +397,12 @@ window.Quarto = {
   <div class="sidebar-item-container"> 
   <a href="../chapters/04-dynamic-programming.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Dynamic Programming</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/05-monte-carlo-methods.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Monte Carlo Methods</span></span></a>
   </div>
 </li>
     </ul>
@@ -1278,7 +1293,7 @@ q_{\pi}(s,a) &amp;= \mathbb{E}[R_{t+1} + \gamma v_{\pi}(S_{t+1}) \mid S_t = s, A
 <p>In the next chapter (<a href="04-dynamic-programming.html#sec-policy-improvement" class="quarto-xref"><span>Section 4.2</span></a>), we will see that any MDP has an optimal deterministic policy. We’ll take this fact for granted for now and focus on their value functions.</p>
 <p>A policy is deterministic if <span class="math inline">\(\pi(a|s) = 1\)</span> for exactly one action for each <span class="math inline">\(s \in \mathcal{S}\)</span>. We then also just write <span class="math inline">\(\pi(s)\)</span> for this action.</p>
 <p>A policy <span class="math inline">\(\pi_*\)</span> is optimal if <span class="math inline">\(\pi_* \geq \pi\)</span> for any other <span class="math inline">\(\pi\)</span>. Here we use <span class="math inline">\(\geq\)</span>, a partial order on all policies for the MDP, defiend by <span class="math display">\[
-\pi \leq \pi' \quad:\Longleftrightarrow\quad v_\pi(s) \leq \pi'(s) \; \text{, for all }s \in \mathcal{S}.
+\pi \leq \pi' \quad:\Longleftrightarrow\quad v_\pi(s) \leq v_{\pi'}(s) \; \text{, for all }s \in \mathcal{S}.
 \]</span></p>
 <p>There might be more than one optimal policy, but they must have the same value function (otherwise, they wouldn’t be optimal). We can define the optimal state-value function as <span class="math display">\[
 v_*(s) := \max_{\pi} v_{\pi}(s)
