@@ -1,59 +1,59 @@
 ---
 date: 2025-10-30
-code-annotations: select
-lightbox: true
 ---
 # Multi-armed Bandits
 
 ```{python}
 # Some import for python
 from dataclasses import dataclass, field
-import numpy as np
-import matplotlib.pyplot as plt
+import pickle
 from typing import Sequence, Tuple
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 ```
 
-## A k-armed Bandit Problem
+## A $k$-armed Bandit Problem
 
-The k-armed bandit problem is a very simple example that already introduces a key structure of reinforcement learning: the reward depends on the action taken. It’s technically not a full Markov chain (more on that in @sec-the-agent-environment-interface)—since there are no states or transitions—but we still get a sequence of dependent random variables $A_1, R_1, A_2, \dots$, where each reward $R_t$ depends on the corresponding action $A_t$.
+The k-armed bandit problem is a very simple example that already introduces a key structure of reinforcement learning: the reward depends on the action taken. It’s technically not a full Markov chain (more on that in @sec-the-agent-environment-interface)—since there are no states—but very similar in that we model it as a sequence of dependent random variables $A_1, R_1, A_2, \dots$, where each reward $R_t$ depends on the previous action $A_t$.
 
 The true value of an action is defined as:
 $$
 q_*(a) := \mathbb{E}[ R_t \mid A_t = a].
 $$
 
-The time index here doesn’t play a special role as the action-reward probabilities in the armed bandit are stationary. You can think of the condition meaning "when $a$ is picked".
+The time index here doesn’t play a special role as the action-reward probabilities in the armed bandit are stationary. You can think of the condition meaning "when/if $a$ is picked".
 
 If you're feeling queasy about the conditional expected value, here’s a quick refresher on the relevant notation and concepts.
 
-### Random Variables and Probability {.unnumbered}
+### Random Variables and Probability 🔍
 
-The foundations of all processes we discuss here – armed bandits or more involved environments that appear later – are discrete probability spaces $(\Omega, \mathrm{Pr})$.
-$\Omega$ is the set of all possible trajectories on the environment, i.e., complete sequences of outcomes for the random variables describing a run of the process, and $\mathrm{Pr}$ assigns a probability to each trajectory:
+The foundations of all processes we discuss here—armed bandits or more involved environments that appear later—are discrete probability spaces $(\Omega, \mathrm{Pr})$.
+$\Omega$ is the set of all possible behaviours of the algorithm on the environment, i.e., complete description of a run, and $\mathrm{Pr}$ assigns a probability to each outcome:
 $$
 \mathrm{Pr}\colon \Omega \to [0,1] \quad \text{with} \quad
 \sum_{\omega \in \Omega} \mathrm{Pr}(\omega) = 1.
 $$
 
-*Random variables* are simply functions $X\colon \Omega \to \mathcal{X}$ from $\Omega$ to a result space $\mathcal{X}$.
 
-We follow the convention of @sutton2018:
+Since basically everything in this world is finite—at least computers and the simulated environments we use to learn on them—they will end up in a loop, even if we let them run for an infinite number of time steps. I'm just using this to justify that for this introduction $\Omega$ is countable, which saves us a bunch of technical details about measurability and other questions that don't really matter for us.
+
+A *random variable* is a function $X\colon \Omega \to \mathcal{X}$ from $\Omega$ to a result space $\mathcal{X}$.
+
+We largely follow the convention of @sutton2018:
 random variables are written in capital letters,
-and their possible values are in lowercase.
+and their possible values in lowercase.
 
-If we want to refer to the concrete outcome of a single trajectory (which we actually don’t often do in theory crafting), we evaluate random variables on a specific $\omega \in \Omega$, which fixes their values.
-So an arbitrary but concrete trajectory looks like this
-$A_1(\omega), R_1(\omega), A_2(\omega), R_2(\omega) \dots$
+The actions and rewards on a $k$-armed bandits are random variables. If we want to refer to the concrete outcome of a random variable (which we actually don’t often do in theory crafting), we evaluate random variables on a specific $\omega \in \Omega$, which fixes their values.
+So an arbitrary but concrete action-reward sequence looks like this
+$A_1(\omega), R_1(\omega), A_2(\omega), R_2(\omega) \dots$.
 
-Let's bring up two common conventions are used for this notation $\mathbb{E}[ R_t \mid A_t = a]$ of the conditional expectation:
+Let's bring up a common conventions that is used for a notation like this "$\mathbb{E}[ R_t \mid A_t = a]$". When defining a subset of $\Omega$ like $\{\omega \in \Omega \colon X(\omega) = x\}$, we just write $\{X = x\}$. So the above expression is shorthand for "$\mathbb{E}[R_t \mid \omega \in \Omega : A_t(\omega) = a]$".
+Also, $\mathrm{Pr}(X = x)$ is shorthand for $\mathrm{Pr}(\omega \in \Omega : X(\omega) = x)$
 
- 1. We usually omit the argument $\omega$ when referring to the value of a random variable. This conflates the notation for $X$ the function and $X(\omega)$ a value of the function, but is easer to write than $\mathbb{E}[R_t(\omega) | A_t(\omega) = a]$.
- 1. When dealing with functions over subsets of $\Omega$, we abbreviate expressions like $F({\omega \in \Omega : \text{statement true for }\omega})$ to simply $F(\text{statement})$. Without this we had to write $\mathbb{E}[R_t(\omega) | \omega \in \Omega : A_t(\omega) = a]$.
- 
-With both conventions in play, we can see that $\mathrm{Pr}(X = x)$
-is just shorthand for $\mathrm{Pr}(\omega \in \Omega : X(\omega) = x)$
-
-### Conditional Probability {.unnumbered}
+### Conditional Probability 🔍
 
 The reward $R_t$​ depends on the action $A_t$​ taken.
 If we know the value of $A_t$, then the conditional probability that $R_t=r$ given $A_t = a$ is:
@@ -63,10 +63,9 @@ $$
 
 where the comma denotes conjunction of the statements.
 
-This is only well-defined if $\mathrm{Pr}(A_t = a) > 0$
-but that’s a technicality that won't come up.
+This is only well-defined if $\mathrm{Pr}(A_t = a) > 0$, so we have to keep that in mind when we use this formula.
 
-### Expected Value {.unnumbered}
+### Expected Value 🔍
 
 Real-valued random variables like $R_t\colon \Omega \to \mathbb{R}$
 have an expected value $\mathbb{E}[R_t]$, which is also called their mean. It is defined as:
@@ -74,13 +73,14 @@ $$
 \mathbb{E}[ R_t ] := \sum_{\omega \in \Omega} R_t(\omega) \mathrm{Pr}(\omega)
 $$
 
-A more commonly used form is the "law of the unconscious statistician"-theorem, also called LOTUS (see appendix @thm-law-of-the-unconscious-statistician):
+A more commonly used form due the "law of the unconscious statistician" (LOTUS) is:
 $$
-\mathbb{E}[R_t] = \sum_{r \in \mathbb{R}} r \; \mathrm{Pr}(R_t = r),
+\mathbb{E}[R_t] = \sum_{r \in \mathbb{R}} r \; \mathrm{Pr}(R_t = r)
 $$
+(see appendix @thm-law-of-the-unconscious-statistician).
 
 To compute a conditional expectation,
-we just switch probabilities with conditional probabilities:
+we just make everything conditional:
 $$
 \mathbb{E}[R_t \mid A_t = a] = \sum_{\omega \in \Omega} R_t(\omega) \mathrm{Pr}(\omega \mid A_t = a).
 $$
@@ -115,24 +115,82 @@ $$
 
 ## The 10-armed Testbed
 
-The 10-armed testbed will accompany us through the rest of this chapter. So here is the class that we use as the armed bandit environment.
+The 10-armed testbed will accompany us through the rest of this chapter. So here's an implementation of it.
 
 ```{python}
 # | code-fold: false
 # === the armed bandit ===
 class ArmedBandit:
     """k-armed Gaussian bandit."""
-    def __init__(self, action_mu, action_sd, seed):
-        self.action_mu = np.asarray(action_mu, dtype=np.float64)
-        self.action_sd = np.asarray(action_sd, dtype=np.float64)
-        self.seed = seed
-        self.rng = np.random.default_rng(self.seed)
 
-    def pull_arm(self, action):
-        return self.rng.normal(loc=self.action_mu[action], scale=self.action_sd)
+    def __init__(self, action_values, reward_sd, seed):
+        self.action_values = np.asarray(action_values, dtype=np.float64)  # <1>
+        self.reward_sd = np.float64(reward_sd)
+        self.seed = seed
+        self.rng = np.random.default_rng(self.seed)  # <1>
+
+    def pull_arm(self, arm):
+        return self.rng.normal(
+            loc=self.action_values[arm],
+            scale=self.reward_sd,
+        )
+```
+1. As you can see internally the armed bandit uses numpy. Actually, I forgot why I made this choice, as this looks needlessly complicated and numpy is only necessary for parallel processing which doesn't happen in these notes.
+
+And here how the standard setup looks like that we typically use for the experiments in this chapter. 
+
+```{python}
+# | code-fold: false
+# === typical bandit setup ===
+
+n_arms = 10
+rng = np.random.default_rng(0)  # <1>
+
+action_values = rng.normal(loc=0, scale=1, size=n_arms)
+reward_sd = 1
+env = ArmedBandit(action_values, reward_sd, seed=0)
+```
+1. I usually set the random generator's seed in my examples. It's just better to have reproducible results. Usually, I use a seed of $0$, but sometimes I cherry-pick a seed to highlight an issue.
+
+As an example how the rewards look like that we get from the bandit, let's pull each arm of the bandit we have just set up a couple of times. The violin plots of these rewards creates a picture similar to [@sutton2018, Figure 2.1] only that here we see the empirical data.
+
+:::{#fig-example-bandit-problem}
+```{python}
+n_pulls = 10
+rewards = []
+for arm in range(n_arms):
+    rewards.append([env.pull_arm(arm) for _ in range(n_pulls)])
+
+
+# __plot stuff__
+df_rewards = pd.DataFrame(
+    {
+        "Arm": np.repeat(np.arange(n_arms), n_pulls),
+        "Reward": np.concatenate(rewards),
+    }
+)
+
+
+plt.figure(figsize=(12, 6))
+plt.scatter(
+    x=np.arange(n_arms),
+    y=action_values,
+    label="True Action Value",
+    s=100,
+    marker="o",
+    zorder=3,
+    alpha=0.5,
+)
+sns.violinplot(x="Arm", y="Reward", data=df_rewards)
+plt.title(f"Violin plot of rewards for each arm after {n_pulls} pulls")
+plt.show()
 ```
 
-And here's the code for the sample-average bandit algorithm. For clarity, I'll refer to this and upcoming algorithms as 'agents', given their learning behaviour. Note that this is using the incremental implementation from @sec-incremental-implementation.
+Plot of the random rewards for each arm. The bandit setup is such that the action values are $q_*(a) \sim N(0,1)$ and each reward $R$ for pulling $a$ is $R \sim N(q_*(a), 1)$. This basically visualises the information available to the bandit algorithms, only that we want algorithms that minimize the pulls for 'bad arms'.
+[@sutton2018, Figure 2.1]
+:::
+
+And here's the code for the sample-average bandit algorithm. For clarity, I'll refer to this and upcoming algorithms as 'agents'. Note that this implementation is using the incremental implementation from @sec-incremental-implementation.
 
 ```{python}
 # | code-fold: false
@@ -140,9 +198,9 @@ And here's the code for the sample-average bandit algorithm. For clarity, I'll r
 class SampleAverageBanditAgent:
     def __init__(self, Q1, ε, seed=None):
         self.rng = np.random.default_rng(seed)
-        self.num_actions = len(Q1) 
-        self.Q1 = np.asarray(Q1, dtype=np.float64)  # initial action-value estimates
-        self.ε = ε  
+        self.num_actions = len(Q1)
+        self.Q1 = np.asarray(Q1, dtype=np.float64)
+        self.ε = ε
         self.reset()
 
     def reset(self):
@@ -165,26 +223,30 @@ class SampleAverageBanditAgent:
         self.Q[action] += α * (reward - self.Q[action])
 
         return (action, reward)
-```    
+```
 
-Next, I'll define an experiment function `bandit_experiment`
-that we’ll use throughout this chapter. In short, it takes multiple agents, length of each episode, and the number of episodes, then executes these agents repeatedly in a shared bandit environment, which gets reset after each episode.
-It returns two arrays: the average reward per step and the percentage of optimal actions taken per step—both averaged over all runs.
+
+
+
+
+The next code bit, which is collapsed, defines the `bandit_experiment` function
+that we’ll use throughout this chapter. In short, it repeatedly runs a bunch of bandit agents for fixed number of steps and returns two arrays: the average reward per step and the percentage of optimal actions taken per step—both averaged over all runs.
 These results can then be visualised using the plotting functions also provided in this code snipped. You don’t have to read the code unless you’re curious...
 
 ```{python}
 # === the core bandit experiment ===
 
+
 # --- config
 @dataclass
 class Config:
     bandit_num_arms: int = 10
-    bandit_setup_mu: float = 0.0
-    bandit_setup_sd: float = 1.0
-    bandit_action_sd: float = 1.0
-    bandit_value_drift: bool = False
-    bandit_value_drift_mu: float = 0.0
-    bandit_value_drift_sd: float = 0.0
+    bandit_q_mu: float = 0.0
+    bandit_q_sd: float = 1.0
+    bandit_reward_sd: float = 1.0
+    bandit_q_drift: bool = False
+    bandit_q_drift_mu: float = 0.0
+    bandit_q_drift_sd: float = 0.0
     exp_steps: int = 1_000
     exp_runs: int = 200
     exp_seed: int = 0
@@ -203,29 +265,28 @@ def bandit_experiment(agents, config: Config) -> Tuple[np.ndarray, np.ndarray]:
     average_rwds = np.zeros((num_agents, config.exp_steps))
     optimal_acts = np.zeros((num_agents, config.exp_steps))
 
-    # allocate a single bandit and reuse its object shell
+    # single bandit object shell
     bandit = ArmedBandit(
-        action_mu=np.empty(config.bandit_num_arms),  # placeholder
-        action_sd=config.bandit_action_sd,
+        action_values=np.empty(config.bandit_num_arms),
+        reward_sd=config.bandit_q_sd,
         seed=config.exp_seed,
     )
 
     for run in range(config.exp_runs):
         # fresh true values for this run
-        bandit.action_mu[:] = rng.normal(
-            config.bandit_setup_mu, config.bandit_setup_sd, size=config.bandit_num_arms
-        )
-        best_action = np.argmax(bandit.action_mu)
+        bandit.action_values[:] = rng.normal(
+            config.bandit_q_mu, config.bandit_q_sd, size=config.bandit_num_arms
+        )  # todo: is [:] necessary?
+        best_action = np.argmax(bandit.action_values)
 
-        # reset all agents
         for agent in agents:
             agent.reset()
 
-        # vectorised drift noise: shape = (exp_steps, bandit_num_arms)
-        if config.bandit_value_drift:
+        # drift noise for the whole run
+        if config.bandit_q_drift:
             drift_noise = rng.normal(
-                config.bandit_value_drift_mu,
-                config.bandit_value_drift_sd,
+                config.bandit_q_drift_mu,
+                config.bandit_q_drift_sd,
                 size=(config.exp_steps, config.bandit_num_arms),
             )
 
@@ -236,9 +297,9 @@ def bandit_experiment(agents, config: Config) -> Tuple[np.ndarray, np.ndarray]:
                 average_rwds[i, t] += rwd
                 optimal_acts[i, t] += act == best_action
 
-            if config.bandit_value_drift:
-                bandit.action_mu += drift_noise[t]
-                best_action = np.argmax(bandit.action_mu)
+            if config.bandit_q_drift:
+                bandit.action_values += drift_noise[t]
+                best_action = np.argmax(bandit.action_values)
 
     # mean over runs
     average_rwds /= config.exp_runs
@@ -257,7 +318,7 @@ def plot_average_reward(
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 4))
 
-    steps  = np.arange(1, average_rewards.shape[1] + 1)
+    steps = np.arange(1, average_rewards.shape[1] + 1)
     if labels is None:
         labels = [f"agent {i}" for i in range(average_rewards.shape[0])]
 
@@ -282,7 +343,7 @@ def plot_optimal_action_percent(
     if ax is None:
         _, ax = plt.subplots(figsize=(8, 4))
 
-    steps  = np.arange(1, optimal_action_percents.shape[1] + 1)
+    steps = np.arange(1, optimal_action_percents.shape[1] + 1)
     if labels is None:
         labels = [f"agent {i}" for i in range(optimal_action_percents.shape[0])]
 
@@ -342,10 +403,11 @@ plt.show()
 The percentage of optimal step selection
 :::
 
-[@sutton2018, Figure 2.2]. The performance of ε-greedy sample average agents on the 10-armed testbed for different values $\varepsilon$ averaged over 2000 runs.
+The performance of ε-greedy sample average agents on the 10-armed testbed for different values $\varepsilon$ averaged over 2000 runs.
+[@sutton2018, Figure 2.2]
 ::::
 
-Out of curiosity, let’s see what happens when we have only one run, so there is no averaging to be done. It's a mess, wow. Without averaging over a couple of runs, we can't make out anything.
+Out of curiosity, let’s see what happens when we have only one run, so there is no averaging to be done. It's a mess, now. Without averaging over a couple of runs, we can't make out anything.
 
 ```{python}
 # === experiment with only one run ===
@@ -408,7 +470,7 @@ In the comparison shown in @fig-2.2-bandit-comparison-greediness, which method w
 :::
 ::: {#sol-2.3}
 Obviously, we can disregard $\varepsilon = 0$. It's just rubbish.
-Before we do the quantitative analysis, let's see what happens when we just crank up the number of steps (and reduce the runs even though now it's a bit noisier).
+Before we do the quantitative analysis, let's see what happens when we just crank up the number of steps (and in return reduce the number of runs, which makes it a bit noisier).
 
 ```{python}
 # === battle between ε=0.1 and ε=0.01 ===
@@ -432,9 +494,9 @@ plt.tight_layout()
 plt.show()
 ```
 
-We can see that $\varepsilon=0.01$ outperforms $\varepsilon=0.1$ in average reward around step $2000$. However, achieving a higher percentage of optimal actions takes more than $10,000$ steps. It's actually quite interesting that achieving a higher percentage of optimal actions takes significantly longer.
+We can see that $\varepsilon=0.01$ outperforms $\varepsilon=0.1$ in average reward around step $2000$. However, achieving a higher percentage of optimal actions takes more than $10,000$ steps. It's actually quite interesting that this takes significantly longer.
 
-Now, let's consider the long-term behaviour. In the limit, we can assume both methods have near-perfect $Q$-values and the only reason they select non-optimal actions is due to their $\varepsilon$-softness.
+Now, let's consider the asymptotic long-term behaviour. We can assume both methods have near-perfect $Q$-values and the only reason they select non-optimal actions is due to their $\varepsilon$-softness.
 
 This makes calculating the optimal action probability quite easy.
 $$
@@ -614,7 +676,7 @@ Q_{n+1} &= Q_n + \alpha_n \Big[ R_n - Q_n \Big] \\
 \end{split}
 $$
 
-We also note that in this general setting, @eq-general-weighted-average is still a weighted average. We could prove it by induction or use a little trick. If we set $Q_1 = 1$ and $R_n = 1$ for all $n$ in the recurrence relation @eq-non-constant-stepsize we see that each $Q_n = 1$. If we do the same in the explicit formula @eq-general-weighted-average we see that each $Q_n$ is equal to the sum of the weights. Therefore, the weights sum up to $1$.
+Note that the more general @eq-general-weighted-average is still a weighted average. We could prove it by induction or use a little trick. If we set $Q_1 = 1$ and $R_n = 1$ for all $n$ in the recurrence relation @eq-non-constant-stepsize we see that each $Q_n = 1$. If we do the same in the explicit formula @eq-general-weighted-average we see that each $Q_n$ is equal to the sum of the weights. Therefore, the weights sum up to $1$.
 :::
 
 
@@ -627,11 +689,11 @@ Alright, let's do a little experiment, just as they told us.
 ```{python}
 # === battle between sample average and constant step ===
 config = Config(
-    bandit_setup_mu=0,
-    bandit_setup_sd=0,
-    bandit_value_drift=True,
-    bandit_value_drift_mu=0,
-    bandit_value_drift_sd=0.01,
+    bandit_q_mu=0,
+    bandit_q_sd=0,
+    bandit_q_drift=True,
+    bandit_q_drift_mu=0,
+    bandit_q_drift_sd=0.01,
     exp_steps=10_000,
     exp_runs=100,
 )
@@ -664,10 +726,10 @@ However, it remains unclear exactly how rapidly the sample average method will d
 
 ## Optimistic Initial Values
 
-We later need the following figure comparing an optimistic greedy agent and a realistic $\varepsilon$-greedy agent.
+We need the following figure comparing an optimistic greedy agent and a realistic $\varepsilon$-greedy agent.
+
+:::{#fig-bandit-comparison-optimism}
 ```{python}
-# | label: fig-bandit-comparison-optimism
-# | fig-cap: "This is like Figure 2.3 [@sutton2018]: the effect of optimistic initial action-value estimates."
 # === realism vs optimism ===
 config = Config(
     exp_steps=1_000,
@@ -695,6 +757,10 @@ plt.tight_layout()
 plt.show()
 ```
 
+The effect of optimistic initial action-value estimates.
+[@sutton2018, Figure 2.3]
+:::
+
 ::: {#exr-2.6}
 ## Mysterious Spikes
 The results shown in @fig-bandit-comparison-optimism should be quite reliable because they are averages over 2000 individual, randomly chosen 10-armed bandit tasks. Why, then, are there oscillations and spikes in the early part of the curve for the optimistic method? In other words, what might make this method perform particularly better or worse, on average, on particular early steps?
@@ -708,17 +774,17 @@ config = Config(
     exp_runs=5_000,
 )
 agent_optimistic_greedy = ConstantStepBanditAgent(
-    Q1=np.full(config.bandit_num_arms, 5.0, dtype=float), α=0.1, ε=0.0, seed=config.exp_seed
+    Q1=np.full(config.bandit_num_arms, 5.0, dtype=float),
+    α=0.1,
+    ε=0.0,
+    seed=config.exp_seed,
 )
 agent_realistic_ε_greedy = ConstantStepBanditAgent(
     Q1=np.zeros(config.bandit_num_arms, dtype=float), α=0.1, ε=0.1, seed=config.exp_seed
 )
 
 agents = [agent_optimistic_greedy, agent_realistic_ε_greedy]
-avg_rwd, opt_pct = bandit_experiment(
-    agents,
-    config
-)
+avg_rwd, opt_pct = bandit_experiment(agents, config)
 
 labels = [
     "optimistic,greedy (Q1=5, ε=0, α=0.1)",
@@ -803,13 +869,13 @@ We have the opportunity to introduce a new agent here. The update rule remains t
 
 $$
 A_t := \mathrm{argmax}_a \left[ Q_t(a) + c \sqrt{ \frac{\ln t}{N_t(a)} }\right]
-$$
+$$ {#eq-ucb-action-selection}
 
 where $N_t(a)$ is the number of times that action has been selected, c > 0 controls the exploration (similar to $\varepsilon$). 
 
 If an action has not been selected even once, i.e., $N_t(a)=0$, then $a$ is considered to be a maximizing action. (In our case, this means that in the first few steps, all actions have to be selected once, and only after that does the UCB-based action selection kick in.)
 
-By the way, I have no idea where the UCB formulation comes from, but at least it looks fancy (and reasonable), and we can implement it:
+By the way, I have no idea where the UCB formulation comes from, but at least it looks fancy (and reasonable), and it doesn't look too hard to implement it:
 
 ```{python}
 # | code-fold: false
@@ -831,12 +897,10 @@ class UcbBanditAgent:
 
         # upper-Confidence-Bound Action Selection
         if self.t <= self.num_actions:
-            # if not all actions have been tried yet, select an untried action
+            # not all actions have been tried yet
             action = self._choose_untaken_action()
         else:
-            # calculate UCB values for each action
             ucb_values = self.Q + self.c * np.sqrt(np.log(self.t) / (self.counts))
-            # select the action with the highest UCB value
             action = np.argmax(ucb_values)
 
         # take action and observe the reward
@@ -853,9 +917,9 @@ class UcbBanditAgent:
 ```  
 
 Let’s recreate the figure illustrating UCB action selection performance, which we'll need for the next exercise.
+
+:::{#fig-bandit-ucb-performance}
 ```{python}
-# | label: fig-bandit-ucb-performance
-# | fig-cap: "This is like Figure 2.4 [@sutton2018]: average performance of UCB action selection."
 # === ucb agent performance ===
 config = Config(
     exp_steps=1_000,
@@ -882,12 +946,31 @@ plt.tight_layout()
 plt.show()
 ```
 
+Average performance of UCB action selection. [@sutton2018, Figure 2.4]
+:::
+
 ::: {#exr-2.8}
 ## UCB Spikes
 In @fig-bandit-ucb-performance the UCB algorithm shows a distinct spike in performance on the 11th step. Why is this? Note that for your answer to be fully satisfactory it must explain both why the reward increases on the 11th step and why it decreases on the subsequent steps. Hint: if $c = 1$, then the spike is less prominent.
 :::
 ::: {#sol-2.8}
-I think the answer is similar to the answer to Exercise 2.6. The first $10$ steps the UCB algorithm tries out all actions. Then on step $11$ it will select the one that scored highest, which is quite a decent strategy. But then because of the $N_t​(a)$ in the denominator it is back to exploring.
+I think the answer is similar to the answer to Exercise 2.6. The first $10$ steps the UCB algorithm tries out all actions. Then on step $11$ it will select the one that scored highest, which is quite a decent strategy. But then because of the $N_t​(a)$ in the denominator it goes back to exploring. The higher $c$ is the more it does so:
+```{python}
+exp_runs = 2_000
+config = Config(exp_steps=15, exp_runs=exp_runs)
+
+cs = [1 / 2, 1, 2, 3]
+agents = [
+    UcbBanditAgent(num_actions=config.bandit_num_arms, c=c, seed=config.exp_seed)
+    for c in cs
+]
+avg_rwd, opt_pct = bandit_experiment(agents, config)
+
+plot_optimal_action_percent(opt_pct, labels=[f"c={c}" for c in cs])
+plt.tight_layout()
+plt.title("Optimal-action frequency for UCB (average {exp_runs} runs)")
+plt.show()
+```
 :::
 
 ## Gradient Bandit Algorithms
@@ -963,14 +1046,14 @@ In the derivation of the update as a form of stochastic gradient ascent, the bas
 I assume, the baseline serves to reduce the variance of the estimator, although I have no idea about the maths behind it.
 
 Here we recreat Figure 2.5 [@sutton2018], which shows how drastically the running average baseline can improve performance.
+
+:::{#fig-gradient-bandit-performance}
 ```{python}
-# | label: fig-gradient-bandit-performance
-# | fig-cap: "This is like Figure 2.5 [@sutton2018]: average performance of the gradient bandit algorithm with and without a reward baseline on the 10-armed testbed when the $q_*(a)$ are chosen to be near $+4$ rather than near zero. (we averaged over 50 runs because it gives this cool jaggedy looking graph)"
 # === gradient bandit performance ===
 config = Config(
     exp_steps=1_000,
     exp_runs=50,
-    bandit_setup_mu=4,
+    bandit_q_mu=4,
 )
 
 alphas = [0.1, 0.4]
@@ -987,6 +1070,8 @@ plt.tight_layout()
 plt.show()
 ```
 
+Average performance of the gradient bandit algorithm with and without a reward baseline on the 10-armed testbed when the $q_*(a)$ are chosen to be near $+4$ rather than near zero. (we averaged over 50 runs because it gives this cool jaggedy looking graph). [@sutton2018, Figure 2.5]
+:::
 
 ::: {#exr-2.9}
 Show that in the case of two actions, the soft-max distribution is the same as that given by the logistic, or sigmoid, function often used in statistics and artificial neural networks.
@@ -1169,165 +1254,139 @@ To achieve this expected reward, we need to keep track of the two bandit problem
 
 ## Summary
 
-::: {#exr-2.11}
-Make a figure analogous to Figure 2.6 for the nonstationary case outlined in Exercise 2.5. Include the constant-step-size $\varepsilon$-greedy algorithm with $\alpha$= 0.1. Use runs of 200,000 steps and, as a performance measure for each algorithm and parameter setting, use the average reward over the last 100,000 steps.
-:::
-::: {#sol-2.11}
-That last exercise is a banger to finish with. There's a lot going on here. I'll explain what was difficult for me at the end, but let’s start with what I actually did and what we can see in the graph.
+Let's recreate the parameter study [@sutton2018, Figure 2.6].
+We compare these four agents across different parameter values:
 
-I ran a parameter sweep for four different bandit agents over 200 episodes of 300,000 steps each. For each episode, I only looked at the average reward over the last 50,000 steps to measure steady-state performance.
+| Agent | Action selection | Update rule | Parameter varied |
+|:------|:-----------------|:------------|:-----------------|
+| **ε-greedy** | Selects actions ε-greedily with respect to the action-value estimates | Sample-average update of the action-value estimates | $\varepsilon$ |
+| **Gradient bandit** | Samples actions from the softmax distribution (Eq. @eq-soft-max-distribution) over preferences | Gradient bandit update of the preferences (Eq. @eq-gradient-bandit-update) | $\alpha$ |
+| **UCB** | Selects actions using the upper confidence bound criterion (Eq. @eq-ucb-action-selection) applied to the action-value estimates | Sample-average update of the action-value estimates | $c$ |
+| **Optimistic greedy (constant step size)** | Selects actions greedily with respect to the action-value estimates. Starts with optimistic estimate $Q_0$ | Constant step-size update of the action-value estimates (step size α) | $Q_0$ |
 
+: Overview Bandit Agents {#tbl-bandit-agents-stationary tbl-colwidths="[10,40,40,10]"}
+
+
+:::{#fig-parameter-study-stationary}
 ```{python}
-# | fig-cap: "Parameter sweep for a non-stationary bandit, similar to Figure 2.6 [@sutton2018]. The plot displays the average reward of the last 50,000 steps of a 300,000-step episode, averaged over 200 runs. The bandit was initialized with action-value means set to 10, which drifted according to a normal distribution with a standard deviation of 0.1 at each step. The standard deviation of the reward noise was 1."
-# === Parameter sweep for nonstationary bandit ===
-"""
-We compare 4 bandit agents:
-0 - ε-greedy sample-average, parameter = ε
-1 - ε-greedy constant α = 0.1, parameter = ε
-2 - Gradient ascent with baseline, parameter = α
-3 - Gradient ascent no baseline, parameter = α
-"""
-from functools import partial
-from matplotlib.ticker import FuncFormatter
-
-import numpy as np
+import pickle
 import matplotlib.pyplot as plt
 
-# custom import
-from scripts.parameter_study.episode_mean import episode_mean
+with open("results/parameter_study_stationary.pkl", "rb") as f:
+    p = pickle.load(f)
 
-# --- Global config
-CONFIG = dict(
-    seed=1000000,
-    num_arms=10,
-    #steps=300_000,
-    #keep=50_000,
-    #runs=200,
-    steps = 1,
-    keep = 1,
-    runs = 1,
-    q_0=10,
-    drift_sd=0.1,
-)
+plot_params = [
+    ("eps_sample", "eps", r"$\varepsilon$-greedy: $\varepsilon$"),
+    ("grad_sample", "alpha", r"Gradient Bandit: $\alpha$"),
+    ("ucb_sample", "c", r"UCB: $c$"),
+    ("optimistic", "q_init", r"Optimistic greedy, $\alpha=0.1$: $Q_0$"),
+]
 
-AGENTS = {
-    "ε in ε-greedy (sample-avg)": dict(
-        id=0,
-        x_name="ε",
-        x_vals=[2**-k for k in (12, 9, 6, 3, 1, 0)],
-        fixed=dict(),
-    ),
-    "ε in ε-greedy (α = 0.1)": dict(
-        id=1,
-        x_name="ε",
-        x_vals=[2**-k for k in (12, 9, 6, 3, 1, 0)],
-        fixed=dict(α=0.1),
-    ),
-    "α in gradient ascent": dict(
-        id=2,
-        x_name="α",
-        x_vals=[2**-k for k in (20, 18, 14, 9, 6, 3, 1)],
-        fixed=dict(),
-    ),
-    "α in gradient ascent (no base)": dict(
-        id=3,
-        x_name="α",
-        x_vals=[2**-k for k in (20, 18, 14, 9, 6, 3, 1)],
-        fixed=dict(),
-    ),
-}
+for group, parameter, label in plot_params:
+    performance = p.get("res").get(group)
+    setting = [spec.get(parameter) for spec in p.get("args").get("groups").get(group)]
+    plt.plot(setting, performance, label=label)
+
+ax = plt.gca()
+ax.set_xscale("log", base=2)
+
+n_episodes = p.get("args").get("n_episodes")
+n_runs = p.get("args").get("n_runs")
+
+plt.ylabel(f"Average reward over first {n_episodes:,} steps")
+plt.xlabel(r"$\varepsilon$, $\alpha$, $c$, $Q_0$")
+plt.title(f"Parameter study (Averaged over {n_runs:,} runs)")
+plt.legend()
+plt.show()
+```    
 
 
-# --- Experiment helper
-def evaluate(agent_type: int, **kwargs) -> float:
-    """Mean reward over the last *keep* steps averaged across *runs* runs."""
-    args = {**CONFIG, **kwargs}
-    rng = np.random.default_rng(args["seed"])
-    seeds = rng.integers(0, 2_000_000, size=args["runs"])
+Performance comparison over multiple agents (see @tbl-bandit-agents-stationary). For each agent we sweep over the relevant parameter and plot the average reward over the first 1000 steps. This looks near identical to the original figure from the book (except that here the parameter ranges are a bit bigger)
+[@sutton2018, Figure 2.6]
+:::
 
-    rewards = [
-        episode_mean(
-            agent_type,
-            args["num_arms"],
-            args["steps"],
-            args["keep"],
-            args["q_0"],
-            1,  # bandit_action_sd
-            0,  # drift_mu
-            args["drift_sd"],
-            seed,
-            kwargs.get("ε", 0.1),
-            kwargs.get("α", 0.1),
-        )
-        for seed in seeds
-    ]
-    return float(np.mean(rewards))
+UCB achieves the highest overall average reward and has a remarkable high and stable plateau for small $c$.
+Surprisingly, the optimistic greedy agent performs second best, though its success likely hinges on careful tuning of $Q_0$​—a process that may be highly sensitive to the number of steps. When $Q_0$​ is set low (like $2^{-7} \approx 0.008$), the agent effectively acts like a constant-step-size greedy approach, which has the worst performance.
+
+The data for the parameter study was precomputed using `/scripts/parameter_study/study_stationary.py`, which heavily relies on NumPy’s vectorized array operations for performance. This approach avoids the overhead of slow Python loops. Using the pure Python implementation of the agents from this chapter would be significantly slower for this task.
+
+::: {#exr-2.11}
+Make a figure analogous to @fig-parameter-study-stationary for the nonstationary case outlined in @exr-2.5. Include the constant-step-size $\varepsilon$-greedy algorithm with $\alpha$= 0.1. Use runs of 200,000 steps and, as a performance measure for each algorithm and parameter setting, use the average reward over the last 100,000 steps.
+:::
+::: {#sol-2.11}
+That last exercise is a bit of a banger to finish, but I’m pleased to present the results of the parameter study.
+First the candidates agents and their parameters:
 
 
-# --- run the sweeps
-results = {}
-for label, spec in AGENTS.items():
-    run = partial(evaluate, spec["id"], **spec["fixed"])
-    results[label] = [run(**{spec["x_name"]: x}) for x in spec["x_vals"]]
+| Agent                          | Action selection                          | Update rule                                      | Parameter varied |
+|:-------------------------------|:------------------------------------------|:-------------------------------------------------|:-----------------|
+| **Sample mean ε-greedy**       | $\varepsilon$-greedily over action-value estimates   | Sample-average                                   | $\varepsilon$                |
+| **Constant-step-size ε-greedy**| $\varepsilon$-greedily over action-value estimates   | Constant step-size ($\alpha = 0.1$)                     | $\varepsilon$                |
+| **Sample mean UCB**            | UCB criterion over action-value estimates| Sample-average                                   | $c$                |
+| **Constant-step-size UCB**     | UCB criterion over action-value estimates| Constant step-size ($\alpha = 0.1$)                     | $c$                |
+| **Gradient bandit**            | Softmax sampling over preferences         | Gradient bandit update of preferences            | $\alpha$                |
+| **Constant-step-size baseline Gradient bandit** | Softmax sampling over preferences | Gradient bandit update of preferences and constant-step-size updates for baseline $B_t$ ($\alpha_B = 0.1$) | $\alpha$                |
 
-# --- plot
-fig, ax = plt.subplots(figsize=(10, 6))
+: Overview of bandit agents used in the non-stationary setting {#tbl-bandit-agents-nonstationary tbl-colwidths="[20,30,40,10]"}
 
-markers = ["^", "o", "s", "*"]  # one per agent
-for (label, spec), marker in zip(AGENTS.items(), markers):
-    ax.plot(
-        spec["x_vals"],
-        results[label],
-        marker=marker,
-        label=label,
-    )
+A note on the last agent: In the standard gradient bandit algorithm, the baseline $B_t$ is the sample average of all previous rewards. Here, we modify this by using a constant step-size update for the baseline instead.
+
+So here is the parameter sweep: all initial action values $q_*(a)$ start at 0 and evolve via independent random walks, with increments drawn from $N(0, 0.01)$ at each step. Rewards are then sampled from $N(q_*(a), 1)$.
+
+
+```{python}
+import pickle
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+
+with open("results/parameter_study_nonstationary.pkl", "rb") as f:
+    p = pickle.load(f)
+
+plot_params = [
+    ("eps_sample", "eps", r"$\varepsilon$-greedy, sample mean: $\varepsilon$"),
+    ("eps_const", "eps", r"$\varepsilon$-greedy with $\alpha=0.1$: $\varepsilon$"),
+    ("ucb_sample", "c", r"UCB, sample mean: $c$"),
+    ("ucb_const", "c", r"UCB with $\alpha=0.1$: $c$"),
+    ("grad_sample", "alpha", r"gradient bandit: $\alpha$"),
+    ("grad_const", "alpha", r"gradient bandit with $\alpha_B=0.1$: $\alpha$"),
+]
+
+plt.figure(figsize=(12, 6))
+
+for group, parameter, label in plot_params:
+    performance = p.get("res").get(group)
+    setting = [spec.get(parameter) for spec in p.get("args").get("groups").get(group)]
+    plt.plot(setting, performance, label=label)
+
+ax = plt.gca()
 
 ax.set_xscale("log", base=2)
-ax.set_xlabel("Exploration / step-size (log scale)")
-ax.set_ylabel(
-    f"Average reward for the last {CONFIG['keep']:,} steps ({CONFIG['steps']:,} steps total)"
-)
-ax.set_title(f"Average reward (mean of {CONFIG['runs']} runs)")
-ax.grid(True, which="both", linewidth=0.5)
+ax.xaxis.set_major_locator(ticker.LogLocator(base=2, numticks=20))
 
-ax.xaxis.set_major_formatter(
-    FuncFormatter(lambda x, _: f"1/{int(1/x)}" if x < 1 else str(int(x)))
-)
 
-ax.legend()
-fig.tight_layout()
+n_episodes = p.get("args").get("n_episodes")
+keep_last = p.get("args").get("keep_last")
+n_runs = p.get("args").get("n_runs")
+
+plt.ylabel(f"Average reward of last {keep_last:,} steps of {n_episodes,} total")
+plt.xlabel(r"a")
+plt.title(f"Parameter study non-stationary setting (Averaged over {n_runs:,} runs)")
+plt.legend(ncol=3)
 
 plt.show()
 ```
 
-The agents I tested were:
+Another surprise: $varepsilon$-greedy is the winner. This simple algorithm performs quite well in this study. UCB also does well, but its effective parameter range is quite narrow (and surprisingly high at around $c=2^7=128$).
+For the gradient bandit, the baseline update method doesn't seem to matter much.
+However, what surprises me most is that the sample mean $\varepsilon$-greedy performs as well as, or even better than, the gradient bandit, as it has a broader sweet spot. It appears that the gradient bandit isn't exploring enough.
 
-- $\varepsilon$-greedy with sample-average action values, sweeping over $\varepsilon$
-- $\varepsilon$-greedy with constant step-size (α = 0.1), also sweeping $\varepsilon$
-- gradient ascent with a sample-average baseline, sweeping $\alpha$
-- gradient ascent with no baseline, again sweeping $\alpha$
-
-To encourage adaptability, I changed the drift to 0.1.
-
-Let's go through some observations:
-
-1. constant step-size ε-greedy outperforms the others. Not that surprising.
-2. gradient ascent underperforms. That surprised me. I'd assumed the gradient method would be a good fit for a drifting environment. However, it does worse than the sample-average ε-greedy.
-3. small α performs best for gradient ascent. This one I don’t have a great explanation for, as very small step sizes typically result in slow learning.
-4. also, the baseline doesn't matter for verly low α. Again no clue.
-5. sample-average ε-greedy agent is better than I expected. I thought that, with that many steps, it wouldn’t be able to keep up with the changing environment.
-6. random Behaviour for ε = 1. The ε-greedy agents with ε = 1 behaves randomly, as expected. Both agents achieve a reward of 10, which is consistent with random action selection.
-
-So, this figure raises quite a few questions I can't yet answer. I think that makes this execrise really good. And maybe in the future I will be able to provide more insights about these findings.
-
-This was a lot of work. Running 200 episodes at 300,000 steps each is way too slow in pure Python. I had to offload the inner loop into a separate file and used Numba to JIT-compile it, basically rewriting all the algorithms used in this experiment. That's also why I don't want to spend more time trying out gradient ascent with a constant-step baseline. Additionally, I can't guarantee that there isn't some subtle bug in the code for the main loop, as I didn't really test all the algorithms.
 :::
 
-## appendix {#sec-appendix-multi-arm-bandits}
+## Appendix 🔍 {#sec-appendix-multi-arm-bandits}
 
 Here are some more details on concepts that came up during this chapter.
 
-### distribution
+### Distribution
 
 Every random variable $X$ has a distribution, denoted $p_X$, which maps each possible value to its probability:
 $$
@@ -1343,7 +1402,7 @@ Two random variables $X$ and $Y$ have the same distribution if $p_X = p_Y$.
 
 The distribution of $X$ turns $(\mathcal{X}, p_X)$ into a probability space, where $p_X$ is called the *pushforward measure*.
 
-### independent and identically distributed random variables {#sec-iid}
+### Independent and Identically Distributed Random Variables {#sec-iid}
 
 A very important concept: **IID**. A collection of random variables $X_1, \dots, X_n$ is *independent and identically distributed* (IID) if all random variables have the same probability distribution, and all are mutually independent.
 
@@ -1354,7 +1413,7 @@ Formally, this means:
 
 for all distinct indices $i \neq j$.
 
-### lotus
+### Lotus
 
 The following theorem is widely known as the "law of the unconscious statistician". It is fundamental in many calculations as it allows us to compute the expected value of functions of random variables by only knowing the distributions of the random variables.
 
@@ -1383,7 +1442,7 @@ $$
 $$
 :::
 
-### multiplication rule of conditional probabilities
+### Multiplication Rule of Conditional Probabilities
 
 The multiplication rule of conditional probabilities is great for manipulating unknown distributions into known distributions.
 
@@ -1439,7 +1498,7 @@ $$
 $$
 :::
 
-### variance
+### Variance
 
 The variance $\mathrm{Var}(X)$ of a random variable is defined as:
 $$
@@ -1453,7 +1512,7 @@ $$
 \mathrm{Var}(X) = \mathbb{E}[X^2] - \mathbb{E}[X]^2.
 $$
 
-### independent variables
+### Independent Variables
 
 Two random variables $X,Y$ are independent if
 $$
@@ -1532,7 +1591,7 @@ $$
 $$
 :::
 
-### estimators
+### Estimators
 
 Estimators are functions used to infer the value of a hidden parameter from observed data.
 
@@ -1544,7 +1603,7 @@ and called estimators for $q_*$.
 
 There are some common metrics for determining the quality of an estimator.
 
-#### bias {.unnumbered}
+#### Bias {.unnumbered}
 
 The bias of $Q_n$ is 
 $$
@@ -1634,7 +1693,7 @@ $$
 $$
 :::
 
-### geometric series {#sec-geometric-series}
+### Geometric Series {#sec-geometric-series}
 
 In the context of reinforcement learning, the concept of discounting naturally requires the notion of _geometric series_. This series is defined as,
 $$
@@ -1675,7 +1734,7 @@ $$
 \sum_{i=1}^\infty \gamma^i = \frac{\gamma}{1-\gamma}
 $$ {#eq-infinite-geometric-series-truncated}
 
-### recurrence Relations {#sec-recurrence-relations}
+### Recurrence Relations {#sec-recurrence-relations}
 
 As it turns out, the basic geometric series we've explored isn't quite enough to handle discounting and cumulative discounted returns in reinforcement learning.
 While the geometric series solves the homogeneous linear recurrence relation given by @eq-geometric-series-recurrence-relation, dealing with cumulative discounted returns introduces a non-homogeneous variation, where the constants 1s are replaced by a some $r_i$​, leading to the recurrence relation:

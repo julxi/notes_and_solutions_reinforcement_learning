@@ -13,6 +13,7 @@ book:
     - chapters/03-finite-markov-decision-processes.qmd
     - chapters/04-dynamic-programming.qmd
     - chapters/05-monte-carlo-methods.qmd
+    - chapters/06-temporal-difference-learning.qmd
 bibliography: references.bib
 format:
   html:
