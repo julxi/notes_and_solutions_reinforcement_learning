@@ -1,3 +1,8 @@
+/*** Exercise styling ***/
+.exercise .theorem-title {
+    color: #ff5733;
+}
+
 .proof.solution {
     position: relative;
     /* Needed to position the pseudo-element */
@@ -6,10 +11,11 @@
 /* Bottom-right corner line */
 .proof.solution::after {
     content: "";
+    color: #ff5733;
     position: absolute;
     right: 0;
     bottom: 0;
-    width: 10px;
+    width: 30px;
     height: 10px;
     box-sizing: content-box;
     border-right: 2px solid currentColor;
@@ -17,6 +23,18 @@
 }
 
 
+/*** Example */
+.example .theorem-title {
+    color: #00FFFF;
+}
+
+.theorem.example {
+    position: relative;
+    background-color: rgba(0, 255, 255, 0.05);
+    /* Neon blue with 30% opacity */
+}
+
+/* Listing styling */
 .listing-block {
     color: #dddddd;
     background-color: #2b2b2b;
@@ -24,5 +42,5 @@
     border: 1px solid #dddddd;
     padding: 10px;
     border-radius: 3px;
-    font-size: 12px;
+    font-size: 14px;
 }

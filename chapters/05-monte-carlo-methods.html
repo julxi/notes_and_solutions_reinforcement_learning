@@ -86,6 +86,7 @@ div.csl-indent {
 <script src="../site_libs/quarto-search/fuse.min.js"></script>
 <script src="../site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="../">
+<link href="../chapters/06-temporal-difference-learning.html" rel="next">
 <link href="../chapters/04-dynamic-programming.html" rel="prev">
 <script src="../site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
@@ -405,6 +406,12 @@ window.Quarto = {
  <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Monte Carlo Methods</span></span></a>
   </div>
 </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../chapters/06-temporal-difference-learning.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Temporal-Difference Learning (Still in Progress 🔨)</span></span></a>
+  </div>
+</li>
     </ul>
     </div>
 </nav>
@@ -540,7 +547,7 @@ Loop forever:<br>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>        π_at_least_20[state] <span class="op">=</span> Action.STICK</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Now let’s set up the code for <a href="#lst-mc-prediction-first-visit" class="quarto-xref">Listing&nbsp;<span>5.1</span></a>. We need to make a few changes:</p>
+<p>Now let’s set up the code for <a href="06-temporal-difference-learning.html#lst-mc-prediction-first-visit" class="quarto-xref">Listing&nbsp;<span>6.1</span></a>. We need to make a few changes:</p>
 <ul>
 <li>Include a stop condition—a simple step counter.</li>
 <li>Calculate the averages for the state-value approximation just once at the end.</li>
@@ -998,7 +1005,7 @@ Loop forever:<br>
 </div>
 </figure>
 </div>
-<p>It’s actually quite ingenious how this algorithm circumvents the problem that MC prediction <a href="#lst-mc-prediction-first-visit" class="quarto-xref">Listing&nbsp;<span>5.1</span></a> does not terminate, by letting the approximate <span class="math inline">\(Q\)</span> be a blend of all returns from all policies the algorithm has passed through so far. On the other hand, in my experience this algorithm tends to live in asymptopia—it can take an unpractical large number of episodes to converge to the optimal policy. In the practical world it can also result in rather flip-floppy behaviour. For example, in <a href="#exm-5.3-solving-black-jack" class="quarto-xref">Example&nbsp;<span>5.3</span></a> there are actions with low signal-to-noise ratios: their <span class="math inline">\(q\)</span>-values are close and have high variance. In this case the algorithm will often switch rapidly between these action values. It will eventually, in the limit—whenever that may be—settle on the correct one, but for solving Blackjack I couldn’t get there by sheer brute force. For obtaining good enough policies this is not a real problem—when the <span class="math inline">\(q\)</span>-values are close, it is largely unimportant which one gets chosen.</p>
+<p>It’s actually quite ingenious how this algorithm circumvents the problem that MC prediction <a href="06-temporal-difference-learning.html#lst-mc-prediction-first-visit" class="quarto-xref">Listing&nbsp;<span>6.1</span></a> does not terminate, by letting the approximate <span class="math inline">\(Q\)</span> be a blend of all returns from all policies the algorithm has passed through so far. On the other hand, in my experience this algorithm tends to live in asymptopia—it can take an unpractical large number of episodes to converge to the optimal policy. In the practical world it can also result in rather flip-floppy behaviour. For example, in <a href="#exm-5.3-solving-black-jack" class="quarto-xref">Example&nbsp;<span>5.3</span></a> there are actions with low signal-to-noise ratios: their <span class="math inline">\(q\)</span>-values are close and have high variance. In this case the algorithm will often switch rapidly between these action values. It will eventually, in the limit—whenever that may be—settle on the correct one, but for solving Blackjack I couldn’t get there by sheer brute force. For obtaining good enough policies this is not a real problem—when the <span class="math inline">\(q\)</span>-values are close, it is largely unimportant which one gets chosen.</p>
 <p>The general method also suffers from the usual problems that come with MC methods. When should we stop? How do we know that we have enough episodes? This is a substantial question in its own right, but we’re dealing with the foundations here, so we’ll leave it for now.</p>
 <div id="exr-5.4" class="theorem exercise">
 <p><span class="theorem-title"><strong>Exercise 5.4</strong></span> The pseudocode for Monte Carlo ES is inefficient because, for each state-action pair, it maintains a list of all returns and repeatedly calculates their mean. It would be more efficient to use techniques similar to those explained in Section 2.4 to maintain just the mean and a count (for each state–action pair) and update them incrementally. Describe how the pseudocode would be altered to achieve this.</p>
@@ -2011,7 +2018,7 @@ V^\mathrm{OIS}_\text{ev} = \frac{\sum_{i=1}^m [C = T] (2^{L_i+1}-2)}{\sum_{i=1}^
 V_n = \frac{\sum_{k=1}^{n-1}W_kG_k}{\sum_{k=1}^{n-1}W_k}
 \]</span></p>
 <div id="exr-5.9" class="theorem exercise">
-<p><span class="theorem-title"><strong>Exercise 5.9</strong></span> Modify the algorithm for first-visit MC policy evaluation (<a href="#lst-mc-prediction-first-visit" class="quarto-xref">Listing&nbsp;<span>5.1</span></a>) to use the incremental implementation for sample averages described in Section 2.4.</p>
+<p><span class="theorem-title"><strong>Exercise 5.9</strong></span> Modify the algorithm for first-visit MC policy evaluation (<a href="06-temporal-difference-learning.html#lst-mc-prediction-first-visit" class="quarto-xref">Listing&nbsp;<span>6.1</span></a>) to use the incremental implementation for sample averages described in Section 2.4.</p>
 </div>
 <div id="sol-5.9" class="proof solution">
 <p><span class="proof-title"><em>Solution 5.9</em>. </span></p>
@@ -3053,6 +3060,9 @@ Sutton, Richard S., and Andrew G. Barto. 2018. <em>Reinforcement Learning: An In
       </a>          
   </div>
   <div class="nav-page nav-page-next">
+      <a href="../chapters/06-temporal-difference-learning.html" class="pagination-link" aria-label="Temporal-Difference Learning (Still in Progress 🔨)">
+        <span class="nav-page-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Temporal-Difference Learning (Still in Progress 🔨)</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
   </div>
 </nav>
 </div> <!-- /content -->
