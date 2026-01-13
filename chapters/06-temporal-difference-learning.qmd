@@ -1,5 +1,5 @@
 ---
-date: 2025-12-15
+date: 2026-01-13
 
 diagram:
     cache: true
@@ -9,7 +9,7 @@ diagram:
                 - '\usetikzlibrary{arrows.meta,calc, positioning, backgrounds}'
 ---
 
-# Temporal-Difference Learning
+# Temporal-Difference Learning (Still in Progress 🔨)
 
 ---
 
@@ -107,6 +107,7 @@ With this we get
 $$
 G_t - V_t(S_t) = \sum_{k=t}^{T-1}\gamma^{k-t}\delta_k + \alpha \sum_{k=t}^{T-1}\gamma^{k-t+1} \mathbf{1}[S_{k+1} = S_k]\delta_k.
 $$
+
 :::
 
 :::{#exm-6.1}
@@ -1574,20 +1575,5 @@ plot_episode(env, episode)
 
 :::
 
-:::{exr-6.9}
-**Windy Gridworld with King’s Moves (programming)**
-
-The best is 7. Shorter is not possible
-
-
-
 :::
 
-
-:::{exr-6.10}
-**Stochastic Wind (programming)**
-
-
-
-
-:::
